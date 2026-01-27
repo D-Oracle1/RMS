@@ -1,0 +1,12 @@
+import { Module, forwardRef } from '@nestjs/common';
+import { NotificationService } from './notification.service';
+import { NotificationController } from './notification.controller';
+import { WebsocketModule } from '../../websocket/websocket.module';
+
+@Module({
+  imports: [forwardRef(() => WebsocketModule)],
+  controllers: [NotificationController],
+  providers: [NotificationService],
+  exports: [NotificationService],
+})
+export class NotificationModule {}

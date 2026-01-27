@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: rms-postgres-dev
+    environment:
+      POSTGRES_USER: rms_user
+      POSTGRES_PASSWORD: rms_password
+      POSTGRES_DB: rms_db
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - rms-dev-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: rms-redis-dev
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - rms-dev-network
+
+  # MongoDB (for Chat)
+  mongodb:
+    image: mongo:7
+    container_name: rms-mongodb-dev
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: rms_user
+      MONGO_INITDB_ROOT_PASSWORD: rms_password
+      MONGO_INITDB_DATABASE: rms_chat
+    volumes:
+      - mongodb_dev_data:/data/db
+    ports:
+      - "27017:27017"
+    networks:
+      - rms-dev-network
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+  mongodb_dev_data:
+
+networks:
+  rms-dev-network:
+    driver: bridge

@@ -1,0 +1,657 @@
+// ===========================================
+// RMS Platform - Prisma Database Schema
+// ===========================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================
+// ENUMS
+// ===========================================
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  REALTOR
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+  INDUSTRIAL
+  LAND
+  MIXED_USE
+  APARTMENT
+  CONDO
+  TOWNHOUSE
+  VILLA
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  SOLD
+  PENDING
+  LISTED
+  OFF_MARKET
+  UNDER_CONTRACT
+}
+
+enum SaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+  IN_PROGRESS
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  PROCESSING
+}
+
+enum LoyaltyTier {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+}
+
+enum NotificationType {
+  SALE
+  COMMISSION
+  PROPERTY
+  RANKING
+  LOYALTY
+  SYSTEM
+  CHAT
+  PRICE_CHANGE
+  LISTING
+  OFFER
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  PROPERTY
+  SYSTEM
+}
+
+enum DocumentType {
+  CONTRACT
+  DEED
+  INSPECTION
+  APPRAISAL
+  TITLE
+  TAX
+  INSURANCE
+  OTHER
+}
+
+enum TransactionType {
+  SALE
+  PURCHASE
+  COMMISSION
+  TAX
+  BONUS
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum RankingPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  ALL_TIME
+}
+
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  EXPIRED
+  WITHDRAWN
+}
+
+// ===========================================
+// MODELS
+// ===========================================
+
+model User {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  password      String
+  firstName     String
+  lastName      String
+  phone         String?
+  avatar        String?
+  role          UserRole   @default(CLIENT)
+  status        UserStatus @default(PENDING)
+  emailVerified Boolean    @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Role-specific profiles
+  adminProfile   AdminProfile?
+  realtorProfile RealtorProfile?
+  clientProfile  ClientProfile?
+
+  // Notifications
+  notifications Notification[]
+
+  // Messages
+  sentMessages     Message[]  @relation("SentMessages")
+  chatRooms        ChatRoom[] @relation("ChatParticipants")
+
+  // Audit logs
+  auditLogs AuditLog[]
+
+  // Refresh tokens
+  refreshTokens RefreshToken[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+model AdminProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions String[] @default([])
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("admin_profiles")
+}
+
+model RealtorProfile {
+  id                String      @id @default(uuid())
+  userId            String      @unique
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  licenseNumber     String      @unique
+  agency            String?
+  bio               String?
+  specializations   String[]    @default([])
+
+  // Performance metrics
+  totalSales        Int         @default(0)
+  totalSalesValue   Decimal     @default(0) @db.Decimal(15, 2)
+  totalCommission   Decimal     @default(0) @db.Decimal(15, 2)
+  totalTaxPaid      Decimal     @default(0) @db.Decimal(15, 2)
+
+  // Loyalty & Ranking
+  loyaltyTier       LoyaltyTier @default(BRONZE)
+  loyaltyPoints     Int         @default(0)
+  currentRank       Int         @default(0)
+  isRealtorOfMonth  Boolean     @default(false)
+  isRealtorOfYear   Boolean     @default(false)
+  realtorOfMonthCount Int       @default(0)
+  realtorOfYearCount  Int       @default(0)
+
+  // Achievements
+  achievements      String[]    @default([])
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  properties        Property[]
+  sales             Sale[]
+  commissions       Commission[]
+  taxes             Tax[]
+  loyaltyHistory    LoyaltyPoints[]
+  rankings          Ranking[]
+  clients           ClientProfile[]
+
+  @@index([licenseNumber])
+  @@index([loyaltyTier])
+  @@index([currentRank])
+  @@map("realtor_profiles")
+}
+
+model ClientProfile {
+  id                 String          @id @default(uuid())
+  userId             String          @unique
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Assigned realtor
+  realtorId          String?
+  realtor            RealtorProfile? @relation(fields: [realtorId], references: [id])
+
+  // Financial
+  totalPurchaseValue Decimal         @default(0) @db.Decimal(15, 2)
+  totalPropertyValue Decimal         @default(0) @db.Decimal(15, 2)
+
+  // Address
+  address            String?
+  city               String?
+  state              String?
+  zipCode            String?
+  country            String?
+
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relations
+  ownedProperties    Property[]
+  purchases          Sale[]          @relation("ClientPurchases")
+  offers             Offer[]
+
+  @@index([realtorId])
+  @@map("client_profiles")
+}
+
+model Property {
+  id                     String         @id @default(uuid())
+  title                  String
+  description            String?
+  type                   PropertyType
+  status                 PropertyStatus @default(AVAILABLE)
+
+  // Location
+  address                String
+  city                   String
+  state                  String
+  zipCode                String
+  country                String         @default("USA")
+  latitude               Float?
+  longitude              Float?
+
+  // Pricing
+  price                  Decimal        @db.Decimal(15, 2)
+  originalPrice          Decimal        @db.Decimal(15, 2)
+  listingPrice           Decimal?       @db.Decimal(15, 2)
+  appreciationPercentage Float          @default(0)
+
+  // Details
+  bedrooms               Int?
+  bathrooms              Float?
+  area                   Float          // in sq ft
+  lotSize                Float?         // in sq ft
+  yearBuilt              Int?
+  features               String[]       @default([])
+
+  // Media
+  images                 String[]       @default([])
+  virtualTourUrl         String?
+
+  // Listing
+  isListed               Boolean        @default(false)
+  listedAt               DateTime?
+
+  // Ownership
+  ownerId                String?
+  owner                  ClientProfile? @relation(fields: [ownerId], references: [id])
+
+  // Assigned realtor
+  realtorId              String?
+  realtor                RealtorProfile? @relation(fields: [realtorId], references: [id])
+
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  // Relations
+  sales                  Sale[]
+  documents              Document[]
+  offers                 Offer[]
+  priceHistory           PriceHistory[]
+
+  @@index([status])
+  @@index([type])
+  @@index([city])
+  @@index([price])
+  @@index([isListed])
+  @@map("properties")
+}
+
+model Sale {
+  id              String        @id @default(uuid())
+
+  // Parties
+  propertyId      String
+  property        Property      @relation(fields: [propertyId], references: [id])
+  realtorId       String
+  realtor         RealtorProfile @relation(fields: [realtorId], references: [id])
+  clientId        String
+  client          ClientProfile @relation("ClientPurchases", fields: [clientId], references: [id])
+
+  // Sale details
+  salePrice       Decimal       @db.Decimal(15, 2)
+  saleDate        DateTime
+  status          SaleStatus    @default(PENDING)
+
+  // Commission & Tax
+  commissionRate  Float
+  commissionAmount Decimal      @db.Decimal(15, 2)
+  taxRate         Float
+  taxAmount       Decimal       @db.Decimal(15, 2)
+  netAmount       Decimal       @db.Decimal(15, 2)
+
+  // Additional
+  notes           String?
+  closingDate     DateTime?
+
+  // Loyalty points awarded
+  loyaltyPointsAwarded Int      @default(0)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Relations
+  commission      Commission?
+  tax             Tax?
+  transaction     Transaction?
+  loyaltyPoints   LoyaltyPoints?
+
+  @@index([realtorId])
+  @@index([clientId])
+  @@index([status])
+  @@index([saleDate])
+  @@map("sales")
+}
+
+model Commission {
+  id        String           @id @default(uuid())
+  saleId    String           @unique
+  sale      Sale             @relation(fields: [saleId], references: [id])
+  realtorId String
+  realtor   RealtorProfile   @relation(fields: [realtorId], references: [id])
+
+  amount    Decimal          @db.Decimal(15, 2)
+  rate      Float
+  status    CommissionStatus @default(PENDING)
+  paidAt    DateTime?
+
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([realtorId])
+  @@index([status])
+  @@map("commissions")
+}
+
+model Tax {
+  id        String         @id @default(uuid())
+  saleId    String         @unique
+  sale      Sale           @relation(fields: [saleId], references: [id])
+  realtorId String
+  realtor   RealtorProfile @relation(fields: [realtorId], references: [id])
+
+  amount    Decimal        @db.Decimal(15, 2)
+  rate      Float
+  year      Int
+  quarter   Int
+
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([realtorId])
+  @@index([year])
+  @@map("taxes")
+}
+
+model LoyaltyPoints {
+  id        String         @id @default(uuid())
+  realtorId String
+  realtor   RealtorProfile @relation(fields: [realtorId], references: [id])
+
+  points    Int
+  source    String         // e.g., "SALE", "BONUS", "ACHIEVEMENT"
+  saleId    String?        @unique
+  sale      Sale?          @relation(fields: [saleId], references: [id])
+
+  description String?
+
+  createdAt DateTime       @default(now())
+
+  @@index([realtorId])
+  @@index([source])
+  @@map("loyalty_points")
+}
+
+model Ranking {
+  id          String         @id @default(uuid())
+  realtorId   String
+  realtor     RealtorProfile @relation(fields: [realtorId], references: [id])
+
+  period      RankingPeriod
+  periodStart DateTime
+  periodEnd   DateTime
+  rank        Int
+  totalSales  Int
+  totalValue  Decimal        @db.Decimal(15, 2)
+  score       Float
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([realtorId, period, periodStart])
+  @@index([period])
+  @@index([rank])
+  @@map("rankings")
+}
+
+model Offer {
+  id           String        @id @default(uuid())
+  propertyId   String
+  property     Property      @relation(fields: [propertyId], references: [id])
+  buyerId      String
+  buyer        ClientProfile @relation(fields: [buyerId], references: [id])
+
+  amount       Decimal       @db.Decimal(15, 2)
+  status       OfferStatus   @default(PENDING)
+  message      String?
+  counterAmount Decimal?     @db.Decimal(15, 2)
+  expiresAt    DateTime
+  respondedAt  DateTime?
+
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([propertyId])
+  @@index([buyerId])
+  @@index([status])
+  @@map("offers")
+}
+
+model ChatRoom {
+  id           String    @id @default(uuid())
+  name         String?
+  type         String    @default("DIRECT") // DIRECT, GROUP
+  participants User[]    @relation("ChatParticipants")
+
+  lastMessageAt DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // Relations
+  messages     Message[]
+
+  @@map("chat_rooms")
+}
+
+model Message {
+  id          String      @id @default(uuid())
+  roomId      String
+  room        ChatRoom    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id])
+
+  content     String
+  type        MessageType @default(TEXT)
+  attachments Json?       // Array of attachment objects
+  readBy      String[]    @default([])
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([roomId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model Notification {
+  id        String               @id @default(uuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type      NotificationType
+  title     String
+  message   String
+  priority  NotificationPriority @default(MEDIUM)
+  isRead    Boolean              @default(false)
+  data      Json?                // Additional data
+  link      String?              // Navigation link
+
+  readAt    DateTime?
+  createdAt DateTime             @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([type])
+  @@map("notifications")
+}
+
+model Document {
+  id          String       @id @default(uuid())
+  propertyId  String
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  type        DocumentType
+  name        String
+  url         String
+  size        Int          // in bytes
+  mimeType    String
+  uploadedBy  String       // User ID
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([propertyId])
+  @@index([type])
+  @@map("documents")
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  type          TransactionType
+  amount        Decimal           @db.Decimal(15, 2)
+
+  fromUserId    String?
+  toUserId      String?
+
+  referenceId   String            @unique
+  referenceType String            // e.g., "SALE", "COMMISSION"
+  sale          Sale?             @relation(fields: [referenceId], references: [id])
+
+  description   String
+  status        TransactionStatus @default(PENDING)
+
+  processedAt   DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("transactions")
+}
+
+model PriceHistory {
+  id         String   @id @default(uuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  oldPrice   Decimal  @db.Decimal(15, 2)
+  newPrice   Decimal  @db.Decimal(15, 2)
+  changedBy  String   // User ID
+  reason     String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([propertyId])
+  @@map("price_history")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  action     String
+  entity     String
+  entityId   String
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  token     String   @unique
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model SystemSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
