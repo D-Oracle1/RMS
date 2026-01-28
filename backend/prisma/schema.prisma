@@ -293,6 +293,8 @@ model Property {
   price                  Decimal        @db.Decimal(15, 2)
   originalPrice          Decimal        @db.Decimal(15, 2)
   listingPrice           Decimal?       @db.Decimal(15, 2)
+  pricePerSqm            Decimal?       @db.Decimal(15, 2)  // Price per square meter for land
+  numberOfPlots          Int?           // Number of plots for land
   appreciationPercentage Float          @default(0)
 
   // Details

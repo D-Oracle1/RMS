@@ -54,6 +54,10 @@ export class SaleService {
       clientProfile = result as any;
     }
 
+    if (!clientProfile) {
+      throw new BadRequestException('Failed to get or create client profile');
+    }
+
     // Get commission rate based on loyalty tier
     const commissionRate = this.getCommissionRate(realtorProfile.loyaltyTier);
     const commissionAmount = Number(createSaleDto.saleValue) * commissionRate;
@@ -225,7 +229,7 @@ export class SaleService {
         userId: admin.id,
         type: 'SALE',
         title: 'New Sale Recorded',
-        message: `${realtor.user.firstName} ${realtor.user.lastName} sold ${sale.property.title} for $${Number(sale.salePrice).toLocaleString()}`,
+        message: `${realtor.user.firstName} ${realtor.user.lastName} sold ${sale.property.title} for ₦${Number(sale.salePrice).toLocaleString()}`,
         priority: 'HIGH',
         data: {
           saleId: sale.id,
@@ -341,6 +345,139 @@ export class SaleService {
     }
 
     return sale;
+  }
+
+  async updateStatus(id: string, status: SaleStatus, notes?: string) {
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: {
+        property: true,
+        realtor: { include: { user: true } },
+        client: { include: { user: true } },
+      },
+    });
+
+    if (!sale) {
+      throw new NotFoundException('Sale not found');
+    }
+
+    // If confirming a pending sale (changing to COMPLETED)
+    if (status === SaleStatus.COMPLETED && sale.status === SaleStatus.PENDING) {
+      // Update property status to SOLD
+      await this.prisma.property.update({
+        where: { id: sale.propertyId },
+        data: {
+          status: PropertyStatus.SOLD,
+          ownerId: sale.clientId,
+          isListed: false,
+        },
+      });
+
+      // Create commission record if not exists
+      const existingCommission = await this.prisma.commission.findUnique({
+        where: { saleId: sale.id },
+      });
+
+      if (!existingCommission) {
+        await this.commissionService.create({
+          saleId: sale.id,
+          realtorId: sale.realtorId,
+          amount: Number(sale.commissionAmount),
+          rate: sale.commissionRate,
+        });
+      }
+
+      // Create tax record if not exists
+      const existingTax = await this.prisma.tax.findUnique({
+        where: { saleId: sale.id },
+      });
+
+      if (!existingTax) {
+        const now = new Date();
+        await this.taxService.create({
+          saleId: sale.id,
+          realtorId: sale.realtorId,
+          amount: Number(sale.taxAmount),
+          rate: sale.taxRate,
+          year: now.getFullYear(),
+          quarter: Math.floor(now.getMonth() / 3) + 1,
+        });
+      }
+
+      // Award loyalty points if not already awarded
+      if (!sale.loyaltyPointsAwarded || sale.loyaltyPointsAwarded === 0) {
+        const points = await this.loyaltyService.awardPoints({
+          realtorId: sale.realtorId,
+          saleId: sale.id,
+          saleValue: Number(sale.salePrice),
+        });
+
+        await this.prisma.sale.update({
+          where: { id: sale.id },
+          data: { loyaltyPointsAwarded: points },
+        });
+      }
+
+      // Update realtor stats
+      await this.updateRealtorStats(sale.realtorId);
+
+      // Update client stats
+      await this.updateClientStats(sale.clientId, Number(sale.salePrice));
+
+      // Send confirmation notification
+      await this.notificationService.create({
+        userId: sale.realtor.userId,
+        type: 'SALE',
+        title: 'Sale Confirmed',
+        message: `Your sale of ${sale.property.title} has been confirmed!`,
+        priority: 'HIGH',
+        data: { saleId: sale.id },
+        link: `/realtor/sales/${sale.id}`,
+      });
+    }
+
+    // If cancelling a sale
+    if (status === SaleStatus.CANCELLED) {
+      // Revert property status if it was marked as sold
+      if (sale.property.status === PropertyStatus.SOLD) {
+        await this.prisma.property.update({
+          where: { id: sale.propertyId },
+          data: {
+            status: PropertyStatus.AVAILABLE,
+            ownerId: null,
+            isListed: true,
+          },
+        });
+      }
+
+      // Notify realtor
+      await this.notificationService.create({
+        userId: sale.realtor.userId,
+        type: 'SALE',
+        title: 'Sale Cancelled',
+        message: `The sale of ${sale.property.title} has been cancelled.`,
+        priority: 'HIGH',
+        data: { saleId: sale.id },
+        link: `/realtor/sales/${sale.id}`,
+      });
+    }
+
+    // Update the sale status
+    const updatedSale = await this.prisma.sale.update({
+      where: { id },
+      data: {
+        status,
+        notes: notes ? (sale.notes ? `${sale.notes}\n${notes}` : notes) : sale.notes,
+        closingDate: status === SaleStatus.COMPLETED ? new Date() : sale.closingDate,
+      },
+      include: {
+        property: true,
+        realtor: { include: { user: { select: { firstName: true, lastName: true } } } },
+        client: { include: { user: { select: { firstName: true, lastName: true } } } },
+      },
+    });
+
+    return updatedSale;
   }
 
   async getStats(period?: 'week' | 'month' | 'quarter' | 'year') {

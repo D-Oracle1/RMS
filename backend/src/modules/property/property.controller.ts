@@ -18,6 +18,7 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { DocumentType } from '@prisma/client';
 import { PropertyType, PropertyStatus } from '@prisma/client';
 
 @ApiTags('Properties')
@@ -159,7 +160,7 @@ export class PropertyController {
   async addDocument(
     @Param('id') id: string,
     @CurrentUser('id') userId: string,
-    @Body() data: { type: string; name: string; url: string; size: number; mimeType: string },
+    @Body() data: { type: DocumentType; name: string; url: string; size: number; mimeType: string },
   ) {
     return this.propertyService.addDocument(id, { ...data, uploadedBy: userId });
   }

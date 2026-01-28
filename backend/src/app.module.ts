@@ -29,7 +29,9 @@ import { ChatModule } from './modules/chat/chat.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AiModule } from './modules/ai/ai.module';
+import { UploadModule } from './modules/upload/upload.module';
 import { WebsocketModule } from './websocket/websocket.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -74,9 +76,13 @@ import { WebsocketModule } from './websocket/websocket.module';
     NotificationModule,
     AnalyticsModule,
     AiModule,
+    UploadModule,
 
     // WebSocket
     WebsocketModule,
+
+    // Health Check
+    HealthModule,
   ],
   providers: [
     {

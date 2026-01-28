@@ -8,6 +8,9 @@ import {
   IsEnum,
   IsArray,
   Matches,
+  IsDateString,
+  IsNumber,
+  Min,
 } from 'class-validator';
 import { UserRole } from '@prisma/client';
 
@@ -41,7 +44,7 @@ export class RegisterDto {
   @MaxLength(50)
   lastName: string;
 
-  @ApiPropertyOptional({ example: '+1234567890' })
+  @ApiPropertyOptional({ example: '+2348012345678' })
   @IsOptional()
   @IsString()
   phone?: string;
@@ -51,6 +54,39 @@ export class RegisterDto {
   @IsEnum(UserRole)
   role?: UserRole;
 
+  // Personal Details
+  @ApiPropertyOptional({ example: '1990-01-15' })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional({ example: 'male' })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional({ example: '12345678901' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(11)
+  nin?: string;
+
+  @ApiPropertyOptional({ example: '123 Main Street' })
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @ApiPropertyOptional({ example: 'Lagos' })
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'Lagos' })
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  // Realtor specific fields
   @ApiPropertyOptional({ example: 'LIC-12345678' })
   @IsOptional()
   @IsString()
@@ -61,9 +97,26 @@ export class RegisterDto {
   @IsString()
   agency?: string;
 
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  yearsOfExperience?: number;
+
   @ApiPropertyOptional({ example: ['Residential', 'Commercial'] })
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   specializations?: string[];
+
+  // Client specific fields
+  @ApiPropertyOptional({ example: 'land' })
+  @IsOptional()
+  @IsString()
+  preferredPropertyType?: string;
+
+  @ApiPropertyOptional({ example: '50m-100m' })
+  @IsOptional()
+  @IsString()
+  budget?: string;
 }

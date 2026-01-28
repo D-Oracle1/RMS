@@ -65,6 +65,18 @@ export class CreatePropertyDto {
   @Min(0)
   price: number;
 
+  @ApiPropertyOptional({ example: 50000, description: 'Price per square meter (for land)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pricePerSqm?: number;
+
+  @ApiPropertyOptional({ example: 5, description: 'Number of plots (for land)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  numberOfPlots?: number;
+
   @ApiPropertyOptional({ example: 4 })
   @IsOptional()
   @IsNumber()

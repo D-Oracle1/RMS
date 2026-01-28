@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
-import { PropertyStatus, PropertyType } from '@prisma/client';
+import { PropertyStatus, PropertyType, DocumentType } from '@prisma/client';
 
 @Injectable()
 export class PropertyService {
@@ -279,7 +279,7 @@ export class PropertyService {
   async addDocument(
     propertyId: string,
     data: {
-      type: string;
+      type: DocumentType;
       name: string;
       url: string;
       size: number;

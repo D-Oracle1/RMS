@@ -41,7 +41,7 @@ const stats = [
   },
   {
     title: 'Monthly Sales',
-    value: '$4.2M',
+    value: '₦4.2B',
     change: '+23%',
     trend: 'up',
     icon: DollarSign,
@@ -50,7 +50,7 @@ const stats = [
   },
   {
     title: 'Commission Paid',
-    value: '$168K',
+    value: '₦168M',
     change: '-5%',
     trend: 'down',
     icon: TrendingUp,
@@ -62,44 +62,44 @@ const stats = [
 const recentSales = [
   {
     id: 1,
-    property: 'Modern Villa in Beverly Hills',
+    property: 'Prime Land in Lekki Phase 1',
     realtor: 'Sarah Johnson',
-    amount: 2850000,
+    amount: 285000000,
     time: '2 hours ago',
     tier: 'PLATINUM',
   },
   {
     id: 2,
-    property: 'Downtown Loft',
+    property: 'Luxury Duplex in Banana Island',
     realtor: 'Michael Chen',
-    amount: 750000,
+    amount: 750000000,
     time: '4 hours ago',
     tier: 'GOLD',
   },
   {
     id: 3,
-    property: 'Suburban Family Home',
+    property: '3 Bedroom Flat in Ikeja GRA',
     realtor: 'Emily Davis',
-    amount: 485000,
+    amount: 48500000,
     time: '6 hours ago',
     tier: 'SILVER',
   },
   {
     id: 4,
-    property: 'Beachfront Condo',
+    property: 'Commercial Land in Victoria Island',
     realtor: 'James Wilson',
-    amount: 1200000,
+    amount: 420000000,
     time: '8 hours ago',
     tier: 'GOLD',
   },
 ];
 
 const topRealtors = [
-  { name: 'Sarah Johnson', sales: 45, value: 12500000, tier: 'PLATINUM', avatar: '' },
-  { name: 'Michael Chen', sales: 38, value: 9800000, tier: 'GOLD', avatar: '' },
-  { name: 'Emily Davis', sales: 32, value: 7200000, tier: 'GOLD', avatar: '' },
-  { name: 'James Wilson', sales: 28, value: 6100000, tier: 'SILVER', avatar: '' },
-  { name: 'Lisa Brown', sales: 25, value: 5400000, tier: 'SILVER', avatar: '' },
+  { name: 'Sarah Johnson', sales: 45, value: 1250000000, tier: 'PLATINUM', avatar: '' },
+  { name: 'Michael Chen', sales: 38, value: 980000000, tier: 'GOLD', avatar: '' },
+  { name: 'Emily Davis', sales: 32, value: 720000000, tier: 'GOLD', avatar: '' },
+  { name: 'James Wilson', sales: 28, value: 610000000, tier: 'SILVER', avatar: '' },
+  { name: 'Lisa Brown', sales: 25, value: 540000000, tier: 'SILVER', avatar: '' },
 ];
 
 export default function AdminDashboard() {

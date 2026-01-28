@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -10,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SaleService } from './sale.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { UpdateSaleStatusDto } from './dto/update-sale-status.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -79,5 +81,21 @@ export class SaleController {
   @ApiResponse({ status: 404, description: 'Sale not found' })
   async findOne(@Param('id') id: string) {
     return this.saleService.findById(id);
+  }
+
+  @Patch(':id/status')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Update sale status (confirm or cancel pending orders)' })
+  @ApiResponse({ status: 200, description: 'Sale status updated' })
+  @ApiResponse({ status: 404, description: 'Sale not found' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() updateSaleStatusDto: UpdateSaleStatusDto,
+  ) {
+    return this.saleService.updateStatus(
+      id,
+      updateSaleStatusDto.status,
+      updateSaleStatusDto.notes,
+    );
   }
 }

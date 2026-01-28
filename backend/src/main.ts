@@ -3,19 +3,26 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import compression from 'compression';
+import { join } from 'path';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn', 'log', 'debug', 'verbose'],
   });
 
   const configService = app.get(ConfigService);
+
+  // Serve static files from uploads directory
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads/',
+  });
   const port = configService.get<number>('PORT', 4000);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
@@ -94,6 +101,7 @@ async function bootstrap() {
       .addTag('Chat', 'Chat system endpoints')
       .addTag('Notifications', 'Notification endpoints')
       .addTag('Analytics', 'Analytics endpoints')
+      .addTag('Upload', 'File upload endpoints')
       .build();
 
     const document = SwaggerModule.createDocument(app, config);

@@ -138,7 +138,6 @@ export function Sidebar({ role }: SidebarProps) {
           {/* User info */}
           <div className={cn('flex items-center gap-3 p-2', collapsed && 'justify-center')}>
             <Avatar className="w-9 h-9">
-              <AvatarImage src="/placeholder-avatar.jpg" />
               <AvatarFallback className="bg-primary text-white text-sm">JD</AvatarFallback>
             </Avatar>
             {!collapsed && (

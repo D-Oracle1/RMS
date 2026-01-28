@@ -45,7 +45,7 @@ export class AiService {
         _avg: { price: true },
       });
 
-      const basePricePerSqft = (cityAvg._avg.price || 300) / 1500; // Default if no data
+      const basePricePerSqft = (Number(cityAvg._avg.price) || 300) / 1500; // Default if no data
       return {
         predictedPrice: Math.round(basePricePerSqft * data.area),
         confidence: 0.3,

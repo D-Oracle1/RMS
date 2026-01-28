@@ -33,6 +33,7 @@ export class AnalyticsService {
           sales: count,
           revenue: sum._sum.salePrice || 0,
           commission: sum._sum.commissionAmount || 0,
+          growth: 0,
         };
       }),
     );
@@ -41,7 +42,7 @@ export class AnalyticsService {
     for (let i = 1; i < analytics.length; i++) {
       const prev = Number(analytics[i - 1].revenue);
       const curr = Number(analytics[i].revenue);
-      analytics[i].growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
+      (analytics[i] as any).growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
     }
 
     return analytics;

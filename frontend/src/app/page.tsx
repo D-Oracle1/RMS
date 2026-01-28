@@ -146,7 +146,7 @@ export default function HomePage() {
             <div className="grid md:grid-cols-4 gap-8 text-center">
               {[
                 { value: '10K+', label: 'Properties Managed' },
-                { value: '$500M+', label: 'Total Sales Volume' },
+                { value: '₦500B+', label: 'Total Sales Volume' },
                 { value: '2,500+', label: 'Active Realtors' },
                 { value: '99.9%', label: 'Uptime SLA' },
               ].map((stat, index) => (
