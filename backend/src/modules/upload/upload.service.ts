@@ -1,8 +1,20 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { unlink } from 'fs/promises';
 import { join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
+
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer: Buffer;
+}
 
 @Injectable()
 export class UploadService {
@@ -95,7 +107,7 @@ export class UploadService {
     return updatedUser;
   }
 
-  async uploadPropertyImages(files: Express.Multer.File[]): Promise<string[]> {
+  async uploadPropertyImages(files: MulterFile[]): Promise<string[]> {
     const urls = files.map((file) => `/uploads/properties/${file.filename}`);
     return urls;
   }
