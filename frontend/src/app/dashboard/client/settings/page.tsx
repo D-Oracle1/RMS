@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   Settings,
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 const tabs = [
@@ -27,6 +27,8 @@ const tabs = [
 
 export default function ClientSettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState({
     firstName: 'John',
     lastName: 'Doe',
@@ -43,6 +45,33 @@ export default function ClientSettingsPage() {
     documents: true,
     messages: true,
   });
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        return;
+      }
+      // Create preview URL
+      const url = URL.createObjectURL(file);
+      setAvatarUrl(url);
+      // TODO: Upload to server
+      // const formData = new FormData();
+      // formData.append('avatar', file);
+      // await uploadAvatar(formData);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -102,13 +131,22 @@ export default function ClientSettingsPage() {
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="w-24 h-24">
+                      {avatarUrl && <AvatarImage src={avatarUrl} alt="Profile" />}
                       <AvatarFallback className="bg-primary text-white text-2xl">
                         {profile.firstName[0]}{profile.lastName[0]}
                       </AvatarFallback>
                     </Avatar>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
                     <Button
                       size="icon"
                       className="absolute bottom-0 right-0 rounded-full w-8 h-8"
+                      onClick={handleAvatarClick}
                     >
                       <Camera className="w-4 h-4" />
                     </Button>
