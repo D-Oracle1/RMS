@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -22,12 +22,15 @@ import {
   Calculator,
   Crown,
   Briefcase,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface SidebarProps {
   role: 'admin' | 'realtor' | 'client';
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 const navigationConfig = {
@@ -65,38 +68,69 @@ const navigationConfig = {
   ],
 };
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const navigation = navigationConfig[role];
 
+  // Close sidebar when route changes on mobile
+  useEffect(() => {
+    if (onClose) {
+      onClose();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   return (
-    <aside
-      className={cn(
-        'fixed left-0 top-0 z-40 h-screen bg-white dark:bg-gray-900 border-r transition-all duration-300',
-        collapsed ? 'w-20' : 'w-64'
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
       )}
-    >
-      <div className="flex h-full flex-col">
-        {/* Logo */}
-        <div className="flex h-16 items-center justify-between px-4 border-b">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
-            {!collapsed && (
-              <span className="text-lg font-bold text-primary">RMS</span>
-            )}
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setCollapsed(!collapsed)}
-            className="hidden md:flex"
-          >
-            <ChevronLeft className={cn('w-4 h-4 transition-transform', collapsed && 'rotate-180')} />
-          </Button>
-        </div>
+
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-50 h-screen bg-white dark:bg-gray-900 border-r transition-all duration-300',
+          // Desktop: always visible
+          'hidden md:block',
+          collapsed ? 'md:w-20' : 'md:w-64',
+          // Mobile: slide in/out
+          isOpen && 'block w-64'
+        )}
+      >
+        <div className="flex h-full flex-col">
+          {/* Logo */}
+          <div className="flex h-16 items-center justify-between px-4 border-b">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-white" />
+              </div>
+              {!collapsed && (
+                <span className="text-lg font-bold text-primary">RMS</span>
+              )}
+            </Link>
+            {/* Close button on mobile */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="md:hidden"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+            {/* Collapse button on desktop */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCollapsed(!collapsed)}
+              className="hidden md:flex"
+            >
+              <ChevronLeft className={cn('w-4 h-4 transition-transform', collapsed && 'rotate-180')} />
+            </Button>
+          </div>
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
@@ -158,5 +192,6 @@ export function Sidebar({ role }: SidebarProps) {
         </div>
       </div>
     </aside>
+    </>
   );
 }

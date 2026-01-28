@@ -14,7 +14,11 @@ export default function RealtorLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar role="realtor" />
+      <Sidebar
+        role="realtor"
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+      />
       <div className={cn('transition-all duration-300', 'md:ml-64')}>
         <Header title="Realtor Dashboard" onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
         <main className="p-4 md:p-6">{children}</main>
