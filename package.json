@@ -36,13 +36,8 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": "20.x",
     "npm": ">=10.0.0"
   },
-  "dependencies": {
-    "@nestjs/event-emitter": "^3.0.1",
-    "@nestjs/swagger": "^11.2.5",
-    "next": "16.1.6",
-    "swagger-ui-express": "^5.0.0"
-  }
+  "dependencies": {}
 }

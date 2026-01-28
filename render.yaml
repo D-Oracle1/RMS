@@ -5,8 +5,8 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: cd backend && npm install --legacy-peer-deps && npm run build && ls -la dist/
-    startCommand: cd backend && npm run start:prod
+    buildCommand: npm install --legacy-peer-deps && npm run build:backend
+    startCommand: npm run start:backend
     envVars:
       - key: NODE_ENV
         value: production
@@ -28,8 +28,8 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
-    startCommand: cd frontend && npm run start
+    buildCommand: npm install --legacy-peer-deps && npm run build:frontend
+    startCommand: npm run start:frontend
     envVars:
       - key: NODE_ENV
         value: production
