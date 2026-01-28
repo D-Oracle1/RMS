@@ -8,6 +8,18 @@ import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
 import { DatabaseModule } from '../../database/database.module';
 
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer: Buffer;
+}
+
 @Module({
   imports: [
     DatabaseModule,
@@ -16,7 +28,7 @@ import { DatabaseModule } from '../../database/database.module';
         destination: join(process.cwd(), 'uploads', 'avatars'),
         filename: (
           _req: Request,
-          file: Express.Multer.File,
+          file: MulterFile,
           callback: (error: Error | null, filename: string) => void,
         ) => {
           const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
@@ -25,7 +37,7 @@ import { DatabaseModule } from '../../database/database.module';
       }),
       fileFilter: (
         _req: Request,
-        file: Express.Multer.File,
+        file: MulterFile,
         callback: (error: Error | null, acceptFile: boolean) => void,
       ) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
