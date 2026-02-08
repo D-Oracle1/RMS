@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -8,16 +8,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { setAuth, clearAuth } from '@/lib/auth-storage';
+import { getImageUrl } from '@/lib/api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export default function LoginPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [branding, setBranding] = useState<{ companyName?: string; shortName?: string; logo?: string } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false,
   });
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/v1/cms/public/branding`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((raw) => {
+        const data = raw?.data !== undefined ? raw.data : raw;
+        if (data && typeof data === 'object') setBranding(data);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,37 +57,32 @@ export default function LoginPage() {
 
       const data = await response.json();
 
-      // Store token and user data
-      localStorage.setItem('token', data.data?.accessToken || data.accessToken);
-      localStorage.setItem('user', JSON.stringify(data.data?.user || data.user));
+      // Clear any stale auth data first
+      clearAuth();
 
+      // Store token and user data
+      const token = data.data?.accessToken || data.accessToken;
       const user = data.data?.user || data.user;
+      setAuth(token, user);
+
       const role = user?.role?.toLowerCase();
 
       toast.success('Login successful!');
 
       // Route based on role
-      if (role === 'super_admin' || role === 'admin') {
+      if (user?.isSuperAdmin || role === 'super_admin') {
+        router.push('/dashboard/super-admin');
+      } else if (role === 'admin') {
         router.push('/dashboard/admin');
       } else if (role === 'realtor') {
         router.push('/dashboard/realtor');
+      } else if (role === 'staff') {
+        router.push('/dashboard/staff');
       } else {
         router.push('/dashboard/client');
       }
     } catch (error: any) {
-      // Demo fallback: Route based on email
-      if (formData.email.includes('admin')) {
-        router.push('/dashboard/admin');
-        toast.success('Demo: Login successful!');
-      } else if (formData.email.includes('realtor')) {
-        router.push('/dashboard/realtor');
-        toast.success('Demo: Login successful!');
-      } else if (formData.email) {
-        router.push('/dashboard/client');
-        toast.success('Demo: Login successful!');
-      } else {
-        toast.error(error.message || 'Invalid credentials');
-      }
+      toast.error(error.message || 'Invalid credentials. Please ensure the backend is running.');
     } finally {
       setIsLoading(false);
     }
@@ -87,11 +97,19 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-lg bg-primary flex items-center justify-center mb-4">
-            <Building2 className="w-6 h-6 text-white" />
-          </div>
+          {branding?.logo ? (
+            <img
+              src={branding.logo.startsWith('http') ? branding.logo : getImageUrl(branding.logo)}
+              alt={branding.companyName || 'Logo'}
+              className="mx-auto h-12 w-auto object-contain mb-4"
+            />
+          ) : (
+            <div className="mx-auto w-12 h-12 rounded-lg bg-primary flex items-center justify-center mb-4">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+          )}
           <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your RMS Platform account</CardDescription>
+          <CardDescription>Sign in to your {branding?.companyName || 'RMS Platform'} account</CardDescription>
         </CardHeader>
         <CardContent>
           {/* Social Login Buttons */}
@@ -202,12 +220,12 @@ export default function LoginPage() {
             </Link>
           </div>
           <div className="mt-4 p-4 bg-muted rounded-lg">
-            <p className="text-xs text-muted-foreground text-center mb-2">Demo Accounts:</p>
+            <p className="text-xs text-muted-foreground text-center mb-2 font-semibold">Demo Accounts:</p>
             <div className="text-xs text-muted-foreground space-y-1">
-              <p>Admin: admin@rms.com</p>
-              <p>Realtor: realtor@rms.com</p>
-              <p>Client: client@rms.com</p>
-              <p className="text-primary">Password: any</p>
+              <p><span className="font-medium">Admin:</span> admin@rms.com</p>
+              <p><span className="font-medium">Realtor:</span> sarah.johnson@rms.com</p>
+              <p><span className="font-medium">Client:</span> john.doe@email.com</p>
+              <p className="text-primary font-medium">Password: Admin123!</p>
             </div>
           </div>
         </CardContent>

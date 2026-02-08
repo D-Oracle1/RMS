@@ -1,14 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { MessageType } from '@prisma/client';
-import { WebsocketGateway } from '../../websocket/websocket.gateway';
+import { PusherService } from '../../common/services/pusher.service';
 
 @Injectable()
 export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(forwardRef(() => WebsocketGateway))
-    private readonly websocketGateway: WebsocketGateway,
+    private readonly pusherService: PusherService,
   ) {}
 
   async createRoom(creatorId: string, participantIds: string[], name?: string) {
@@ -207,7 +206,7 @@ export class ChatService {
     if (room) {
       for (const participant of room.participants) {
         if (participant.id !== senderId) {
-          this.websocketGateway.sendToUser(participant.id, 'chat:message', {
+          this.pusherService.sendToUser(participant.id, 'chat:message', {
             roomId,
             message,
           });

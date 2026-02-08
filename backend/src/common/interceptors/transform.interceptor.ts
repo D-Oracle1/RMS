@@ -22,8 +22,8 @@ export interface Response<T> {
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> {
   intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
-    return next.handle().pipe(
-      map((data) => {
+    return (next.handle() as any).pipe(
+      map((data: any) => {
         // If data already has the response structure, return as is
         if (data && typeof data === 'object' && 'success' in data) {
           return data;

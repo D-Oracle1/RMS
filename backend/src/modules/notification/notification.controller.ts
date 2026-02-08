@@ -5,6 +5,7 @@ import {
   Delete,
   Param,
   Query,
+  Body,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
@@ -12,6 +13,7 @@ import { NotificationService } from './notification.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { NotificationType } from '@prisma/client';
+import { SendCalloutDto, RespondCalloutDto } from './dto/send-callout.dto';
 
 @ApiTags('Notifications')
 @Controller('notifications')
@@ -34,7 +36,10 @@ export class NotificationController {
     @Query('isRead') isRead?: boolean,
     @Query('type') type?: NotificationType,
   ) {
-    return this.notificationService.findAll(userId, { page, limit, isRead, type });
+    const parsedPage = page !== undefined && !isNaN(Number(page)) ? Number(page) : undefined;
+    const parsedLimit = limit !== undefined && !isNaN(Number(limit)) ? Number(limit) : undefined;
+    const parsedIsRead = isRead !== undefined ? String(isRead) === 'true' : undefined;
+    return this.notificationService.findAll(userId, { page: parsedPage, limit: parsedLimit, isRead: parsedIsRead, type });
   }
 
   @Get('unread-count')
@@ -70,5 +75,33 @@ export class NotificationController {
     @CurrentUser('id') userId: string,
   ) {
     return this.notificationService.delete(id, userId);
+  }
+
+  @Get('callout/staff')
+  @ApiOperation({ summary: 'Get active staff members for callout' })
+  @ApiResponse({ status: 200, description: 'List of active users' })
+  async getCalloutStaff(@CurrentUser('id') currentUserId: string) {
+    return this.notificationService.getCalloutStaff(currentUserId);
+  }
+
+  @Post('callout')
+  @ApiOperation({ summary: 'Send a callout to a staff member' })
+  @ApiResponse({ status: 201, description: 'Callout sent' })
+  async sendCallout(
+    @CurrentUser('id') callerId: string,
+    @Body() data: SendCalloutDto,
+  ) {
+    return this.notificationService.sendCallout(callerId, data.targetUserId, data.message);
+  }
+
+  @Post('callout/:id/respond')
+  @ApiOperation({ summary: 'Respond to a callout' })
+  @ApiResponse({ status: 200, description: 'Response sent' })
+  async respondToCallout(
+    @Param('id') calloutId: string,
+    @CurrentUser('id') responderId: string,
+    @Body() data: RespondCalloutDto,
+  ) {
+    return this.notificationService.respondToCallout(calloutId, responderId, data.response);
   }
 }

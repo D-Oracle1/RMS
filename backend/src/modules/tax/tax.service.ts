@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class TaxService {
   private readonly DEFAULT_TAX_RATE = 0.15; // 15%
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settingsService: SettingsService,
+  ) {}
 
   async create(data: {
     saleId: string;
@@ -140,7 +144,7 @@ export class TaxService {
       },
       byYear,
       byQuarter,
-      taxRate: this.DEFAULT_TAX_RATE,
+      taxRate: await this.settingsService.getMainTaxRate(),
     };
   }
 
@@ -238,5 +242,10 @@ export class TaxService {
 
   calculateTax(commissionAmount: number): number {
     return commissionAmount * this.DEFAULT_TAX_RATE;
+  }
+
+  async calculateTaxFromSettings(commissionAmount: number): Promise<number> {
+    const rate = await this.settingsService.getMainTaxRate();
+    return commissionAmount * rate;
   }
 }

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0b5c46"/>
+  <g transform="translate(256,256)" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Building -->
+    <rect x="-80" y="-100" width="160" height="200" rx="4"/>
+    <line x1="-80" y1="100" x2="-120" y2="100"/>
+    <line x1="80" y1="100" x2="120" y2="100"/>
+    <!-- Roof -->
+    <path d="M-100,-100 L0,-160 L100,-100"/>
+    <!-- Windows row 1 -->
+    <rect x="-55" y="-75" width="30" height="25" rx="2"/>
+    <rect x="25" y="-75" width="30" height="25" rx="2"/>
+    <!-- Windows row 2 -->
+    <rect x="-55" y="-30" width="30" height="25" rx="2"/>
+    <rect x="25" y="-30" width="30" height="25" rx="2"/>
+    <!-- Door -->
+    <rect x="-20" y="30" width="40" height="70" rx="4"/>
+    <circle cx="12" cy="68" r="4"/>
+  </g>
+</svg>

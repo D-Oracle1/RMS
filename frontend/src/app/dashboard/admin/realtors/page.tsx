@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -15,6 +15,8 @@ import {
   UserCheck,
   Trash2,
   Download,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -38,133 +40,224 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatCurrency, getTierBgClass } from '@/lib/utils';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
-const initialRealtors = [
-  { id: 1, name: 'Adaeze Okonkwo', email: 'adaeze@rms.com.ng', phone: '+234 801 234 5678', tier: 'PLATINUM', sales: 45, totalValue: 1250000000, commission: 50000000, status: 'ACTIVE', avatar: null as string | null },
-  { id: 2, name: 'Chinedu Eze', email: 'chinedu@rms.com.ng', phone: '+234 802 345 6789', tier: 'GOLD', sales: 38, totalValue: 980000000, commission: 39200000, status: 'ACTIVE', avatar: null as string | null },
-  { id: 3, name: 'Funke Adeyemi', email: 'funke@rms.com.ng', phone: '+234 803 456 7890', tier: 'GOLD', sales: 32, totalValue: 720000000, commission: 28800000, status: 'ACTIVE', avatar: null as string | null },
-  { id: 4, name: 'Emeka Nwankwo', email: 'emeka@rms.com.ng', phone: '+234 804 567 8901', tier: 'SILVER', sales: 28, totalValue: 610000000, commission: 24400000, status: 'ACTIVE', avatar: null as string | null },
-  { id: 5, name: 'Ngozi Obi', email: 'ngozi@rms.com.ng', phone: '+234 805 678 9012', tier: 'SILVER', sales: 25, totalValue: 540000000, commission: 21600000, status: 'ACTIVE', avatar: null as string | null },
-  { id: 6, name: 'Tunde Bakare', email: 'tunde@rms.com.ng', phone: '+234 806 789 0123', tier: 'BRONZE', sales: 15, totalValue: 320000000, commission: 12800000, status: 'INACTIVE', avatar: null as string | null },
-  { id: 7, name: 'Fatima Ibrahim', email: 'fatima@rms.com.ng', phone: '+234 807 890 1234', tier: 'BRONZE', sales: 12, totalValue: 280000000, commission: 11200000, status: 'ACTIVE', avatar: null as string | null },
-  { id: 8, name: 'Kola Adesanya', email: 'kola@rms.com.ng', phone: '+234 808 901 2345', tier: 'BRONZE', sales: 8, totalValue: 190000000, commission: 7600000, status: 'ACTIVE', avatar: null as string | null },
-];
+interface RealtorData {
+  id: string;
+  userId: string;
+  licenseNumber: string | null;
+  loyaltyTier: string;
+  loyaltyPoints: number;
+  totalSales: number;
+  totalSalesValue: number | string;
+  totalCommission: number | string;
+  currentRank: number;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    avatar: string | null;
+    status: string;
+    lastLoginAt?: string;
+  };
+  _count: {
+    sales: number;
+    clients: number;
+  };
+}
+
+interface RealtorResponse {
+  data: RealtorData[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
 
 interface RealtorFormData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
   tier: string;
   licenseNumber: string;
-  address: string;
+  password: string;
 }
 
 export default function RealtorsPage() {
-  const [realtors, setRealtors] = useState(initialRealtors);
+  const [realtors, setRealtors] = useState<RealtorData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterTier, setFilterTier] = useState<string>('ALL');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedRealtor, setSelectedRealtor] = useState<typeof realtors[0] | null>(null);
+  const [selectedRealtor, setSelectedRealtor] = useState<RealtorData | null>(null);
+  const [meta, setMeta] = useState({ page: 1, limit: 50, total: 0, totalPages: 1 });
   const [formData, setFormData] = useState<RealtorFormData>({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
     tier: 'BRONZE',
     licenseNumber: '',
-    address: '',
+    password: '',
   });
+
+  const fetchRealtors = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('page', meta.page.toString());
+      params.append('limit', '50');
+      if (searchTerm) params.append('search', searchTerm);
+      if (filterTier !== 'ALL') params.append('tier', filterTier);
+
+      const response = await api.get<RealtorResponse>(`/admin/realtors?${params.toString()}`);
+      const data = response.data || response;
+      setRealtors(Array.isArray(data) ? data : (data as any).data || []);
+      if ((data as any).meta) {
+        setMeta((data as any).meta);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch realtors:', error);
+      toast.error(error.message || 'Failed to load realtors');
+    } finally {
+      setLoading(false);
+    }
+  }, [meta.page, searchTerm, filterTier]);
+
+  useEffect(() => {
+    fetchRealtors();
+  }, [fetchRealtors]);
 
   const filteredRealtors = useMemo(() => {
     return realtors.filter(realtor => {
-      const matchesSearch = realtor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           realtor.email.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesTier = filterTier === 'ALL' || realtor.tier === filterTier;
-      const matchesStatus = filterStatus === 'ALL' || realtor.status === filterStatus;
-      return matchesSearch && matchesTier && matchesStatus;
+      const matchesStatus = filterStatus === 'ALL' || realtor.user.status === filterStatus;
+      return matchesStatus;
     });
-  }, [realtors, searchTerm, filterTier, filterStatus]);
+  }, [realtors, filterStatus]);
 
   const stats = useMemo(() => {
-    const activeCount = realtors.filter(r => r.status === 'ACTIVE').length;
-    const platinumCount = realtors.filter(r => r.tier === 'PLATINUM').length;
-    const avgCommission = realtors.reduce((sum, r) => sum + r.commission, 0) / realtors.length;
+    const activeCount = realtors.filter(r => r.user.status === 'ACTIVE').length;
+    const platinumCount = realtors.filter(r => r.loyaltyTier === 'PLATINUM').length;
+    const totalCommission = realtors.reduce((sum, r) => sum + Number(r.totalCommission || 0), 0);
+    const avgCommission = realtors.length > 0 ? totalCommission / realtors.length : 0;
 
     return [
-      { title: 'Total Realtors', value: realtors.length.toString(), change: `+${Math.floor(realtors.length * 0.05)} this month`, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-      { title: 'Platinum Tier', value: platinumCount.toString(), change: `${((platinumCount / realtors.length) * 100).toFixed(1)}% of total`, color: 'text-purple-600', bgColor: 'bg-purple-100' },
-      { title: 'Active Realtors', value: activeCount.toString(), change: `${((activeCount / realtors.length) * 100).toFixed(1)}% active`, color: 'text-green-600', bgColor: 'bg-green-100' },
-      { title: 'Avg. Commission', value: formatCurrency(avgCommission), change: 'Per realtor/year', color: 'text-primary', bgColor: 'bg-primary/10' },
+      { title: 'Total Realtors', value: meta.total.toString(), change: `${realtors.length} loaded`, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+      { title: 'Platinum Tier', value: platinumCount.toString(), change: realtors.length > 0 ? `${((platinumCount / realtors.length) * 100).toFixed(1)}% of total` : '0%', color: 'text-purple-600', bgColor: 'bg-purple-100' },
+      { title: 'Active Realtors', value: activeCount.toString(), change: realtors.length > 0 ? `${((activeCount / realtors.length) * 100).toFixed(1)}% active` : '0%', color: 'text-green-600', bgColor: 'bg-green-100' },
+      { title: 'Avg. Commission', value: formatCurrency(avgCommission), change: 'Per realtor', color: 'text-primary', bgColor: 'bg-primary/10' },
     ];
-  }, [realtors]);
+  }, [realtors, meta.total]);
 
-  const handleAddRealtor = () => {
-    if (!formData.name || !formData.email || !formData.phone) {
+  const handleAddRealtor = async () => {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const newRealtor = {
-      id: realtors.length + 1,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      tier: formData.tier,
-      sales: 0,
-      totalValue: 0,
-      commission: 0,
-      status: 'ACTIVE',
-      avatar: null,
-    };
+    setActionLoading('add');
+    try {
+      await api.post('/auth/register', {
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        role: 'REALTOR',
+      });
 
-    setRealtors([...realtors, newRealtor]);
-    setAddDialogOpen(false);
-    setFormData({ name: '', email: '', phone: '', tier: 'BRONZE', licenseNumber: '', address: '' });
-    toast.success('Realtor added successfully!');
+      setAddDialogOpen(false);
+      setFormData({ firstName: '', lastName: '', email: '', phone: '', tier: 'BRONZE', licenseNumber: '', password: '' });
+      toast.success('Realtor added successfully!');
+      fetchRealtors();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add realtor');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleEditRealtor = () => {
+  const handleEditRealtor = async () => {
     if (!selectedRealtor) return;
 
-    setRealtors(realtors.map(r =>
-      r.id === selectedRealtor.id
-        ? { ...r, name: formData.name, email: formData.email, phone: formData.phone, tier: formData.tier }
-        : r
-    ));
-    setEditDialogOpen(false);
-    toast.success('Realtor updated successfully!');
+    setActionLoading('edit');
+    try {
+      await api.patch(`/realtors/${selectedRealtor.id}`, {
+        licenseNumber: formData.licenseNumber,
+      });
+
+      // Also update user info if needed
+      await api.patch(`/users/${selectedRealtor.userId}`, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+      });
+
+      setEditDialogOpen(false);
+      toast.success('Realtor updated successfully!');
+      fetchRealtors();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update realtor');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleToggleStatus = (realtor: typeof realtors[0]) => {
-    setRealtors(realtors.map(r =>
-      r.id === realtor.id
-        ? { ...r, status: r.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
-        : r
-    ));
-    toast.success(`Realtor ${realtor.status === 'ACTIVE' ? 'deactivated' : 'activated'} successfully!`);
+  const handleToggleStatus = async (realtor: RealtorData) => {
+    setActionLoading(realtor.id);
+    try {
+      const newStatus = realtor.user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      await api.patch(`/users/${realtor.userId}/status`, { status: newStatus });
+      toast.success(`Realtor ${realtor.user.status === 'ACTIVE' ? 'deactivated' : 'activated'} successfully!`);
+      fetchRealtors();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update status');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleDeleteRealtor = (realtor: typeof realtors[0]) => {
-    setRealtors(realtors.filter(r => r.id !== realtor.id));
-    toast.success('Realtor deleted successfully!');
+  const handleDeleteRealtor = async (realtor: RealtorData) => {
+    if (!confirm('Are you sure you want to delete this realtor? This action cannot be undone.')) {
+      return;
+    }
+
+    setActionLoading(realtor.id);
+    try {
+      await api.delete(`/users/${realtor.userId}`);
+      toast.success('Realtor deleted successfully!');
+      fetchRealtors();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete realtor');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const openEditDialog = (realtor: typeof realtors[0]) => {
+  const openEditDialog = (realtor: RealtorData) => {
     setSelectedRealtor(realtor);
     setFormData({
-      name: realtor.name,
-      email: realtor.email,
-      phone: realtor.phone,
-      tier: realtor.tier,
-      licenseNumber: '',
-      address: '',
+      firstName: realtor.user.firstName,
+      lastName: realtor.user.lastName,
+      email: realtor.user.email,
+      phone: realtor.user.phone || '',
+      tier: realtor.loyaltyTier,
+      licenseNumber: realtor.licenseNumber || '',
+      password: '',
     });
     setEditDialogOpen(true);
   };
 
-  const openViewDialog = (realtor: typeof realtors[0]) => {
+  const openViewDialog = (realtor: RealtorData) => {
     setSelectedRealtor(realtor);
     setViewDialogOpen(true);
   };
@@ -174,14 +267,14 @@ export default function RealtorsPage() {
     const csvContent = [
       headers.join(','),
       ...filteredRealtors.map(r => [
-        `"${r.name}"`,
-        r.email,
-        r.phone,
-        r.tier,
-        r.sales,
-        r.totalValue,
-        r.commission,
-        r.status,
+        `"${r.user.firstName} ${r.user.lastName}"`,
+        r.user.email,
+        r.user.phone || '',
+        r.loyaltyTier,
+        r.totalSales,
+        r.totalSalesValue,
+        r.totalCommission,
+        r.user.status,
       ].join(',')),
     ].join('\n');
 
@@ -194,6 +287,14 @@ export default function RealtorsPage() {
     window.URL.revokeObjectURL(url);
     toast.success('Realtors data exported successfully!');
   };
+
+  if (loading && realtors.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -262,6 +363,10 @@ export default function RealtorsPage() {
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
+              <Button variant="outline" size="sm" onClick={fetchRealtors} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
               <Button variant="outline" size="sm" onClick={handleExportCSV}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -293,40 +398,44 @@ export default function RealtorsPage() {
                       <td className="py-4">
                         <div className="flex items-center gap-3">
                           <Avatar>
-                            {realtor.avatar && <AvatarImage src={realtor.avatar} alt={realtor.name} />}
+                            {realtor.user.avatar && <AvatarImage src={realtor.user.avatar} alt={`${realtor.user.firstName} ${realtor.user.lastName}`} />}
                             <AvatarFallback className="bg-primary text-white">
-                              {realtor.name.split(' ').map(n => n[0]).join('')}
+                              {realtor.user.firstName[0]}{realtor.user.lastName[0]}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">{realtor.name}</span>
+                          <span className="font-medium">{realtor.user.firstName} {realtor.user.lastName}</span>
                         </div>
                       </td>
                       <td className="py-4">
                         <div className="space-y-1">
                           <p className="text-sm flex items-center gap-1">
-                            <Mail className="w-3 h-3" /> {realtor.email}
+                            <Mail className="w-3 h-3" /> {realtor.user.email}
                           </p>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Phone className="w-3 h-3" /> {realtor.phone}
+                            <Phone className="w-3 h-3" /> {realtor.user.phone || 'N/A'}
                           </p>
                         </div>
                       </td>
                       <td className="py-4">
-                        <Badge className={getTierBgClass(realtor.tier)}>{realtor.tier}</Badge>
+                        <Badge className={getTierBgClass(realtor.loyaltyTier)}>{realtor.loyaltyTier}</Badge>
                       </td>
-                      <td className="py-4 font-medium">{realtor.sales}</td>
-                      <td className="py-4">{formatCurrency(realtor.totalValue)}</td>
-                      <td className="py-4 text-primary font-medium">{formatCurrency(realtor.commission)}</td>
+                      <td className="py-4 font-medium">{realtor.totalSales}</td>
+                      <td className="py-4">{formatCurrency(Number(realtor.totalSalesValue || 0))}</td>
+                      <td className="py-4 text-primary font-medium">{formatCurrency(Number(realtor.totalCommission || 0))}</td>
                       <td className="py-4">
-                        <Badge variant={realtor.status === 'ACTIVE' ? 'success' : 'secondary'}>
-                          {realtor.status}
+                        <Badge variant={realtor.user.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                          {realtor.user.status}
                         </Badge>
                       </td>
                       <td className="py-4">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="w-4 h-4" />
+                            <Button variant="ghost" size="icon" disabled={actionLoading === realtor.id}>
+                              {actionLoading === realtor.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="w-4 h-4" />
+                              )}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -340,7 +449,7 @@ export default function RealtorsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleToggleStatus(realtor)}>
-                              {realtor.status === 'ACTIVE' ? (
+                              {realtor.user.status === 'ACTIVE' ? (
                                 <>
                                   <UserX className="w-4 h-4 mr-2" />
                                   Deactivate
@@ -364,7 +473,7 @@ export default function RealtorsPage() {
                       </td>
                     </tr>
                   ))}
-                  {filteredRealtors.length === 0 && (
+                  {filteredRealtors.length === 0 && !loading && (
                     <tr>
                       <td colSpan={8} className="py-8 text-center text-muted-foreground">
                         No realtors found for the selected filters.
@@ -385,14 +494,25 @@ export default function RealtorsPage() {
             <DialogTitle>Add New Realtor</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter full name"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  placeholder="First name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  placeholder="Last name"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
@@ -405,7 +525,17 @@ export default function RealtorsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone *</Label>
+              <Label htmlFor="password">Password *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -422,35 +552,13 @@ export default function RealtorsPage() {
                 placeholder="Enter license number"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="tier">Starting Tier</Label>
-              <select
-                id="tier"
-                className="w-full px-3 py-2 border rounded-md text-sm"
-                value={formData.tier}
-                onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
-              >
-                <option value="BRONZE">Bronze</option>
-                <option value="SILVER">Silver</option>
-                <option value="GOLD">Gold</option>
-                <option value="PLATINUM">Platinum</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Enter address"
-              />
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddRealtor}>
+            <Button onClick={handleAddRealtor} disabled={actionLoading === 'add'}>
+              {actionLoading === 'add' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Add Realtor
             </Button>
           </DialogFooter>
@@ -464,25 +572,36 @@ export default function RealtorsPage() {
             <DialogTitle>Edit Realtor</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Full Name *</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">First Name *</Label>
+                <Input
+                  id="edit-firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">Last Name *</Label>
+                <Input
+                  id="edit-lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email">Email *</Label>
+              <Label htmlFor="edit-email">Email</Label>
               <Input
                 id="edit-email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled
+                className="bg-gray-100"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-phone">Phone *</Label>
+              <Label htmlFor="edit-phone">Phone</Label>
               <Input
                 id="edit-phone"
                 value={formData.phone}
@@ -490,25 +609,20 @@ export default function RealtorsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-tier">Tier</Label>
-              <select
-                id="edit-tier"
-                className="w-full px-3 py-2 border rounded-md text-sm"
-                value={formData.tier}
-                onChange={(e) => setFormData({ ...formData, tier: e.target.value })}
-              >
-                <option value="BRONZE">Bronze</option>
-                <option value="SILVER">Silver</option>
-                <option value="GOLD">Gold</option>
-                <option value="PLATINUM">Platinum</option>
-              </select>
+              <Label htmlFor="edit-license">License Number</Label>
+              <Input
+                id="edit-license"
+                value={formData.licenseNumber}
+                onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditRealtor}>
+            <Button onClick={handleEditRealtor} disabled={actionLoading === 'edit'}>
+              {actionLoading === 'edit' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save Changes
             </Button>
           </DialogFooter>
@@ -525,45 +639,57 @@ export default function RealtorsPage() {
             <div className="space-y-6 py-4">
               <div className="flex items-center gap-4">
                 <Avatar className="w-16 h-16">
+                  {selectedRealtor.user.avatar && <AvatarImage src={selectedRealtor.user.avatar} />}
                   <AvatarFallback className="bg-primary text-white text-xl">
-                    {selectedRealtor.name.split(' ').map(n => n[0]).join('')}
+                    {selectedRealtor.user.firstName[0]}{selectedRealtor.user.lastName[0]}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="text-lg font-semibold">{selectedRealtor.name}</h3>
-                  <Badge className={getTierBgClass(selectedRealtor.tier)}>{selectedRealtor.tier} Tier</Badge>
+                  <h3 className="text-lg font-semibold">{selectedRealtor.user.firstName} {selectedRealtor.user.lastName}</h3>
+                  <Badge className={getTierBgClass(selectedRealtor.loyaltyTier)}>{selectedRealtor.loyaltyTier} Tier</Badge>
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span>{selectedRealtor.email}</span>
+                  <span>{selectedRealtor.user.email}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>{selectedRealtor.phone}</span>
+                  <span>{selectedRealtor.user.phone || 'N/A'}</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Total Sales</p>
-                  <p className="text-xl font-bold">{selectedRealtor.sales}</p>
+                  <p className="text-xl font-bold">{selectedRealtor.totalSales}</p>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Total Value</p>
-                  <p className="text-xl font-bold">{formatCurrency(selectedRealtor.totalValue)}</p>
+                  <p className="text-xl font-bold">{formatCurrency(Number(selectedRealtor.totalSalesValue || 0))}</p>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Commission</p>
-                  <p className="text-xl font-bold text-primary">{formatCurrency(selectedRealtor.commission)}</p>
+                  <p className="text-xl font-bold text-primary">{formatCurrency(Number(selectedRealtor.totalCommission || 0))}</p>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant={selectedRealtor.status === 'ACTIVE' ? 'success' : 'secondary'} className="mt-1">
-                    {selectedRealtor.status}
+                  <Badge variant={selectedRealtor.user.status === 'ACTIVE' ? 'success' : 'secondary'} className="mt-1">
+                    {selectedRealtor.user.status}
                   </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Clients</p>
+                  <p className="text-xl font-bold">{selectedRealtor._count?.clients || 0}</p>
+                </div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-sm text-muted-foreground">Rank</p>
+                  <p className="text-xl font-bold">#{selectedRealtor.currentRank || 'N/A'}</p>
                 </div>
               </div>
             </div>

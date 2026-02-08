@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Settings,
@@ -10,6 +10,7 @@ import {
   Palette,
   Save,
   Camera,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +18,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { api, getImageUrl } from '@/lib/api';
+import { getUser, getToken, updateUser } from '@/lib/auth-storage';
+import { toast } from 'sonner';
 
 const tabs = [
   { id: 'profile', label: 'Profile', icon: User },
@@ -28,13 +32,15 @@ const tabs = [
 export default function ClientSettingsPage() {
   const [activeTab, setActiveTab] = useState('profile');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@email.com',
-    phone: '+1 555-123-4567',
-    address: '123 Main Street, Los Angeles, CA 90012',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    address: '',
   });
 
   const [notifications, setNotifications] = useState({
@@ -46,30 +52,127 @@ export default function ClientSettingsPage() {
     messages: true,
   });
 
+  const fetchProfile = useCallback(async () => {
+    try {
+      const response: any = await api.get('/auth/profile');
+      const user = response?.data || response;
+      if (user) {
+        setProfile({
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          address: user.clientProfile?.address || '',
+        });
+        if (user.avatar) {
+          setAvatarUrl(getImageUrl(user.avatar));
+        }
+      }
+    } catch {
+      const user = getUser();
+      if (user) {
+        setProfile(prev => ({
+          ...prev,
+          firstName: user.firstName || prev.firstName,
+          lastName: user.lastName || prev.lastName,
+          email: user.email || prev.email,
+          phone: (user as any).phone || prev.phone,
+        }));
+        if (user.avatar) {
+          setAvatarUrl(getImageUrl(user.avatar));
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const updateSessionUser = (updates: Record<string, any>) => {
+    updateUser(updates);
+  };
+
   const handleAvatarClick = () => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
-        return;
+    if (!file) return;
+
+    if (!file.type.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
+      toast.error('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be less than 5MB');
+      return;
+    }
+
+    setUploading(true);
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setAvatarUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const token = getToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/upload/avatar`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        throw new Error(errBody?.message || `Upload failed (${response.status})`);
       }
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
-        return;
+
+      const data = await response.json();
+      const userData = data.data || data;
+      const avatarPath = userData.avatar;
+      if (avatarPath) {
+        setAvatarUrl(getImageUrl(avatarPath));
+        updateSessionUser({ avatar: avatarPath });
+        toast.success('Avatar uploaded successfully!');
       }
-      // Create preview URL
-      const url = URL.createObjectURL(file);
-      setAvatarUrl(url);
-      // TODO: Upload to server
-      // const formData = new FormData();
-      // formData.append('avatar', file);
-      // await uploadAvatar(formData);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to upload avatar.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const response: any = await api.patch('/auth/profile', {
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        phone: profile.phone,
+      });
+
+      const user = response?.data || response;
+      updateSessionUser({
+        firstName: user.firstName || profile.firstName,
+        lastName: user.lastName || profile.lastName,
+        phone: user.phone || profile.phone,
+      });
+
+      toast.success('Profile updated successfully!');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save profile.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -133,13 +236,13 @@ export default function ClientSettingsPage() {
                     <Avatar className="w-24 h-24">
                       {avatarUrl && <AvatarImage src={avatarUrl} alt="Profile" />}
                       <AvatarFallback className="bg-primary text-white text-2xl">
-                        {profile.firstName[0]}{profile.lastName[0]}
+                        {profile.firstName?.[0]}{profile.lastName?.[0]}
                       </AvatarFallback>
                     </Avatar>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
                       className="hidden"
                       onChange={handleFileChange}
                     />
@@ -147,8 +250,13 @@ export default function ClientSettingsPage() {
                       size="icon"
                       className="absolute bottom-0 right-0 rounded-full w-8 h-8"
                       onClick={handleAvatarClick}
+                      disabled={uploading}
                     >
-                      <Camera className="w-4 h-4" />
+                      {uploading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Camera className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                   <div>
@@ -178,7 +286,8 @@ export default function ClientSettingsPage() {
                     <Input
                       type="email"
                       value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                      disabled
+                      className="bg-gray-50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -197,8 +306,8 @@ export default function ClientSettingsPage() {
                   </div>
                 </div>
 
-                <Button>
-                  <Save className="w-4 h-4 mr-2" />
+                <Button onClick={handleSaveProfile} disabled={saving}>
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                   Save Changes
                 </Button>
               </CardContent>

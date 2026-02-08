@@ -1,5 +1,6 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { SaleService } from './sale.service';
+import { SaleOverdueService } from './sale-overdue.service';
 import { SaleController } from './sale.controller';
 import { CommissionModule } from '../commission/commission.module';
 import { TaxModule } from '../tax/tax.module';
@@ -16,7 +17,7 @@ import { ClientModule } from '../client/client.module';
     forwardRef(() => ClientModule),
   ],
   controllers: [SaleController],
-  providers: [SaleService],
-  exports: [SaleService],
+  providers: [SaleService, SaleOverdueService],
+  exports: [SaleService, SaleOverdueService],
 })
 export class SaleModule {}

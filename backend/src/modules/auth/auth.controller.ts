@@ -1,18 +1,22 @@
 import {
   Controller,
   Post,
+  Patch,
   Body,
   UseGuards,
   Get,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateUserDto } from '../users/dto/update-user.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
@@ -27,8 +31,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'User already exists' })
-  async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+  async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
+    const companyId = req.tenant?.companyId || null;
+    return this.authService.register(registerDto, companyId);
   }
 
   @Post('login')
@@ -37,8 +42,9 @@ export class AuthController {
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+  async login(@Body() loginDto: LoginDto, @Req() req: Request) {
+    const companyId = req.tenant?.companyId || null;
+    return this.authService.login(loginDto, companyId);
   }
 
   @Post('refresh')
@@ -87,7 +93,23 @@ export class AuthController {
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
-  async getProfile(@CurrentUser('id') userId: string) {
-    return this.authService.getProfile(userId);
+  async getProfile(@CurrentUser() user: any) {
+    // SUPER_ADMIN profile comes from master DB
+    if (user.isSuperAdmin) {
+      return this.authService.getSuperAdminProfile(user.id);
+    }
+    return this.authService.getProfile(user.id);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  async updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() updateDto: UpdateUserDto,
+  ) {
+    return this.authService.updateProfile(userId, updateDto);
   }
 }

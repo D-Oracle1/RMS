@@ -1,14 +1,13 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationType, NotificationPriority } from '@prisma/client';
-import { WebsocketGateway } from '../../websocket/websocket.gateway';
+import { PusherService } from '../../common/services/pusher.service';
 
 @Injectable()
 export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(forwardRef(() => WebsocketGateway))
-    private readonly websocketGateway: WebsocketGateway,
+    private readonly pusherService: PusherService,
   ) {}
 
   async create(data: {
@@ -33,7 +32,7 @@ export class NotificationService {
     });
 
     // Send real-time notification via WebSocket
-    this.websocketGateway.sendToUser(data.userId, 'notification:new', notification);
+    this.pusherService.sendToUser(data.userId, 'notification:new', notification);
 
     return notification;
   }
@@ -229,5 +228,143 @@ export class NotificationService {
         link: `/properties/${data.propertyId}`,
       });
     }
+  }
+
+  // ============ Callout Bell System ============
+
+  async getCalloutStaff(currentUserId: string) {
+    const users = await this.prisma.user.findMany({
+      where: {
+        status: 'ACTIVE',
+        id: { not: currentUserId },
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        avatar: true,
+        role: true,
+        staffProfile: {
+          select: {
+            title: true,
+            department: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { firstName: 'asc' },
+      take: 100,
+    });
+
+    return users;
+  }
+
+  async sendCallout(callerId: string, targetUserId: string, message?: string) {
+    // Get caller info
+    const caller = await this.prisma.user.findUnique({
+      where: { id: callerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        role: true,
+        staffProfile: {
+          select: {
+            title: true,
+            department: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    if (!caller) {
+      throw new NotFoundException('Caller not found');
+    }
+
+    // Create a notification record
+    const notification = await this.create({
+      userId: targetUserId,
+      type: NotificationType.CALLOUT,
+      title: 'You are being called',
+      message: message || `${caller.firstName} ${caller.lastName} is requesting your presence`,
+      priority: NotificationPriority.URGENT,
+      data: {
+        callerId: caller.id,
+        callerName: `${caller.firstName} ${caller.lastName}`,
+        callerAvatar: caller.avatar,
+        callerPosition: caller.staffProfile?.title,
+        callerDepartment: caller.staffProfile?.department?.name,
+        customMessage: message,
+      },
+    });
+
+    // Also send a dedicated callout event for the full-screen modal
+    this.pusherService.sendToUser(targetUserId, 'callout:receive', {
+      calloutId: notification.id,
+      callerId: caller.id,
+      callerName: `${caller.firstName} ${caller.lastName}`,
+      callerAvatar: caller.avatar,
+      callerPosition: caller.staffProfile?.title,
+      callerDepartment: caller.staffProfile?.department?.name,
+      message: message,
+      timestamp: new Date().toISOString(),
+    });
+
+    return { success: true, calloutId: notification.id };
+  }
+
+  async respondToCallout(calloutId: string, responderId: string, response: string) {
+    // Get the original callout notification to find the caller
+    const callout = await this.prisma.notification.findUnique({
+      where: { id: calloutId },
+    });
+
+    if (!callout) {
+      throw new NotFoundException('Callout not found');
+    }
+
+    const calloutData = callout.data as any;
+    const callerId = calloutData?.callerId;
+
+    if (!callerId) {
+      throw new NotFoundException('Caller information not found');
+    }
+
+    // Get responder info
+    const responder = await this.prisma.user.findUnique({
+      where: { id: responderId },
+      select: { firstName: true, lastName: true },
+    });
+
+    const responderName = responder ? `${responder.firstName} ${responder.lastName}` : 'Staff';
+
+    // Mark the callout as read
+    await this.markAsRead(calloutId, callout.userId);
+
+    // Create a response notification for the caller
+    await this.create({
+      userId: callerId,
+      type: NotificationType.CALLOUT_RESPONSE,
+      title: 'Callout Response',
+      message: `${responderName}: ${response}`,
+      priority: NotificationPriority.HIGH,
+      data: {
+        calloutId,
+        responderId,
+        responderName,
+        response,
+      },
+    });
+
+    // Send real-time response to caller
+    this.pusherService.sendToUser(callerId, 'callout:response', {
+      calloutId,
+      responderId,
+      responderName,
+      response,
+    });
+
+    return { success: true };
   }
 }

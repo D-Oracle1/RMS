@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Receipt, ReceiptData } from './Receipt';
 import { toast } from 'sonner';
+import { getToken } from '@/lib/auth-storage';
 
 interface ReceiptModalProps {
   open: boolean;
@@ -114,7 +115,7 @@ export function ReceiptModal({ open, onClose, data }: ReceiptModalProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getToken()}`,
         },
         body: JSON.stringify({
           receiptData: data,

@@ -6,7 +6,6 @@ import {
   Home,
   Search,
   Plus,
-  MoreHorizontal,
   MapPin,
   Bed,
   Bath,
@@ -15,11 +14,11 @@ import {
   Eye,
   Upload,
   X,
-  Image as ImageIcon,
   LandPlot,
   Building2,
   Loader2,
   AlertCircle,
+  Pencil,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -33,17 +32,11 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { formatCurrency } from '@/lib/utils';
-import { api } from '@/lib/api';
-
-const initialProperties = [
-  { id: 1, title: 'Prime Land in Lekki Phase 1', address: '123 Admiralty Way, Lekki, Lagos', price: 285000000, beds: 0, baths: 0, sqft: 2500, status: 'FOR_SALE', type: 'LAND', views: 1250, realtor: 'Sarah Johnson', images: [] as string[] },
-  { id: 2, title: 'Luxury 4 Bedroom Duplex', address: '456 Banana Island, Ikoyi, Lagos', price: 750000000, beds: 4, baths: 5, sqft: 4500, status: 'FOR_SALE', type: 'RESIDENTIAL', views: 890, realtor: 'Michael Chen', images: [] as string[] },
-  { id: 3, title: 'Commercial Plot in Victoria Island', address: '789 Adeola Odeku, VI, Lagos', price: 420000000, beds: 0, baths: 0, sqft: 5200, status: 'PENDING', type: 'LAND', views: 2100, realtor: 'Sarah Johnson', images: [] as string[] },
-  { id: 4, title: '3 Bedroom Flat in Ikeja GRA', address: '321 Joel Ogunnaike St, Ikeja, Lagos', price: 48500000, beds: 3, baths: 3, sqft: 1800, status: 'FOR_SALE', type: 'APARTMENT', views: 450, realtor: 'Emily Davis', images: [] as string[] },
-  { id: 5, title: 'Residential Land in Ajah', address: '555 Lekki-Epe Expressway, Ajah, Lagos', price: 62000000, beds: 0, baths: 0, sqft: 3200, status: 'SOLD', type: 'LAND', views: 780, realtor: 'James Wilson', images: [] as string[] },
-  { id: 6, title: 'Studio Apartment in Yaba', address: '100 Herbert Macaulay, Yaba, Lagos', price: 32000000, beds: 1, baths: 1, sqft: 650, status: 'FOR_SALE', type: 'APARTMENT', views: 320, realtor: 'Lisa Brown', images: [] as string[] },
-];
+import { formatCurrency, formatArea, type AreaUnit, AREA_UNITS, toSqm, fromSqm } from '@/lib/utils';
+import { api, getImageUrl } from '@/lib/api';
+import { getToken } from '@/lib/auth-storage';
+import { AreaUnitSelect } from '@/components/area-unit-select';
+import { toast } from 'sonner';
 
 const propertyTypes = [
   { value: 'LAND', label: 'Land', icon: LandPlot },
@@ -54,19 +47,21 @@ const propertyTypes = [
   { value: 'CONDO', label: 'Condo', icon: Building2 },
 ];
 
-const stats = [
-  { title: 'Total Properties', value: '1,892', icon: Home, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  { title: 'For Sale', value: '1,245', icon: LandPlot, color: 'text-green-600', bgColor: 'bg-green-100' },
-  { title: 'Pending', value: '156', icon: TrendingUp, color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  { title: 'Total Value', value: '₦2.4B', icon: Building2, color: 'text-primary', bgColor: 'bg-primary/10' },
-];
-
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case 'FOR_SALE': return <Badge variant="success">For Sale</Badge>;
-    case 'PENDING': return <Badge variant="outline" className="border-orange-500 text-orange-500">Pending</Badge>;
-    case 'SOLD': return <Badge variant="secondary">Sold</Badge>;
-    default: return <Badge>{status}</Badge>;
+    case 'FOR_SALE':
+    case 'LISTED':
+    case 'AVAILABLE':
+      return <Badge variant="success">For Sale</Badge>;
+    case 'PENDING':
+    case 'UNDER_CONTRACT':
+      return <Badge variant="outline" className="border-orange-500 text-orange-500">Pending</Badge>;
+    case 'SOLD':
+      return <Badge variant="secondary">Sold</Badge>;
+    case 'OFF_MARKET':
+      return <Badge variant="outline">Off Market</Badge>;
+    default:
+      return <Badge>{status}</Badge>;
   }
 };
 
@@ -78,77 +73,105 @@ const getPropertyIcon = (type: string) => {
   }
 };
 
+interface PropertyForm {
+  title: string;
+  address: string;
+  city: string;
+  state: string;
+  price: string;
+  pricePerSqm: string;
+  numberOfPlots: string;
+  type: string;
+  beds: string;
+  baths: string;
+  sqft: string;
+  description: string;
+}
+
+const emptyForm: PropertyForm = {
+  title: '',
+  address: '',
+  city: '',
+  state: 'Lagos',
+  price: '',
+  pricePerSqm: '',
+  numberOfPlots: '',
+  type: 'LAND',
+  beds: '',
+  baths: '',
+  sqft: '',
+  description: '',
+};
+
 export default function PropertiesPage() {
-  const [properties, setProperties] = useState(initialProperties);
+  const [properties, setProperties] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterType, setFilterType] = useState<string>('ALL');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState({ total: 0, listed: 0, pending: 0, totalValue: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
-  const [newProperty, setNewProperty] = useState({
-    title: '',
-    address: '',
-    city: '',
-    state: 'Lagos',
-    price: '',
-    pricePerSqm: '',
-    numberOfPlots: '',
-    type: 'LAND',
-    beds: '',
-    baths: '',
-    sqft: '',
-    description: '',
-  });
+  const [formData, setFormData] = useState<PropertyForm>({ ...emptyForm });
+  const [areaUnit, setAreaUnit] = useState<AreaUnit>('sqm');
 
-  // Fetch properties from API
+  // Edit form state
+  const [editFormData, setEditFormData] = useState<PropertyForm>({ ...emptyForm });
+  const [editAreaUnit, setEditAreaUnit] = useState<AreaUnit>('sqm');
+  const [editUploadedImages, setEditUploadedImages] = useState<string[]>([]);
+  const [editImageFiles, setEditImageFiles] = useState<File[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+
   useEffect(() => {
     fetchProperties();
   }, []);
 
   const fetchProperties = async () => {
+    const token = getToken();
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
     try {
       setIsLoading(true);
-      const response = await api.get<{ data: any[]; meta: any }>('/properties');
-      if (response.data) {
-        const mappedProperties = response.data.map((p: any) => ({
-          id: p.id,
-          title: p.title,
-          address: `${p.address}, ${p.city}, ${p.state}`,
-          price: Number(p.price),
-          beds: p.bedrooms || 0,
-          baths: p.bathrooms || 0,
-          sqft: p.area || 0,
-          status: p.isListed ? 'FOR_SALE' : p.status === 'SOLD' ? 'SOLD' : 'PENDING',
-          type: p.type,
-          views: p.views || 0,
-          realtor: p.realtor?.user ? `${p.realtor.user.firstName} ${p.realtor.user.lastName}` : 'Unknown',
-          images: p.images || [],
-        }));
-        setProperties([...mappedProperties, ...initialProperties.filter(ip => !mappedProperties.find((mp: any) => mp.id === ip.id))]);
+      const response: any = await api.get('/properties?limit=100');
+      // Unwrap TransformInterceptor { success, data, timestamp } then paginated { data, meta }
+      const wrapped = response?.data || response;
+      const items = Array.isArray(wrapped) ? wrapped : (wrapped?.data || []);
+      if (Array.isArray(items)) {
+        setProperties(items);
+        const listed = items.filter((p: any) => p.isListed).length;
+        const pending = items.filter((p: any) => p.status === 'PENDING' || p.status === 'UNDER_CONTRACT').length;
+        const totalValue = items.reduce((sum: number, p: any) => sum + Number(p.price || 0), 0);
+        setStats({ total: items.length, listed, pending, totalValue });
       }
     } catch (err) {
       console.error('Failed to fetch properties:', err);
-      // Keep mock data if API fails
     } finally {
       setIsLoading(false);
     }
   };
 
   const filteredProperties = properties.filter(property => {
-    const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.address.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'ALL' || property.status === filterStatus;
+    const matchesSearch = (property.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (property.address || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'ALL' ||
+      (filterStatus === 'FOR_SALE' && (property.isListed || property.status === 'LISTED' || property.status === 'AVAILABLE')) ||
+      (filterStatus === 'PENDING' && (property.status === 'PENDING' || property.status === 'UNDER_CONTRACT')) ||
+      (filterStatus === 'SOLD' && property.status === 'SOLD');
     const matchesType = filterType === 'ALL' || property.type === filterType;
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, isEdit = false) => {
     const files = event.target.files;
     if (!files) return;
 
@@ -158,25 +181,40 @@ export default function PropertiesPage() {
         return;
       }
 
-      // Store the file for later upload
-      setImageFiles(prev => [...prev, file]);
+      if (isEdit) {
+        setEditImageFiles(prev => [...prev, file]);
+      } else {
+        setImageFiles(prev => [...prev, file]);
+      }
 
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
-        setUploadedImages(prev => [...prev, reader.result as string]);
+        if (isEdit) {
+          setEditUploadedImages(prev => [...prev, reader.result as string]);
+        } else {
+          setUploadedImages(prev => [...prev, reader.result as string]);
+        }
       };
       reader.readAsDataURL(file);
     });
   };
 
-  const removeImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
+  const removeImage = (index: number, isEdit = false) => {
+    if (isEdit) {
+      setEditUploadedImages(prev => prev.filter((_, i) => i !== index));
+      setEditImageFiles(prev => prev.filter((_, i) => i !== index));
+    } else {
+      setUploadedImages(prev => prev.filter((_, i) => i !== index));
+      setImageFiles(prev => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const removeExistingImage = (index: number) => {
+    setExistingImages(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async () => {
-    if (!newProperty.title || !newProperty.address || !newProperty.price) {
+    if (!formData.title || !formData.address || !formData.price) {
       setError('Please fill in required fields (Title, Address, Price)');
       return;
     }
@@ -185,96 +223,466 @@ export default function PropertiesPage() {
     setError(null);
 
     try {
-      // Upload images first if any
       let imageUrls: string[] = [];
       if (imageFiles.length > 0) {
         try {
-          imageUrls = await api.uploadFiles('/upload/property-images', imageFiles, 'images');
-        } catch (uploadErr) {
-          console.error('Image upload failed:', uploadErr);
-          // Continue without images if upload fails
+          const uploadResult = await api.uploadFiles('/upload/property-images', imageFiles, 'images');
+          imageUrls = Array.isArray(uploadResult) ? uploadResult : (uploadResult as any)?.data || [];
+        } catch {
+          // Continue without images
         }
       }
 
-      // Calculate total price for land based on price per sqm
-      let totalPrice = parseFloat(newProperty.price) || 0;
-      const pricePerSqm = parseFloat(newProperty.pricePerSqm) || 0;
-      const area = parseInt(newProperty.sqft) || 0;
+      const areaInUserUnit = parseFloat(formData.sqft) || 0;
+      const areaInSqm = toSqm(areaInUserUnit, areaUnit);
+      const actualPricePerSqm = parseFloat(formData.pricePerSqm) || 0;
+      let totalPrice = parseFloat(formData.price) || 0;
 
-      if (newProperty.type === 'LAND' && pricePerSqm > 0 && area > 0) {
-        totalPrice = pricePerSqm * area;
+      if (formData.type === 'LAND' && actualPricePerSqm > 0 && areaInSqm > 0) {
+        totalPrice = actualPricePerSqm * areaInSqm;
       }
 
-      // Create property
+      const numberOfPlots = areaUnit === 'plot'
+        ? Math.round(areaInUserUnit)
+        : (parseInt(formData.numberOfPlots) || 1);
+
       const propertyData = {
-        title: newProperty.title,
-        address: newProperty.address,
-        city: newProperty.city || 'Lagos',
-        state: newProperty.state,
+        title: formData.title,
+        address: formData.address,
+        city: formData.city || 'Lagos',
+        state: formData.state,
         country: 'Nigeria',
         price: totalPrice,
-        pricePerSqm: newProperty.type === 'LAND' ? pricePerSqm : undefined,
-        numberOfPlots: newProperty.type === 'LAND' ? (parseInt(newProperty.numberOfPlots) || 1) : undefined,
-        type: newProperty.type,
+        pricePerSqm: formData.type === 'LAND' ? actualPricePerSqm : undefined,
+        numberOfPlots: formData.type === 'LAND' ? numberOfPlots : undefined,
+        type: formData.type,
         status: 'AVAILABLE',
-        bedrooms: newProperty.type === 'LAND' ? 0 : parseInt(newProperty.beds) || 0,
-        bathrooms: newProperty.type === 'LAND' ? 0 : parseInt(newProperty.baths) || 0,
-        area: area,
-        description: newProperty.description || '',
+        bedrooms: formData.type === 'LAND' ? 0 : parseInt(formData.beds) || 0,
+        bathrooms: formData.type === 'LAND' ? 0 : parseInt(formData.baths) || 0,
+        area: areaInSqm,
+        description: formData.description || '',
         images: imageUrls,
         isListed: true,
       };
 
-      const createdProperty = await api.post<any>('/properties', propertyData);
-
-      // Add to local state
-      const property = {
-        id: createdProperty.id,
-        title: createdProperty.title,
-        address: `${createdProperty.address}, ${createdProperty.city}, ${createdProperty.state}`,
-        price: Number(createdProperty.price),
-        beds: createdProperty.bedrooms || 0,
-        baths: createdProperty.bathrooms || 0,
-        sqft: createdProperty.area || 0,
-        status: 'FOR_SALE',
-        type: createdProperty.type,
-        views: 0,
-        realtor: 'Current User',
-        images: createdProperty.images || imageUrls,
-      };
-
-      setProperties(prev => [property, ...prev]);
+      await api.post('/properties', propertyData);
+      toast.success('Property created successfully');
       setIsAddDialogOpen(false);
-      setNewProperty({
-        title: '',
-        address: '',
-        city: '',
-        state: 'Lagos',
-        price: '',
-        pricePerSqm: '',
-        numberOfPlots: '',
-        type: 'LAND',
-        beds: '',
-        baths: '',
-        sqft: '',
-        description: '',
-      });
+      setFormData({ ...emptyForm });
+      setAreaUnit('sqm');
       setUploadedImages([]);
       setImageFiles([]);
+      fetchProperties();
     } catch (err: any) {
-      setError(err.message || 'Failed to create property. Please try again.');
+      setError(err.message || 'Failed to create property.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const isLandProperty = newProperty.type === 'LAND';
+  const openEditDialog = (property: any) => {
+    setEditingProperty(property);
+    setEditFormData({
+      title: property.title || '',
+      address: property.address || '',
+      city: property.city || '',
+      state: property.state || 'Lagos',
+      price: String(Number(property.price) || ''),
+      pricePerSqm: String(Number(property.pricePerSqm) || ''),
+      numberOfPlots: String(property.numberOfPlots || ''),
+      type: property.type || 'LAND',
+      beds: String(property.bedrooms || ''),
+      baths: String(property.bathrooms || ''),
+      sqft: String(property.area || ''),
+      description: property.description || '',
+    });
+    setExistingImages(property.images || []);
+    setEditAreaUnit('sqm');
+    setEditUploadedImages([]);
+    setEditImageFiles([]);
+    setError(null);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingProperty) return;
+    if (!editFormData.title || !editFormData.address) {
+      setError('Please fill in required fields (Title, Address)');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      let newImageUrls: string[] = [];
+      if (editImageFiles.length > 0) {
+        try {
+          const uploadResult = await api.uploadFiles('/upload/property-images', editImageFiles, 'images');
+          newImageUrls = Array.isArray(uploadResult) ? uploadResult : (uploadResult as any)?.data || [];
+        } catch {
+          // Continue without new images
+        }
+      }
+
+      const allImages = [...existingImages, ...newImageUrls];
+      const isLand = editFormData.type === 'LAND';
+
+      const areaInUserUnit = parseFloat(editFormData.sqft) || 0;
+      const areaInSqm = toSqm(areaInUserUnit, editAreaUnit);
+      const actualPricePerSqm = parseFloat(editFormData.pricePerSqm) || 0;
+      let totalPrice = parseFloat(editFormData.price) || 0;
+
+      if (isLand && actualPricePerSqm > 0 && areaInSqm > 0) {
+        totalPrice = actualPricePerSqm * areaInSqm;
+      }
+
+      const numberOfPlots = editAreaUnit === 'plot'
+        ? Math.round(areaInUserUnit)
+        : (parseInt(editFormData.numberOfPlots) || 1);
+
+      const updateData: any = {
+        title: editFormData.title,
+        address: editFormData.address,
+        city: editFormData.city || undefined,
+        state: editFormData.state || undefined,
+        price: totalPrice,
+        type: editFormData.type,
+        bedrooms: isLand ? 0 : parseInt(editFormData.beds) || 0,
+        bathrooms: isLand ? 0 : parseFloat(editFormData.baths) || 0,
+        area: areaInSqm,
+        description: editFormData.description || undefined,
+        images: allImages,
+      };
+
+      if (isLand) {
+        updateData.pricePerSqm = actualPricePerSqm;
+        updateData.numberOfPlots = numberOfPlots;
+      }
+
+      await api.put(`/properties/${editingProperty.id}`, updateData);
+      toast.success('Property updated successfully');
+      setIsEditDialogOpen(false);
+      setEditingProperty(null);
+      fetchProperties();
+    } catch (err: any) {
+      setError(err.message || 'Failed to update property.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const isLandType = (type: string) => type === 'LAND';
+
+  const statCards = [
+    { title: 'Total Properties', value: stats.total.toLocaleString(), icon: Home, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    { title: 'For Sale', value: stats.listed.toLocaleString(), icon: LandPlot, color: 'text-green-600', bgColor: 'bg-green-100' },
+    { title: 'Pending', value: stats.pending.toLocaleString(), icon: TrendingUp, color: 'text-orange-600', bgColor: 'bg-orange-100' },
+    { title: 'Total Value', value: formatCurrency(stats.totalValue), icon: Building2, color: 'text-primary', bgColor: 'bg-primary/10' },
+  ];
+
+  const handleAreaUnitChange = (
+    newUnit: AreaUnit,
+    currentUnit: AreaUnit,
+    data: PropertyForm,
+    setData: React.Dispatch<React.SetStateAction<PropertyForm>>,
+    setUnit: React.Dispatch<React.SetStateAction<AreaUnit>>,
+  ) => {
+    const currentValue = parseFloat(data.sqft) || 0;
+    if (currentValue > 0) {
+      const sqmValue = toSqm(currentValue, currentUnit);
+      const converted = fromSqm(sqmValue, newUnit);
+      setData(prev => ({
+        ...prev,
+        sqft: converted % 1 === 0 ? String(converted) : converted.toFixed(2),
+      }));
+    }
+    setUnit(newUnit);
+  };
+
+  const renderPropertyForm = (
+    data: PropertyForm,
+    setData: React.Dispatch<React.SetStateAction<PropertyForm>>,
+    images: string[],
+    onRemoveImage: (i: number) => void,
+    onImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void,
+    inputRef: React.RefObject<HTMLInputElement | null>,
+    currentAreaUnit: AreaUnit,
+    setCurrentAreaUnit: React.Dispatch<React.SetStateAction<AreaUnit>>,
+    existingImgs?: string[],
+    onRemoveExisting?: (i: number) => void,
+  ) => {
+    const isLand = isLandType(data.type);
+    const unitLabel = AREA_UNITS[currentAreaUnit].shortLabel;
+
+    return (
+      <div className="grid gap-4 py-4">
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {error}
+          </div>
+        )}
+
+        {/* Property Type */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Property Type *</label>
+          <div className="grid grid-cols-3 gap-2">
+            {propertyTypes.map(type => (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => setData(prev => ({ ...prev, type: type.value }))}
+                className={`p-3 rounded-lg border-2 text-center transition-colors ${
+                  data.type === type.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <type.icon className="w-5 h-5 mx-auto mb-1" />
+                <span className="text-xs font-medium">{type.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Title */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Property Title *</label>
+          <Input
+            placeholder="e.g., Prime Land in Lekki Phase 1"
+            value={data.title}
+            onChange={(e) => setData(prev => ({ ...prev, title: e.target.value }))}
+          />
+        </div>
+
+        {/* Address */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Address *</label>
+            <Input
+              placeholder="Street address"
+              value={data.address}
+              onChange={(e) => setData(prev => ({ ...prev, address: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">City</label>
+            <Input
+              placeholder="e.g., Lekki"
+              value={data.city}
+              onChange={(e) => setData(prev => ({ ...prev, city: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">State</label>
+            <select
+              className="w-full px-3 py-2 border rounded-md text-sm"
+              value={data.state}
+              onChange={(e) => setData(prev => ({ ...prev, state: e.target.value }))}
+            >
+              <option value="Lagos">Lagos</option>
+              <option value="Abuja">Abuja</option>
+              <option value="Rivers">Rivers</option>
+              <option value="Oyo">Oyo</option>
+              <option value="Kano">Kano</option>
+              <option value="Ogun">Ogun</option>
+              <option value="Enugu">Enugu</option>
+              <option value="Delta">Delta</option>
+              <option value="Anambra">Anambra</option>
+              <option value="Kaduna">Kaduna</option>
+            </select>
+          </div>
+          {!isLand ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Price (₦) *</label>
+              <Input
+                type="number"
+                placeholder="e.g., 50000000"
+                value={data.price}
+                onChange={(e) => setData(prev => ({ ...prev, price: e.target.value }))}
+              />
+            </div>
+          ) : currentAreaUnit !== 'plot' ? (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Number of Plots</label>
+              <Input
+                type="number"
+                placeholder="e.g., 5"
+                value={data.numberOfPlots}
+                onChange={(e) => setData(prev => ({ ...prev, numberOfPlots: e.target.value }))}
+              />
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Price (₦) *</label>
+              <Input
+                type="number"
+                placeholder="e.g., 50000000"
+                value={data.price}
+                onChange={(e) => setData(prev => ({ ...prev, price: e.target.value }))}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Land-specific pricing */}
+        {isLand && (
+          <div className="grid grid-cols-2 gap-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-green-700 dark:text-green-400">Price per sqm (₦) *</label>
+              <Input
+                type="number"
+                placeholder="e.g., 150000"
+                value={data.pricePerSqm}
+                onChange={(e) => setData(prev => ({ ...prev, pricePerSqm: e.target.value }))}
+                className="border-green-300"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-green-700 dark:text-green-400">Total Value (₦)</label>
+              <div className="px-3 py-2 bg-white dark:bg-gray-800 border rounded-md text-lg font-bold text-green-600">
+                {formatCurrency(
+                  (parseFloat(data.pricePerSqm) || 0) * (parseFloat(data.sqft) || 0)
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Auto-calculated from price/{unitLabel} x size</p>
+            </div>
+          </div>
+        )}
+
+        {/* Property Details */}
+        <div className="grid grid-cols-3 gap-4">
+          {!isLand && (
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Bedrooms</label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={data.beds}
+                  onChange={(e) => setData(prev => ({ ...prev, beds: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Bathrooms</label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={data.baths}
+                  onChange={(e) => setData(prev => ({ ...prev, baths: e.target.value }))}
+                />
+              </div>
+            </>
+          )}
+          <div className={`space-y-2 ${isLand ? 'col-span-3' : ''}`}>
+            <label className="text-sm font-medium">Size ({unitLabel})</label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                placeholder="e.g., 500"
+                value={data.sqft}
+                onChange={(e) => setData(prev => ({ ...prev, sqft: e.target.value }))}
+                className="flex-1"
+              />
+              <AreaUnitSelect
+                value={currentAreaUnit}
+                onChange={(newUnit) => handleAreaUnitChange(newUnit, currentAreaUnit, data, setData, setCurrentAreaUnit)}
+              />
+            </div>
+            {currentAreaUnit !== 'sqm' && parseFloat(data.sqft) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                = {toSqm(parseFloat(data.sqft), currentAreaUnit).toLocaleString()} sqm
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Description</label>
+          <textarea
+            className="w-full px-3 py-2 border rounded-md min-h-20 resize-none text-sm"
+            placeholder="Describe the property..."
+            value={data.description}
+            onChange={(e) => setData(prev => ({ ...prev, description: e.target.value }))}
+          />
+        </div>
+
+        {/* Image Upload */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Property Images</label>
+
+          {/* Existing images (edit mode) */}
+          {existingImgs && existingImgs.length > 0 && (
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              {existingImgs.map((image, index) => (
+                <div key={`existing-${index}`} className="relative group">
+                  <img
+                    src={getImageUrl(image)}
+                    alt={`Existing ${index + 1}`}
+                    className="w-full h-20 object-cover rounded-lg border-2 border-primary/30"
+                  />
+                  <button
+                    onClick={() => onRemoveExisting?.(index)}
+                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div
+            className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
+            onClick={() => inputRef.current?.click()}
+          >
+            <input
+              type="file"
+              ref={inputRef as React.RefObject<HTMLInputElement>}
+              onChange={(e) => onImageUpload(e)}
+              accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+              multiple
+              className="hidden"
+            />
+            <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">Click to upload images</p>
+            <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, GIF up to 5MB each</p>
+          </div>
+
+          {images.length > 0 && (
+            <div className="grid grid-cols-4 gap-2 mt-2">
+              {images.map((image, index) => (
+                <div key={index} className="relative group">
+                  <img
+                    src={image}
+                    alt={`Upload ${index + 1}`}
+                    className="w-full h-20 object-cover rounded-lg"
+                  />
+                  <button
+                    onClick={() => onRemoveImage(index)}
+                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => (
+        {statCards.map((stat, index) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
@@ -338,63 +746,88 @@ export default function PropertiesPage() {
                 <option value="PENDING">Pending</option>
                 <option value="SOLD">Sold</option>
               </select>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
+              <Button onClick={() => { setFormData({ ...emptyForm }); setUploadedImages([]); setImageFiles([]); setError(null); setIsAddDialogOpen(true); }}>
                 <Plus className="w-4 h-4 mr-2" />
                 Add Property
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredProperties.map((property) => (
-                <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center relative">
-                    {property.images && property.images.length > 0 ? (
-                      <img
-                        src={property.images[0]}
-                        alt={property.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      getPropertyIcon(property.type)
-                    )}
-                    <Badge className="absolute top-2 left-2 bg-black/70">{property.type}</Badge>
-                  </div>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold line-clamp-1">{property.title}</h3>
-                      {getStatusBadge(property.status)}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredProperties.map((property) => (
+                  <Card key={property.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <div className="h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center relative">
+                      {property.images && property.images.length > 0 ? (
+                        <img
+                          src={getImageUrl(property.images[0])}
+                          alt={property.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        getPropertyIcon(property.type)
+                      )}
+                      <Badge className="absolute top-2 left-2 bg-black/70">{property.type}</Badge>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="absolute top-2 right-2 h-8 w-8 p-0"
+                        onClick={() => openEditDialog(property)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1 mb-3">
-                      <MapPin className="w-3 h-3" /> {property.address}
-                    </p>
-                    <p className="text-2xl font-bold text-primary mb-1">{formatCurrency(property.price)}</p>
-                    {property.type === 'LAND' && property.sqft > 0 && (
-                      <p className="text-sm text-green-600 mb-2">
-                        {formatCurrency(property.price / property.sqft)}/sqm
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="font-semibold line-clamp-1">{property.title}</h3>
+                        {getStatusBadge(property.status)}
+                      </div>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1 mb-3">
+                        <MapPin className="w-3 h-3" /> {property.address}{property.city ? `, ${property.city}` : ''}{property.state ? `, ${property.state}` : ''}
                       </p>
-                    )}
-                    {property.type !== 'LAND' ? (
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                        <span className="flex items-center gap-1"><Bed className="w-4 h-4" /> {property.beds}</span>
-                        <span className="flex items-center gap-1"><Bath className="w-4 h-4" /> {property.baths}</span>
-                        <span className="flex items-center gap-1"><Square className="w-4 h-4" /> {property.sqft} sqm</span>
+                      <p className="text-2xl font-bold text-primary mb-1">{formatCurrency(Number(property.price))}</p>
+                      {property.type === 'LAND' && property.area > 0 && Number(property.pricePerSqm) > 0 && (
+                        <p className="text-sm text-green-600 mb-2">
+                          {formatCurrency(Number(property.pricePerSqm))}/sqm
+                        </p>
+                      )}
+                      {property.type !== 'LAND' ? (
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                          <span className="flex items-center gap-1"><Bed className="w-4 h-4" /> {property.bedrooms || 0}</span>
+                          <span className="flex items-center gap-1"><Bath className="w-4 h-4" /> {property.bathrooms || 0}</span>
+                          <span className="flex items-center gap-1"><Square className="w-4 h-4" /> {formatArea(property.area || 0)}</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                          <span className="flex items-center gap-1"><Square className="w-4 h-4" /> {formatArea(property.area || 0)}</span>
+                          {property.numberOfPlots && (
+                            <span className="flex items-center gap-1"><LandPlot className="w-4 h-4" /> {property.numberOfPlots} plots</span>
+                          )}
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between pt-3 border-t">
+                        <span className="text-sm text-muted-foreground">
+                          {property.realtor?.user ? `${property.realtor.user.firstName} ${property.realtor.user.lastName}` : 'Unassigned'}
+                        </span>
+                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(property)}>
+                          <Pencil className="w-3 h-3 mr-1" />
+                          Edit
+                        </Button>
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
-                        <span className="flex items-center gap-1"><Square className="w-4 h-4" /> {property.sqft} sqm</span>
-                      </div>
-                    )}
-                    <div className="flex items-center justify-between pt-3 border-t">
-                      <span className="text-sm text-muted-foreground">{property.realtor}</span>
-                      <span className="text-sm text-muted-foreground flex items-center gap-1">
-                        <Eye className="w-4 h-4" /> {property.views}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {filteredProperties.length === 0 && !isLoading && (
+                  <div className="col-span-full text-center py-8 text-muted-foreground">
+                    No properties found.
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
@@ -408,240 +841,57 @@ export default function PropertiesPage() {
               Fill in the property details below. Land properties don't require bedroom/bathroom info.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            {/* Error Display */}
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {error}
-              </div>
-            )}
-
-            {/* Property Type */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Property Type *</label>
-              <div className="grid grid-cols-3 gap-2">
-                {propertyTypes.map(type => (
-                  <button
-                    key={type.value}
-                    type="button"
-                    onClick={() => setNewProperty(prev => ({ ...prev, type: type.value }))}
-                    className={`p-3 rounded-lg border-2 text-center transition-colors ${
-                      newProperty.type === type.value
-                        ? 'border-primary bg-primary/5'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <type.icon className="w-5 h-5 mx-auto mb-1" />
-                    <span className="text-xs font-medium">{type.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Title */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Property Title *</label>
-              <Input
-                placeholder="e.g., Prime Land in Lekki Phase 1"
-                value={newProperty.title}
-                onChange={(e) => setNewProperty(prev => ({ ...prev, title: e.target.value }))}
-              />
-            </div>
-
-            {/* Address */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Address *</label>
-                <Input
-                  placeholder="Street address"
-                  value={newProperty.address}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, address: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">City</label>
-                <Input
-                  placeholder="e.g., Lekki"
-                  value={newProperty.city}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, city: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">State</label>
-                <select
-                  className="w-full px-3 py-2 border rounded-md text-sm"
-                  value={newProperty.state}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, state: e.target.value }))}
-                >
-                  <option value="Lagos">Lagos</option>
-                  <option value="Abuja">Abuja</option>
-                  <option value="Rivers">Rivers</option>
-                  <option value="Oyo">Oyo</option>
-                  <option value="Kano">Kano</option>
-                  <option value="Ogun">Ogun</option>
-                  <option value="Enugu">Enugu</option>
-                  <option value="Delta">Delta</option>
-                  <option value="Anambra">Anambra</option>
-                  <option value="Kaduna">Kaduna</option>
-                </select>
-              </div>
-              {!isLandProperty ? (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Price (₦) *</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 50000000"
-                    value={newProperty.price}
-                    onChange={(e) => setNewProperty(prev => ({ ...prev, price: e.target.value }))}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Number of Plots</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 5"
-                    value={newProperty.numberOfPlots}
-                    onChange={(e) => setNewProperty(prev => ({ ...prev, numberOfPlots: e.target.value }))}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Land-specific pricing */}
-            {isLandProperty && (
-              <div className="grid grid-cols-2 gap-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-green-700 dark:text-green-400">Price per sqm (₦) *</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 150000"
-                    value={newProperty.pricePerSqm}
-                    onChange={(e) => setNewProperty(prev => ({ ...prev, pricePerSqm: e.target.value }))}
-                    className="border-green-300"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-green-700 dark:text-green-400">Total Value (₦)</label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-800 border rounded-md text-lg font-bold text-green-600">
-                    {formatCurrency(
-                      (parseFloat(newProperty.pricePerSqm) || 0) * (parseInt(newProperty.sqft) || 0)
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Auto-calculated from price/sqm × size</p>
-                </div>
-              </div>
-            )}
-
-            {/* Property Details - Show beds/baths only for non-land */}
-            <div className="grid grid-cols-3 gap-4">
-              {!isLandProperty && (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Bedrooms</label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={newProperty.beds}
-                      onChange={(e) => setNewProperty(prev => ({ ...prev, beds: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Bathrooms</label>
-                    <Input
-                      type="number"
-                      placeholder="0"
-                      value={newProperty.baths}
-                      onChange={(e) => setNewProperty(prev => ({ ...prev, baths: e.target.value }))}
-                    />
-                  </div>
-                </>
-              )}
-              <div className={`space-y-2 ${isLandProperty ? 'col-span-3' : ''}`}>
-                <label className="text-sm font-medium">Size (sqm)</label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 500"
-                  value={newProperty.sqft}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, sqft: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <textarea
-                className="w-full px-3 py-2 border rounded-md min-h-20 resize-none text-sm"
-                placeholder="Describe the property..."
-                value={newProperty.description}
-                onChange={(e) => setNewProperty(prev => ({ ...prev, description: e.target.value }))}
-              />
-            </div>
-
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Property Images</label>
-              <div
-                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                  multiple
-                  className="hidden"
-                />
-                <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Click to upload images</p>
-                <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, GIF up to 5MB each</p>
-              </div>
-
-              {/* Uploaded Images Preview */}
-              {uploadedImages.length > 0 && (
-                <div className="grid grid-cols-4 gap-2 mt-4">
-                  {uploadedImages.map((image, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={image}
-                        alt={`Upload ${index + 1}`}
-                        className="w-full h-20 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
+          {renderPropertyForm(
+            formData,
+            setFormData,
+            uploadedImages,
+            (i) => removeImage(i, false),
+            (e) => handleImageUpload(e, false),
+            fileInputRef,
+            areaUnit,
+            setAreaUnit,
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Adding...
-                </>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Adding...</>
               ) : (
-                <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Property
-                </>
+                <><Plus className="w-4 h-4 mr-2" />Add Property</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Property Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Property</DialogTitle>
+            <DialogDescription>
+              Update the property details below.
+            </DialogDescription>
+          </DialogHeader>
+          {renderPropertyForm(
+            editFormData,
+            setEditFormData,
+            editUploadedImages,
+            (i) => removeImage(i, true),
+            (e) => handleImageUpload(e, true),
+            editFileInputRef,
+            editAreaUnit,
+            setEditAreaUnit,
+            existingImages,
+            removeExistingImage,
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleEditSubmit} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</>
+              ) : (
+                <><Pencil className="w-4 h-4 mr-2" />Save Changes</>
               )}
             </Button>
           </DialogFooter>

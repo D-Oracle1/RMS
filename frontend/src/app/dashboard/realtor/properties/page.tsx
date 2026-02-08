@@ -1,30 +1,32 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Home,
   Search,
-  Plus,
   MapPin,
   Bed,
   Bath,
   Square,
   DollarSign,
   Eye,
-  Edit,
-  Trash2,
-  Upload,
-  X,
   LandPlot,
   Building2,
   Loader2,
   AlertCircle,
+  CheckCircle,
+  User,
+  Mail,
+  Phone,
+  FileText,
+  ShoppingCart,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -33,38 +35,26 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { formatCurrency } from '@/lib/utils';
-import { api } from '@/lib/api';
-
-const initialProperties = [
-  { id: 1, title: 'Prime Land in Lekki Phase 1', address: '123 Admiralty Way, Lekki, Lagos', price: 285000000, beds: 0, baths: 0, sqft: 2500, status: 'FOR_SALE', type: 'LAND', views: 1250, daysListed: 14, images: [] as string[] },
-  { id: 2, title: 'Luxury 4 Bedroom Duplex', address: '456 Banana Island, Ikoyi, Lagos', price: 750000000, beds: 4, baths: 5, sqft: 4500, status: 'FOR_SALE', type: 'RESIDENTIAL', views: 890, daysListed: 21, images: [] as string[] },
-  { id: 3, title: 'Commercial Plot in Victoria Island', address: '789 Adeola Odeku, VI, Lagos', price: 420000000, beds: 0, baths: 0, sqft: 5200, status: 'PENDING', type: 'LAND', views: 2100, daysListed: 7, images: [] as string[] },
-  { id: 4, title: '3 Bedroom Flat in Ikeja GRA', address: '321 Joel Ogunnaike St, Ikeja, Lagos', price: 48500000, beds: 3, baths: 3, sqft: 1800, status: 'SOLD', type: 'APARTMENT', views: 450, daysListed: 45, images: [] as string[] },
-];
-
-const propertyTypes = [
-  { value: 'LAND', label: 'Land', icon: LandPlot },
-  { value: 'RESIDENTIAL', label: 'Residential', icon: Home },
-  { value: 'COMMERCIAL', label: 'Commercial', icon: Building2 },
-  { value: 'APARTMENT', label: 'Apartment', icon: Building2 },
-  { value: 'VILLA', label: 'Villa', icon: Home },
-  { value: 'CONDO', label: 'Condo', icon: Building2 },
-];
-
-const stats = [
-  { title: 'Active Listings', value: '12', icon: Home, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  { title: 'Pending Sales', value: '3', icon: DollarSign, color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  { title: 'Sold This Month', value: '5', icon: DollarSign, color: 'text-green-600', bgColor: 'bg-green-100' },
-  { title: 'Total Views', value: '4.6K', icon: Eye, color: 'text-purple-600', bgColor: 'bg-purple-100' },
-];
+import { formatCurrency, formatArea, type AreaUnit, AREA_UNITS, toSqm, fromSqm } from '@/lib/utils';
+import { api, getImageUrl } from '@/lib/api';
+import { AreaUnitSelect } from '@/components/area-unit-select';
+import { toast } from 'sonner';
+import { getToken } from '@/lib/auth-storage';
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case 'FOR_SALE': return <Badge variant="success">For Sale</Badge>;
-    case 'PENDING': return <Badge variant="outline" className="border-orange-500 text-orange-500">Pending</Badge>;
-    case 'SOLD': return <Badge variant="secondary">Sold</Badge>;
-    default: return <Badge>{status}</Badge>;
+    case 'AVAILABLE':
+    case 'LISTED':
+      return <Badge variant="success">Available</Badge>;
+    case 'PENDING':
+    case 'UNDER_CONTRACT':
+      return <Badge variant="outline" className="border-orange-500 text-orange-500">Pending</Badge>;
+    case 'SOLD':
+      return <Badge variant="secondary">Sold Out</Badge>;
+    case 'OFF_MARKET':
+      return <Badge variant="outline">Off Market</Badge>;
+    default:
+      return <Badge>{status}</Badge>;
   }
 };
 
@@ -76,162 +66,232 @@ const getPropertyIcon = (type: string) => {
   }
 };
 
+interface SaleReportForm {
+  buyerFirstName: string;
+  buyerLastName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  buyerAddress: string;
+  plotsSold: string;
+  sqmSold: string;
+  pricePerSqm: string;
+  totalAmount: string;
+  paymentMethod: string;
+  notes: string;
+  paymentPlan: 'FULL' | 'INSTALLMENT';
+  numberOfInstallments: string;
+  firstPaymentAmount: string;
+}
+
 export default function RealtorPropertiesPage() {
-  const [properties, setProperties] = useState(initialProperties);
+  const [properties, setProperties] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterType, setFilterType] = useState<string>('ALL');
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isReportSaleOpen, setIsReportSaleOpen] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [imageFiles, setImageFiles] = useState<File[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [reportedSales, setReportedSales] = useState<any[]>([]);
+  const [salesLoading, setSalesLoading] = useState(true);
+  const [saleAreaUnit, setSaleAreaUnit] = useState<AreaUnit>('sqm');
 
-  const [newProperty, setNewProperty] = useState({
-    title: '',
-    address: '',
-    city: '',
-    state: 'Lagos',
-    price: '',
+  const [saleForm, setSaleForm] = useState<SaleReportForm>({
+    buyerFirstName: '',
+    buyerLastName: '',
+    buyerEmail: '',
+    buyerPhone: '',
+    buyerAddress: '',
+    plotsSold: '1',
+    sqmSold: '',
     pricePerSqm: '',
-    numberOfPlots: '',
-    type: 'LAND',
-    beds: '',
-    baths: '',
-    sqft: '',
-    description: '',
+    totalAmount: '',
+    paymentMethod: 'BANK_TRANSFER',
+    notes: '',
+    paymentPlan: 'FULL',
+    numberOfInstallments: '1',
+    firstPaymentAmount: '',
   });
 
+  useEffect(() => {
+    fetchProperties();
+    fetchSales();
+  }, []);
+
+  const fetchProperties = async () => {
+    const token = getToken();
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const response: any = await api.get('/properties?limit=100');
+      const wrapped = response?.data || response;
+      const items = Array.isArray(wrapped) ? wrapped : (wrapped?.data || []);
+      setProperties(items);
+    } catch (err) {
+      console.error('Failed to fetch properties:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchSales = async () => {
+    const token = getToken();
+    if (!token) {
+      setSalesLoading(false);
+      return;
+    }
+    try {
+      setSalesLoading(true);
+      const response: any = await api.get('/sales?limit=20');
+      const wrapped = response?.data || response;
+      const items = Array.isArray(wrapped) ? wrapped : (wrapped?.data || []);
+      setReportedSales(items);
+    } catch {
+      // Ignore — sales will show empty
+    } finally {
+      setSalesLoading(false);
+    }
+  };
+
+  const availableProperties = properties.filter(p =>
+    p.status === 'AVAILABLE' || p.status === 'LISTED' || p.isListed
+  );
+
   const filteredProperties = properties.filter(property => {
-    const matchesSearch = property.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.address.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === 'ALL' || property.status === filterStatus;
+    const matchesSearch = (property.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (property.address || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'ALL' ||
+      (filterStatus === 'FOR_SALE' && (property.isListed || property.status === 'AVAILABLE' || property.status === 'LISTED')) ||
+      (filterStatus === 'SOLD' && property.status === 'SOLD');
     const matchesType = filterType === 'ALL' || property.type === filterType;
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
+  const openReportSale = (property: any) => {
+    setSelectedProperty(property);
+    setSaleAreaUnit('sqm');
+    const isLand = property.type === 'LAND';
+    const storedPricePerSqm = Number(property.pricePerSqm) || 0;
+    setSaleForm({
+      buyerFirstName: '',
+      buyerLastName: '',
+      buyerEmail: '',
+      buyerPhone: '',
+      buyerAddress: '',
+      plotsSold: '1',
+      sqmSold: String(property.area || 0),
+      pricePerSqm: String(storedPricePerSqm),
+      totalAmount: isLand && storedPricePerSqm > 0
+        ? String(storedPricePerSqm * (property.area || 0))
+        : String(Number(property.price) || 0),
+      paymentMethod: 'BANK_TRANSFER',
+      notes: '',
+      paymentPlan: 'FULL',
+      numberOfInstallments: '1',
+      firstPaymentAmount: '',
+    });
+    setIsReportSaleOpen(true);
+  };
 
-    Array.from(files).forEach(file => {
-      if (!file.type.match(/^image\/(jpeg|jpg|png|gif|webp)$/)) {
-        setError('Please select valid image files (JPEG, PNG, GIF, or WebP)');
-        return;
+  const handleSaleAreaUnitChange = (newUnit: AreaUnit) => {
+    const currentValue = parseFloat(saleForm.sqmSold) || 0;
+    if (currentValue > 0) {
+      const sqmValue = toSqm(currentValue, saleAreaUnit);
+      const converted = fromSqm(sqmValue, newUnit);
+      setSaleForm(prev => ({
+        ...prev,
+        sqmSold: converted % 1 === 0 ? String(converted) : converted.toFixed(2),
+      }));
+    }
+    setSaleAreaUnit(newUnit);
+  };
+
+  const updateSaleForm = (field: keyof SaleReportForm, value: string) => {
+    setSaleForm(prev => {
+      const updated = { ...prev, [field]: value };
+
+      // Auto-calculate total amount for land properties
+      if (selectedProperty?.type === 'LAND' && (field === 'sqmSold' || field === 'pricePerSqm')) {
+        const sqm = parseFloat(field === 'sqmSold' ? value : updated.sqmSold) || 0;
+        const price = parseFloat(field === 'pricePerSqm' ? value : updated.pricePerSqm) || 0;
+        updated.totalAmount = (sqm * price).toString();
       }
 
-      setImageFiles(prev => [...prev, file]);
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImages(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
+      return updated;
     });
   };
 
-  const removeImage = (index: number) => {
-    setUploadedImages(prev => prev.filter((_, i) => i !== index));
-    setImageFiles(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSubmit = async () => {
-    if (!newProperty.title || !newProperty.address || !newProperty.price) {
-      setError('Please fill in required fields (Title, Address, Price)');
+  const handleSubmitSale = async () => {
+    if (!saleForm.buyerFirstName || !saleForm.buyerLastName || !saleForm.buyerEmail) {
+      toast.error('Please fill in buyer name and email');
       return;
     }
 
+    if (!saleForm.totalAmount || parseFloat(saleForm.totalAmount) <= 0) {
+      toast.error('Please fill in sale amount');
+      return;
+    }
+
+    if (saleForm.paymentPlan === 'INSTALLMENT') {
+      const firstPayment = parseFloat(saleForm.firstPaymentAmount) || 0;
+      if (firstPayment <= 0) {
+        toast.error('Please enter a first payment amount for installment plan');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
-    setError(null);
 
     try {
-      let imageUrls: string[] = [];
-      if (imageFiles.length > 0) {
-        try {
-          imageUrls = await api.uploadFiles('/upload/property-images', imageFiles, 'images');
-        } catch (uploadErr) {
-          console.error('Image upload failed:', uploadErr);
-        }
-      }
-
-      // Calculate total price for land based on price per sqm
-      let totalPrice = parseFloat(newProperty.price) || 0;
-      const pricePerSqm = parseFloat(newProperty.pricePerSqm) || 0;
-      const area = parseInt(newProperty.sqft) || 0;
-
-      if (newProperty.type === 'LAND' && pricePerSqm > 0 && area > 0) {
-        totalPrice = pricePerSqm * area;
-      }
-
-      const propertyData = {
-        title: newProperty.title,
-        address: newProperty.address,
-        city: newProperty.city || 'Lagos',
-        state: newProperty.state,
-        country: 'Nigeria',
-        price: totalPrice,
-        pricePerSqm: newProperty.type === 'LAND' ? pricePerSqm : undefined,
-        numberOfPlots: newProperty.type === 'LAND' ? (parseInt(newProperty.numberOfPlots) || 1) : undefined,
-        type: newProperty.type,
-        status: 'AVAILABLE',
-        bedrooms: newProperty.type === 'LAND' ? 0 : parseInt(newProperty.beds) || 0,
-        bathrooms: newProperty.type === 'LAND' ? 0 : parseInt(newProperty.baths) || 0,
-        area: area,
-        description: newProperty.description || '',
-        images: imageUrls,
-        isListed: true,
+      const saleData: any = {
+        clientName: `${saleForm.buyerFirstName} ${saleForm.buyerLastName}`,
+        clientEmail: saleForm.buyerEmail,
+        clientContact: saleForm.buyerPhone || undefined,
+        propertyId: selectedProperty.id,
+        saleValue: parseFloat(saleForm.totalAmount),
+        saleDate: new Date().toISOString().split('T')[0],
+        notes: saleForm.notes || undefined,
+        paymentPlan: saleForm.paymentPlan,
+        paymentMethod: saleForm.paymentMethod || undefined,
+        areaSold: toSqm(parseFloat(saleForm.sqmSold) || 0, saleAreaUnit) || undefined,
       };
 
-      const createdProperty = await api.post<any>('/properties', propertyData);
+      if (saleForm.paymentPlan === 'INSTALLMENT') {
+        saleData.numberOfInstallments = parseInt(saleForm.numberOfInstallments) || 2;
+        saleData.firstPaymentAmount = parseFloat(saleForm.firstPaymentAmount) || 0;
+      }
 
-      const property = {
-        id: createdProperty.id,
-        title: createdProperty.title,
-        address: `${createdProperty.address}, ${createdProperty.city}, ${createdProperty.state}`,
-        price: Number(createdProperty.price),
-        beds: createdProperty.bedrooms || 0,
-        baths: createdProperty.bathrooms || 0,
-        sqft: createdProperty.area || 0,
-        status: 'FOR_SALE',
-        type: createdProperty.type,
-        views: 0,
-        daysListed: 0,
-        images: createdProperty.images || imageUrls,
-      };
-
-      setProperties(prev => [property, ...prev]);
-      setIsAddDialogOpen(false);
-      setNewProperty({
-        title: '',
-        address: '',
-        city: '',
-        state: 'Lagos',
-        price: '',
-        pricePerSqm: '',
-        numberOfPlots: '',
-        type: 'LAND',
-        beds: '',
-        baths: '',
-        sqft: '',
-        description: '',
-      });
-      setUploadedImages([]);
-      setImageFiles([]);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create property. Please try again.');
+      await api.post('/sales', saleData);
+      toast.success('Sale reported successfully!');
+      setIsReportSaleOpen(false);
+      setSelectedProperty(null);
+      // Refresh data
+      fetchProperties();
+      fetchSales();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to report sale.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const isLandProperty = newProperty.type === 'LAND';
+  const isLandProperty = selectedProperty?.type === 'LAND';
+
+  const statsData = [
+    { title: 'Available Properties', value: availableProperties.length.toString(), icon: Home, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    { title: 'My Reported Sales', value: reportedSales.length.toString(), icon: ShoppingCart, color: 'text-green-600', bgColor: 'bg-green-100' },
+    { title: 'Pending Approval', value: reportedSales.filter((s: any) => s.status === 'PENDING').length.toString(), icon: DollarSign, color: 'text-orange-600', bgColor: 'bg-orange-100' },
+    { title: 'Completed Sales', value: reportedSales.filter((s: any) => s.status === 'COMPLETED').length.toString(), icon: CheckCircle, color: 'text-primary', bgColor: 'bg-primary/10' },
+  ];
 
   return (
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => (
+        {statsData.map((stat, index) => (
           <motion.div
             key={stat.title}
             initial={{ opacity: 0, y: 20 }}
@@ -251,7 +311,63 @@ export default function RealtorPropertiesPage() {
         ))}
       </div>
 
-      {/* Properties List */}
+      {/* My Reported Sales */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              My Reported Sales
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {salesLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </div>
+            ) : reportedSales.length > 0 ? (
+              <div className="space-y-3">
+                {reportedSales.map((sale: any) => (
+                  <div
+                    key={sale.id}
+                    className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                  >
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{sale.property?.title || 'Unknown Property'}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Buyer: {sale.client?.user ? `${sale.client.user.firstName} ${sale.client.user.lastName}` : 'Unknown'}
+                        {sale.areaSold ? ` \u2022 ${formatArea(sale.areaSold)}` : ''}
+                        {' \u2022 '}{new Date(sale.saleDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <p className="text-lg font-bold text-[#0b5c46]">{formatCurrency(Number(sale.salePrice))}</p>
+                      <Badge className={
+                        sale.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                        sale.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                        sale.status === 'CANCELLED' ? 'bg-red-100 text-red-700' :
+                        'bg-orange-100 text-orange-700'
+                      }>
+                        {sale.status}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No reported sales yet.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Available Properties */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -259,10 +375,13 @@ export default function RealtorPropertiesPage() {
       >
         <Card>
           <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <Home className="w-5 h-5 text-primary" />
-              My Properties
-            </CardTitle>
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Home className="w-5 h-5 text-primary" />
+                Properties
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">Properties available for sale</p>
+            </div>
             <div className="flex flex-col md:flex-row gap-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -290,322 +409,402 @@ export default function RealtorPropertiesPage() {
                 onChange={(e) => setFilterStatus(e.target.value)}
               >
                 <option value="ALL">All Status</option>
-                <option value="FOR_SALE">For Sale</option>
-                <option value="PENDING">Pending</option>
-                <option value="SOLD">Sold</option>
+                <option value="FOR_SALE">Available</option>
+                <option value="SOLD">Sold Out</option>
               </select>
-              <Button onClick={() => setIsAddDialogOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Property
-              </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {filteredProperties.map((property) => (
-                <div
-                  key={property.id}
-                  className="flex flex-col md:flex-row gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50"
-                >
-                  <div className="w-full md:w-48 h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden">
-                    {property.images && property.images.length > 0 ? (
-                      <img
-                        src={property.images[0]}
-                        alt={property.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      getPropertyIcon(property.type)
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold">{property.title}</h3>
-                          <Badge variant="outline" className="text-xs">{property.type}</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <MapPin className="w-3 h-3" /> {property.address}
-                        </p>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {filteredProperties.map((property) => {
+                  const isAvailable = property.status === 'AVAILABLE' || property.status === 'LISTED' || property.isListed;
+                  return (
+                    <div
+                      key={property.id}
+                      className="flex flex-col md:flex-row gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                    >
+                      <div className="w-full md:w-48 h-32 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center overflow-hidden">
+                        {property.images && property.images.length > 0 ? (
+                          <img
+                            src={getImageUrl(property.images[0])}
+                            alt={property.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          getPropertyIcon(property.type)
+                        )}
                       </div>
-                      {getStatusBadge(property.status)}
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold">{property.title}</h3>
+                              <Badge variant="outline" className="text-xs">{property.type}</Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground flex items-center gap-1">
+                              <MapPin className="w-3 h-3" /> {property.address}{property.city ? `, ${property.city}` : ''}
+                            </p>
+                          </div>
+                          {getStatusBadge(property.status)}
+                        </div>
+                        <p className="text-2xl font-bold text-primary mb-1">{formatCurrency(Number(property.price))}</p>
+                        {property.type === 'LAND' && Number(property.pricePerSqm) > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            <Badge className="bg-green-100 text-green-700">
+                              {formatCurrency(Number(property.pricePerSqm))}/sqm
+                            </Badge>
+                          </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
+                          {property.type !== 'LAND' && (
+                            <>
+                              <span className="flex items-center gap-1"><Bed className="w-4 h-4" /> {property.bedrooms || 0} beds</span>
+                              <span className="flex items-center gap-1"><Bath className="w-4 h-4" /> {property.bathrooms || 0} baths</span>
+                            </>
+                          )}
+                          <span className="flex items-center gap-1"><Square className="w-4 h-4" /> {formatArea(property.area || 0)}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          {isAvailable && (
+                            <Button
+                              className="bg-[#0b5c46] hover:bg-[#094a38]"
+                              onClick={() => openReportSale(property)}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Report Sale
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-2xl font-bold text-primary mb-1">{formatCurrency(property.price)}</p>
-                    {property.type === 'LAND' && property.sqft > 0 && (
-                      <p className="text-sm text-green-600 mb-2">
-                        {formatCurrency(property.price / property.sqft)}/sqm
-                      </p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
-                      {property.type !== 'LAND' && (
-                        <>
-                          <span className="flex items-center gap-1"><Bed className="w-4 h-4" /> {property.beds} beds</span>
-                          <span className="flex items-center gap-1"><Bath className="w-4 h-4" /> {property.baths} baths</span>
-                        </>
-                      )}
-                      <span className="flex items-center gap-1"><Square className="w-4 h-4" /> {property.sqft} sqm</span>
-                      <span className="flex items-center gap-1"><Eye className="w-4 h-4" /> {property.views} views</span>
-                      <span>Listed {property.daysListed} days ago</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600">
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Remove
-                      </Button>
-                    </div>
+                  );
+                })}
+                {filteredProperties.length === 0 && !isLoading && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No properties found matching your filters.
                   </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Add Property Dialog */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+      {/* Report Sale Dialog */}
+      <Dialog open={isReportSaleOpen} onOpenChange={setIsReportSaleOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Add New Property</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-[#0b5c46]" />
+              Report Sale
+            </DialogTitle>
             <DialogDescription>
-              Fill in the property details below. Land properties don't require bedroom/bathroom info.
+              Report a sale for: <strong>{selectedProperty?.title}</strong>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-600 dark:text-red-400 text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                {error}
+          <div className="grid gap-6 py-4">
+            {/* Property Summary */}
+            <div className="p-4 bg-[#0b5c46]/5 border border-[#0b5c46]/20 rounded-lg">
+              <h4 className="font-semibold text-[#0b5c46] mb-2">Property Details</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Type</p>
+                  <p className="font-medium">{selectedProperty?.type}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Total Size</p>
+                  <p className="font-medium">{formatArea(selectedProperty?.area || 0, saleAreaUnit)}</p>
+                </div>
+                {isLandProperty && Number(selectedProperty?.pricePerSqm) > 0 && (
+                  <div>
+                    <p className="text-muted-foreground">Price/sqm</p>
+                    <p className="font-medium">{formatCurrency(Number(selectedProperty?.pricePerSqm))}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-muted-foreground">Price</p>
+                  <p className="font-medium">{formatCurrency(Number(selectedProperty?.price) || 0)}</p>
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* Property Type */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Property Type *</label>
-              <div className="grid grid-cols-3 gap-2">
-                {propertyTypes.map(type => (
+            {/* Buyer Information */}
+            <div className="space-y-4">
+              <h4 className="font-semibold flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Buyer Information
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>First Name *</Label>
+                  <Input
+                    placeholder="Enter first name"
+                    value={saleForm.buyerFirstName}
+                    onChange={(e) => updateSaleForm('buyerFirstName', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Name *</Label>
+                  <Input
+                    placeholder="Enter last name"
+                    value={saleForm.buyerLastName}
+                    onChange={(e) => updateSaleForm('buyerLastName', e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Email *</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="buyer@email.com"
+                      className="pl-9"
+                      value={saleForm.buyerEmail}
+                      onChange={(e) => updateSaleForm('buyerEmail', e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="+234 xxx xxx xxxx"
+                      className="pl-9"
+                      value={saleForm.buyerPhone}
+                      onChange={(e) => updateSaleForm('buyerPhone', e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sale Details */}
+            <div className="space-y-4">
+              <h4 className="font-semibold flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Sale Details
+              </h4>
+
+              {/* Payment Plan Toggle */}
+              <div className="space-y-2">
+                <Label>Payment Plan</Label>
+                <div className="flex gap-2">
                   <button
-                    key={type.value}
                     type="button"
-                    onClick={() => setNewProperty(prev => ({ ...prev, type: type.value }))}
-                    className={`p-3 rounded-lg border-2 text-center transition-colors ${
-                      newProperty.type === type.value
-                        ? 'border-primary bg-primary/5'
-                        : 'border-gray-200 hover:border-gray-300'
+                    onClick={() => updateSaleForm('paymentPlan', 'FULL')}
+                    className={`flex-1 py-2 px-4 rounded-lg border-2 text-sm font-medium transition-all ${
+                      saleForm.paymentPlan === 'FULL'
+                        ? 'border-[#0b5c46] bg-[#0b5c46]/10 text-[#0b5c46]'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
                     }`}
                   >
-                    <type.icon className="w-5 h-5 mx-auto mb-1" />
-                    <span className="text-xs font-medium">{type.label}</span>
+                    Full Payment
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Title */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Property Title *</label>
-              <Input
-                placeholder="e.g., Prime Land in Lekki Phase 1"
-                value={newProperty.title}
-                onChange={(e) => setNewProperty(prev => ({ ...prev, title: e.target.value }))}
-              />
-            </div>
-
-            {/* Address */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Address *</label>
-                <Input
-                  placeholder="Street address"
-                  value={newProperty.address}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, address: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">City</label>
-                <Input
-                  placeholder="e.g., Lekki"
-                  value={newProperty.city}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, city: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">State</label>
-                <select
-                  className="w-full px-3 py-2 border rounded-md text-sm"
-                  value={newProperty.state}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, state: e.target.value }))}
-                >
-                  <option value="Lagos">Lagos</option>
-                  <option value="Abuja">Abuja</option>
-                  <option value="Rivers">Rivers</option>
-                  <option value="Oyo">Oyo</option>
-                  <option value="Kano">Kano</option>
-                  <option value="Ogun">Ogun</option>
-                  <option value="Enugu">Enugu</option>
-                  <option value="Delta">Delta</option>
-                  <option value="Anambra">Anambra</option>
-                  <option value="Kaduna">Kaduna</option>
-                </select>
-              </div>
-              {!isLandProperty ? (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Price (₦) *</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 50000000"
-                    value={newProperty.price}
-                    onChange={(e) => setNewProperty(prev => ({ ...prev, price: e.target.value }))}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Number of Plots</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 5"
-                    value={newProperty.numberOfPlots}
-                    onChange={(e) => setNewProperty(prev => ({ ...prev, numberOfPlots: e.target.value }))}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Land-specific pricing */}
-            {isLandProperty && (
-              <div className="grid grid-cols-2 gap-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-green-700 dark:text-green-400">Price per sqm (₦) *</label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 150000"
-                    value={newProperty.pricePerSqm}
-                    onChange={(e) => setNewProperty(prev => ({ ...prev, pricePerSqm: e.target.value }))}
-                    className="border-green-300"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-green-700 dark:text-green-400">Total Value (₦)</label>
-                  <div className="px-3 py-2 bg-white dark:bg-gray-800 border rounded-md text-lg font-bold text-green-600">
-                    {formatCurrency(
-                      (parseFloat(newProperty.pricePerSqm) || 0) * (parseInt(newProperty.sqft) || 0)
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">Auto-calculated from price/sqm × size</p>
+                  <button
+                    type="button"
+                    onClick={() => updateSaleForm('paymentPlan', 'INSTALLMENT')}
+                    className={`flex-1 py-2 px-4 rounded-lg border-2 text-sm font-medium transition-all ${
+                      saleForm.paymentPlan === 'INSTALLMENT'
+                        ? 'border-[#fca639] bg-[#fca639]/10 text-[#fca639]'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    Installment
+                  </button>
                 </div>
               </div>
-            )}
 
-            {/* Property Details */}
-            <div className="grid grid-cols-3 gap-4">
-              {!isLandProperty && (
-                <>
+              {saleForm.paymentPlan === 'INSTALLMENT' && (
+                <div className="grid grid-cols-2 gap-4 p-4 bg-[#fca639]/5 border border-[#fca639]/20 rounded-lg">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Bedrooms</label>
+                    <Label>Number of Installments</Label>
                     <Input
                       type="number"
-                      placeholder="0"
-                      value={newProperty.beds}
-                      onChange={(e) => setNewProperty(prev => ({ ...prev, beds: e.target.value }))}
+                      min="2"
+                      max="24"
+                      value={saleForm.numberOfInstallments}
+                      onChange={(e) => updateSaleForm('numberOfInstallments', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Bathrooms</label>
+                    <Label>First Payment Amount (₦)</Label>
                     <Input
                       type="number"
-                      placeholder="0"
-                      value={newProperty.baths}
-                      onChange={(e) => setNewProperty(prev => ({ ...prev, baths: e.target.value }))}
+                      placeholder="Amount for first installment"
+                      value={saleForm.firstPaymentAmount}
+                      onChange={(e) => updateSaleForm('firstPaymentAmount', e.target.value)}
                     />
                   </div>
-                </>
+                  <div className="col-span-2 text-xs text-muted-foreground">
+                    Commission will be calculated per each payment, not on the total property price.
+                  </div>
+                </div>
               )}
-              <div className={`space-y-2 ${isLandProperty ? 'col-span-3' : ''}`}>
-                <label className="text-sm font-medium">Size (sqm)</label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 500"
-                  value={newProperty.sqft}
-                  onChange={(e) => setNewProperty(prev => ({ ...prev, sqft: e.target.value }))}
-                />
+
+              {/* Area and pricing */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Size Sold ({AREA_UNITS[saleAreaUnit].shortLabel}) *</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={saleForm.sqmSold}
+                      onChange={(e) => updateSaleForm('sqmSold', e.target.value)}
+                      className="flex-1"
+                    />
+                    <AreaUnitSelect
+                      value={saleAreaUnit}
+                      onChange={handleSaleAreaUnitChange}
+                    />
+                  </div>
+                  {saleAreaUnit !== 'sqm' && parseFloat(saleForm.sqmSold) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      = {toSqm(parseFloat(saleForm.sqmSold), saleAreaUnit).toLocaleString()} sqm
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Available: {formatArea(selectedProperty?.area || 0, saleAreaUnit)}
+                  </p>
+                </div>
+                {isLandProperty ? (
+                  <div className="space-y-2">
+                    <Label>Price per sqm (₦)</Label>
+                    <Input
+                      type="number"
+                      value={saleForm.pricePerSqm}
+                      onChange={(e) => updateSaleForm('pricePerSqm', e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Payment Method</Label>
+                    <select
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={saleForm.paymentMethod}
+                      onChange={(e) => updateSaleForm('paymentMethod', e.target.value)}
+                    >
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="CASH">Cash</option>
+                      <option value="MORTGAGE">Mortgage</option>
+                    </select>
+                  </div>
+                )}
               </div>
-            </div>
 
-            {/* Description */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Description</label>
-              <textarea
-                className="w-full px-3 py-2 border rounded-md min-h-20 resize-none text-sm"
-                placeholder="Describe the property..."
-                value={newProperty.description}
-                onChange={(e) => setNewProperty(prev => ({ ...prev, description: e.target.value }))}
-              />
-            </div>
-
-            {/* Image Upload */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Property Images</label>
-              <div
-                className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary transition-colors"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                  multiple
-                  className="hidden"
-                />
-                <Upload className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Click to upload images</p>
-                <p className="text-xs text-muted-foreground mt-1">JPEG, PNG, GIF up to 10MB each</p>
-              </div>
-
-              {uploadedImages.length > 0 && (
-                <div className="grid grid-cols-4 gap-2 mt-4">
-                  {uploadedImages.map((image, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={image}
-                        alt={`Upload ${index + 1}`}
-                        className="w-full h-20 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => removeImage(index)}
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Total Sale Amount (₦) *</Label>
+                  {isLandProperty ? (
+                    <div className="px-3 py-2 bg-[#0b5c46]/10 border border-[#0b5c46]/20 rounded-md text-lg font-bold text-[#0b5c46]">
+                      {formatCurrency(parseFloat(saleForm.totalAmount) || 0)}
                     </div>
-                  ))}
+                  ) : (
+                    <Input
+                      type="number"
+                      value={saleForm.totalAmount}
+                      onChange={(e) => updateSaleForm('totalAmount', e.target.value)}
+                    />
+                  )}
+                </div>
+                {isLandProperty && (
+                  <div className="space-y-2">
+                    <Label>Payment Method</Label>
+                    <select
+                      className="w-full px-3 py-2 border rounded-md"
+                      value={saleForm.paymentMethod}
+                      onChange={(e) => updateSaleForm('paymentMethod', e.target.value)}
+                    >
+                      <option value="BANK_TRANSFER">Bank Transfer</option>
+                      <option value="CASH">Cash</option>
+                      <option value="MORTGAGE">Mortgage</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes (Optional)</Label>
+                <textarea
+                  className="w-full px-3 py-2 border rounded-md min-h-20 resize-none text-sm"
+                  placeholder="Any additional notes about the sale..."
+                  value={saleForm.notes}
+                  onChange={(e) => updateSaleForm('notes', e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className="p-4 bg-[#fca639]/10 border border-[#fca639]/20 rounded-lg">
+              <h4 className="font-semibold text-[#fca639] mb-2">Sale Summary</h4>
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {saleForm.sqmSold} {AREA_UNITS[saleAreaUnit].shortLabel} of {selectedProperty?.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Buyer: {saleForm.buyerFirstName} {saleForm.buyerLastName}
+                  </p>
+                  {toSqm(parseFloat(saleForm.sqmSold) || 0, saleAreaUnit) < (selectedProperty?.area || 0) && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      Remaining after sale: {formatArea(
+                        (selectedProperty?.area || 0) - toSqm(parseFloat(saleForm.sqmSold) || 0, saleAreaUnit),
+                        saleAreaUnit
+                      )}
+                    </p>
+                  )}
+                </div>
+                <p className="text-2xl font-bold text-[#0b5c46]">
+                  {formatCurrency(parseFloat(saleForm.totalAmount) || 0)}
+                </p>
+              </div>
+              {saleForm.paymentPlan === 'INSTALLMENT' && (
+                <div className="mt-3 pt-3 border-t border-[#fca639]/20">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Payment Plan</p>
+                      <p className="font-medium text-[#fca639]">Installment ({saleForm.numberOfInstallments} payments)</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">First Payment</p>
+                      <p className="font-medium">{formatCurrency(parseFloat(saleForm.firstPaymentAmount) || 0)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Remaining</p>
+                      <p className="font-medium">{formatCurrency((parseFloat(saleForm.totalAmount) || 0) - (parseFloat(saleForm.firstPaymentAmount) || 0))}</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsReportSaleOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
+            <Button
+              className="bg-[#0b5c46] hover:bg-[#094a38]"
+              onClick={handleSubmitSale}
+              disabled={isSubmitting}
+            >
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Adding...
+                  Submitting...
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Property
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Submit Sale Report
                 </>
               )}
             </Button>

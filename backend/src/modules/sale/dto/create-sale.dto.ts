@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNumber, IsEmail, IsOptional, IsDateString, Min } from 'class-validator';
+import { IsString, IsNumber, IsEmail, IsOptional, IsDateString, IsEnum, Min } from 'class-validator';
 
 export class CreateSaleDto {
   @ApiProperty({ example: 'John Doe' })
@@ -32,4 +32,32 @@ export class CreateSaleDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ enum: ['FULL', 'INSTALLMENT'], default: 'FULL' })
+  @IsOptional()
+  @IsEnum(['FULL', 'INSTALLMENT'])
+  paymentPlan?: 'FULL' | 'INSTALLMENT';
+
+  @ApiPropertyOptional({ example: 4 })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  numberOfInstallments?: number;
+
+  @ApiPropertyOptional({ example: 250000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  firstPaymentAmount?: number;
+
+  @ApiPropertyOptional({ example: 'BANK_TRANSFER' })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
+
+  @ApiPropertyOptional({ example: 500, description: 'Area sold in sqm (deducted from property)' })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  areaSold?: number;
 }

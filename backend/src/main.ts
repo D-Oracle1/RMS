@@ -2,38 +2,64 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { IoAdapter } from '@nestjs/platform-socket.io';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import compression from 'compression';
-import { join } from 'path';
+import express from 'express';
+
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
-async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
-  });
+/** Shared bootstrap configuration — used by both local dev server and Vercel serverless */
+export async function configureApp(expressInstance?: express.Express) {
+  const adapter = expressInstance
+    ? new ExpressAdapter(expressInstance)
+    : undefined;
+
+  const app = adapter
+    ? await NestFactory.create<NestExpressApplication>(AppModule, adapter, {
+        logger: ['error', 'warn', 'log'],
+      })
+    : await NestFactory.create<NestExpressApplication>(AppModule, {
+        logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+      });
 
   const configService = app.get(ConfigService);
 
-  // Serve static files from uploads directory
-  app.useStaticAssets(join(process.cwd(), 'uploads'), {
-    prefix: '/uploads/',
-  });
-  const port = configService.get<number>('PORT', 4000);
-  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
-
   // Security
-  app.use(helmet());
+  app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }));
   app.use(compression());
 
   // CORS
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    configService.get<string>('FRONTEND_URL'),
+    configService.get<string>('CORS_ORIGIN'),
+  ].filter(Boolean);
+
   app.enableCors({
-    origin: configService.get<string>('FRONTEND_URL', 'http://localhost:3000'),
+    origin: (origin, callback) => {
+      // Allow requests with no origin (server-to-server, mobile, Postman)
+      if (!origin) return callback(null, true);
+      // Allow exact match or Vercel preview deployments
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app')
+      ) {
+        return callback(null, true);
+      }
+      callback(null, false);
+    },
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-cron-secret'],
     credentials: true,
   });
 
@@ -63,12 +89,18 @@ async function bootstrap() {
 
   // Global interceptors
   app.useGlobalInterceptors(
-    new LoggingInterceptor(),
-    new TransformInterceptor(),
+    new LoggingInterceptor() as any,
+    new TransformInterceptor() as any,
   );
 
-  // WebSocket adapter
-  app.useWebSocketAdapter(new IoAdapter(app));
+  return { app, configService };
+}
+
+async function bootstrap() {
+  const { app, configService } = await configureApp();
+
+  const port = configService.get<number>('PORT', 4000);
+  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
   // Swagger documentation
   if (nodeEnv !== 'production') {
@@ -111,16 +143,14 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`
-  ╔════════════════════════════════════════════════════════════╗
-  ║                                                            ║
-  ║   🏠 RMS Platform - Realtors Management System            ║
-  ║                                                            ║
-  ║   Environment: ${nodeEnv.padEnd(40)}║
-  ║   Server running on: http://localhost:${String(port).padEnd(21)}║
-  ║   API Documentation: http://localhost:${port}/api/docs      ║
-  ║                                                            ║
-  ╚════════════════════════════════════════════════════════════╝
+  RMS Platform - Realtors Management System
+  Environment: ${nodeEnv}
+  Server running on: http://localhost:${port}
+  API Documentation: http://localhost:${port}/api/docs
   `);
 }
 
-bootstrap();
+// Only run the standalone server when not in Vercel serverless environment
+if (!process.env.VERCEL) {
+  bootstrap();
+}

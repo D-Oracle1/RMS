@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { UpdateRealtorDto } from './dto/update-realtor.dto';
 import { SaleStatus, LoyaltyTier } from '@prisma/client';
+import { DashboardPeriod, getDateRange, groupSalesIntoChartBuckets } from '../../common/utils/date-range.util';
 
 @Injectable()
 export class RealtorService {
@@ -135,18 +136,21 @@ export class RealtorService {
     return realtor;
   }
 
-  async getDashboard(userId: string) {
+  async getDashboard(userId: string, period?: DashboardPeriod, month?: number, year?: number) {
     const realtor = await this.findByUserId(userId);
 
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const activePeriod: DashboardPeriod = period || 'monthly';
+    const parsedMonth = month !== undefined && !isNaN(Number(month)) ? Number(month) : undefined;
+    const parsedYear = year !== undefined && !isNaN(Number(year)) ? Number(year) : undefined;
+    const { startDate, endDate } = getDateRange(activePeriod, parsedMonth, parsedYear);
+    const dateFilter = { gte: startDate, lte: endDate };
 
     const [
-      monthlySales,
-      monthlyRevenue,
-      monthlyCommission,
-      yearlyTax,
+      filteredSalesCount,
+      filteredRevenue,
+      filteredCommission,
+      filteredTax,
+      salesForChart,
       recentSales,
       clients,
       properties,
@@ -154,47 +158,48 @@ export class RealtorService {
       this.prisma.sale.count({
         where: {
           realtorId: realtor.id,
-          status: SaleStatus.COMPLETED,
-          saleDate: { gte: startOfMonth },
+          status: { in: [SaleStatus.COMPLETED, SaleStatus.IN_PROGRESS] },
+          saleDate: dateFilter,
         },
       }),
       this.prisma.sale.aggregate({
         where: {
           realtorId: realtor.id,
-          status: SaleStatus.COMPLETED,
-          saleDate: { gte: startOfMonth },
+          status: { in: [SaleStatus.COMPLETED, SaleStatus.IN_PROGRESS] },
+          saleDate: dateFilter,
         },
-        _sum: { salePrice: true },
+        _sum: { salePrice: true, commissionAmount: true, taxAmount: true },
       }),
       this.prisma.commission.aggregate({
         where: {
           realtorId: realtor.id,
-          createdAt: { gte: startOfMonth },
+          sale: { saleDate: dateFilter },
         },
         _sum: { amount: true },
       }),
       this.prisma.tax.aggregate({
         where: {
           realtorId: realtor.id,
-          year: now.getFullYear(),
+          sale: { saleDate: dateFilter },
         },
         _sum: { amount: true },
       }),
       this.prisma.sale.findMany({
-        where: { realtorId: realtor.id },
+        where: {
+          realtorId: realtor.id,
+          status: { in: [SaleStatus.COMPLETED, SaleStatus.IN_PROGRESS] },
+          saleDate: dateFilter,
+        },
+        select: { saleDate: true, salePrice: true, commissionAmount: true },
+        orderBy: { saleDate: 'asc' },
+      }),
+      this.prisma.sale.findMany({
+        where: { realtorId: realtor.id, saleDate: dateFilter },
         orderBy: { createdAt: 'desc' },
         take: 5,
         include: {
-          property: {
-            select: { title: true, address: true },
-          },
-          client: {
-            include: {
-              user: {
-                select: { firstName: true, lastName: true },
-              },
-            },
-          },
+          property: { select: { title: true, address: true } },
+          client: { include: { user: { select: { firstName: true, lastName: true } } } },
         },
       }),
       this.prisma.clientProfile.count({
@@ -205,18 +210,23 @@ export class RealtorService {
       }),
     ]);
 
+    const chartData = groupSalesIntoChartBuckets(salesForChart, activePeriod, startDate, endDate);
+    const filteredCommissionAmount = filteredCommission._sum.amount || filteredRevenue._sum.commissionAmount || 0;
+    const filteredTaxAmount = filteredTax._sum.amount || filteredRevenue._sum.taxAmount || 0;
+
     return {
       profile: realtor,
       stats: {
         totalSales: realtor.totalSales,
-        monthlySales,
+        filteredSales: filteredSalesCount,
         totalSalesValue: realtor.totalSalesValue,
-        monthlyRevenue: monthlyRevenue._sum.salePrice || 0,
+        filteredRevenue: filteredRevenue._sum.salePrice || 0,
         totalCommission: realtor.totalCommission,
-        monthlyCommission: monthlyCommission._sum.amount || 0,
+        filteredCommission: filteredCommissionAmount,
         totalTaxPaid: realtor.totalTaxPaid,
-        yearlyTax: yearlyTax._sum.amount || 0,
+        filteredTax: filteredTaxAmount,
         netEarnings: Number(realtor.totalCommission) - Number(realtor.totalTaxPaid),
+        filteredNetEarnings: Number(filteredCommissionAmount) - Number(filteredTaxAmount),
         clients,
         properties,
       },
@@ -228,7 +238,11 @@ export class RealtorService {
         isRealtorOfYear: realtor.isRealtorOfYear,
         achievements: realtor.achievements,
       },
+      chartData,
       recentSales,
+      period: activePeriod,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
     };
   }
 
@@ -269,10 +283,10 @@ export class RealtorService {
 
     const where = startDate
       ? {
-          status: SaleStatus.COMPLETED,
+          status: { in: [SaleStatus.COMPLETED, SaleStatus.IN_PROGRESS] },
           saleDate: { gte: startDate },
         }
-      : { status: SaleStatus.COMPLETED };
+      : { status: { in: [SaleStatus.COMPLETED, SaleStatus.IN_PROGRESS] } };
 
     const salesByRealtor = await this.prisma.sale.groupBy({
       by: ['realtorId'],

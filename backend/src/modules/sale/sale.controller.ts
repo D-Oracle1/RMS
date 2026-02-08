@@ -11,6 +11,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { SaleService } from './sale.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
+import { RecordPaymentDto } from './dto/record-payment.dto';
 import { UpdateSaleStatusDto } from './dto/update-sale-status.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -55,9 +56,11 @@ export class SaleController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
+    const parsedPage = page !== undefined && !isNaN(Number(page)) ? Number(page) : undefined;
+    const parsedLimit = limit !== undefined && !isNaN(Number(limit)) ? Number(limit) : undefined;
     return this.saleService.findAll({
-      page,
-      limit,
+      page: parsedPage,
+      limit: parsedLimit,
       realtorId,
       clientId,
       status,
@@ -73,6 +76,24 @@ export class SaleController {
   @ApiResponse({ status: 200, description: 'Sales statistics' })
   async getStats(@Query('period') period?: 'week' | 'month' | 'quarter' | 'year') {
     return this.saleService.getStats(period);
+  }
+
+  @Post(':id/payments')
+  @Roles('REALTOR', 'SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Record an installment payment for a sale' })
+  @ApiResponse({ status: 201, description: 'Payment recorded successfully' })
+  async recordPayment(
+    @Param('id') id: string,
+    @Body() recordPaymentDto: RecordPaymentDto,
+  ) {
+    return this.saleService.recordPayment(id, recordPaymentDto);
+  }
+
+  @Get(':id/payments')
+  @ApiOperation({ summary: 'Get payment history for a sale' })
+  @ApiResponse({ status: 200, description: 'Payment history' })
+  async getPayments(@Param('id') id: string) {
+    return this.saleService.getPayments(id);
   }
 
   @Get(':id')
@@ -97,5 +118,26 @@ export class SaleController {
       updateSaleStatusDto.status,
       updateSaleStatusDto.notes,
     );
+  }
+
+  @Patch(':id/approve')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Approve a pending sale report' })
+  @ApiResponse({ status: 200, description: 'Sale approved successfully' })
+  @ApiResponse({ status: 404, description: 'Sale not found' })
+  async approveSale(@Param('id') id: string) {
+    return this.saleService.approveSale(id);
+  }
+
+  @Patch(':id/reject')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Reject a pending sale report' })
+  @ApiResponse({ status: 200, description: 'Sale rejected' })
+  @ApiResponse({ status: 404, description: 'Sale not found' })
+  async rejectSale(
+    @Param('id') id: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.saleService.rejectSale(id, body?.reason);
   }
 }

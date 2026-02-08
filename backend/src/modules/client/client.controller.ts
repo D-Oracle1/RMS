@@ -42,9 +42,17 @@ export class ClientController {
   @Get('dashboard')
   @Roles('CLIENT')
   @ApiOperation({ summary: 'Get client dashboard' })
+  @ApiQuery({ name: 'period', required: false, enum: ['daily', 'weekly', 'monthly', 'yearly'] })
+  @ApiQuery({ name: 'month', required: false, type: Number, description: '0-11' })
+  @ApiQuery({ name: 'year', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Client dashboard data' })
-  async getDashboard(@CurrentUser('id') userId: string) {
-    return this.clientService.getDashboard(userId);
+  async getDashboard(
+    @CurrentUser('id') userId: string,
+    @Query('period') period?: 'daily' | 'weekly' | 'monthly' | 'yearly',
+    @Query('month') month?: number,
+    @Query('year') year?: number,
+  ) {
+    return this.clientService.getDashboard(userId, period, month, year);
   }
 
   @Get(':id')

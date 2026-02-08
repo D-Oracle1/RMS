@@ -1,0 +1,337 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import {
+  Building2,
+  MapPin,
+  BedDouble,
+  Bath,
+  Maximize,
+  Calendar,
+  LandPlot,
+  ArrowLeft,
+  Phone,
+  User,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+} from 'lucide-react';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+function formatPrice(price: number): string {
+  if (price >= 1000000000) return `₦${(price / 1000000000).toFixed(2)}B`;
+  if (price >= 1000000) return `₦${(price / 1000000).toFixed(1)}M`;
+  return `₦${price.toLocaleString()}`;
+}
+
+export default function PropertyDetailPage() {
+  const params = useParams();
+  const [property, setProperty] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [activeImage, setActiveImage] = useState(0);
+
+  useEffect(() => {
+    async function fetchProperty() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/properties/listed/${params.id}`);
+        if (!res.ok) throw new Error('Property not found');
+        const data = await res.json();
+        setProperty(data);
+      } catch {
+        setError('Property not found or no longer listed.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (params.id) fetchProperty();
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (error || !property) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+        <Building2 className="w-16 h-16 text-gray-300 mb-4" />
+        <h1 className="text-2xl font-bold text-gray-700 mb-2">Property Not Found</h1>
+        <p className="text-gray-500 mb-6">{error}</p>
+        <Link href="/#properties">
+          <Button className="bg-accent hover:bg-accent-600 text-white">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Properties
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  const images = property.images || [];
+  const realtorName = property.realtor
+    ? `${property.realtor.user.firstName} ${property.realtor.user.lastName}`
+    : 'RMS Agent';
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation */}
+      <nav className="bg-primary text-white">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold">RMS Platform</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/auth/login">
+              <Button variant="ghost" className="text-white hover:text-accent hover:bg-white/10">Log in</Button>
+            </Link>
+            <Link href="/auth/register">
+              <Button className="bg-accent hover:bg-accent-600 text-white">Get Started</Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Breadcrumb */}
+      <div className="bg-white border-b">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Link href="/" className="hover:text-accent transition-colors">Home</Link>
+            <span>/</span>
+            <Link href="/#properties" className="hover:text-accent transition-colors">Properties</Link>
+            <span>/</span>
+            <span className="text-gray-900 font-medium">{property.title}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Left Column - Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Image Gallery */}
+            <div className="bg-white rounded-2xl overflow-hidden shadow-lg">
+              <div className="relative h-[400px] md:h-[500px]">
+                {images.length > 0 ? (
+                  <>
+                    <Image
+                      src={images[activeImage]}
+                      alt={property.title}
+                      fill
+                      className="object-cover"
+                    />
+                    {images.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => setActiveImage(activeImage > 0 ? activeImage - 1 : images.length - 1)}
+                          className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 hover:bg-white flex items-center justify-center shadow-lg transition-all"
+                        >
+                          <ChevronLeft className="w-5 h-5 text-gray-700" />
+                        </button>
+                        <button
+                          onClick={() => setActiveImage(activeImage < images.length - 1 ? activeImage + 1 : 0)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 hover:bg-white flex items-center justify-center shadow-lg transition-all"
+                        >
+                          <ChevronRight className="w-5 h-5 text-gray-700" />
+                        </button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+                    <Home className="w-24 h-24 text-primary/20" />
+                  </div>
+                )}
+                <div className="absolute top-4 left-4 flex gap-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-accent text-white">
+                    {property.type.replace('_', ' ')}
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary text-white">
+                    {property.status}
+                  </span>
+                </div>
+              </div>
+              {images.length > 1 && (
+                <div className="flex gap-2 p-4 overflow-x-auto">
+                  {images.map((img: string, index: number) => (
+                    <button
+                      key={index}
+                      onClick={() => setActiveImage(index)}
+                      className={`relative w-20 h-16 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all ${
+                        index === activeImage ? 'border-accent' : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <Image src={img} alt={`View ${index + 1}`} fill className="object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Property Info */}
+            <div className="bg-white rounded-2xl p-6 shadow-lg">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+                {property.title}
+              </h1>
+              <div className="flex items-center gap-2 text-gray-500 mb-6">
+                <MapPin className="w-4 h-4" />
+                <span>{property.address}, {property.city}, {property.state}</span>
+              </div>
+
+              {/* Key Details Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {property.bedrooms != null && (
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <BedDouble className="w-6 h-6 text-accent mx-auto mb-1" />
+                    <div className="text-lg font-bold text-gray-900">{property.bedrooms}</div>
+                    <div className="text-xs text-gray-500">Bedrooms</div>
+                  </div>
+                )}
+                {property.bathrooms != null && (
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <Bath className="w-6 h-6 text-accent mx-auto mb-1" />
+                    <div className="text-lg font-bold text-gray-900">{property.bathrooms}</div>
+                    <div className="text-xs text-gray-500">Bathrooms</div>
+                  </div>
+                )}
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <Maximize className="w-6 h-6 text-accent mx-auto mb-1" />
+                  <div className="text-lg font-bold text-gray-900">{Number(property.area).toLocaleString()}</div>
+                  <div className="text-xs text-gray-500">Sq Ft</div>
+                </div>
+                {property.yearBuilt && (
+                  <div className="bg-gray-50 rounded-xl p-4 text-center">
+                    <Calendar className="w-6 h-6 text-accent mx-auto mb-1" />
+                    <div className="text-lg font-bold text-gray-900">{property.yearBuilt}</div>
+                    <div className="text-xs text-gray-500">Year Built</div>
+                  </div>
+                )}
+              </div>
+
+              {/* For Land Properties */}
+              {property.type === 'LAND' && (
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  {property.pricePerSqm && (
+                    <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+                      <div className="text-sm text-gray-500">Price per sqm</div>
+                      <div className="text-lg font-bold text-accent">{formatPrice(Number(property.pricePerSqm))}</div>
+                    </div>
+                  )}
+                  {property.numberOfPlots && (
+                    <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
+                      <div className="text-sm text-gray-500">Number of Plots</div>
+                      <div className="text-lg font-bold text-accent">{property.numberOfPlots}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Description */}
+              {property.description && (
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-3">Description</h2>
+                  <p className="text-gray-600 leading-relaxed">{property.description}</p>
+                </div>
+              )}
+
+              {/* Features */}
+              {property.features && property.features.length > 0 && (
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-3">Features</h2>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {property.features.map((feature: string, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-sm text-gray-600">
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                        {feature}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column - Price & Agent */}
+          <div className="space-y-6">
+            {/* Price Card */}
+            <div className="bg-white rounded-2xl p-6 shadow-lg sticky top-24">
+              <div className="text-sm text-gray-500 mb-1">Listed Price</div>
+              <div className="text-3xl font-bold text-primary mb-1">
+                {formatPrice(Number(property.price))}
+              </div>
+              {property.pricePerSqm && (
+                <div className="text-sm text-gray-500 mb-6">
+                  {formatPrice(Number(property.pricePerSqm))} / sqm
+                </div>
+              )}
+
+              {/* Agent Card */}
+              <div className="border-t border-gray-100 pt-6 mt-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    {property.realtor?.user?.avatar ? (
+                      <Image
+                        src={property.realtor.user.avatar}
+                        alt={realtorName}
+                        width={48}
+                        height={48}
+                        className="rounded-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-6 h-6 text-primary" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">{realtorName}</div>
+                    <div className="text-sm text-gray-500">Property Agent</div>
+                  </div>
+                </div>
+                {property.realtor?.user?.phone && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
+                    <Phone className="w-4 h-4" />
+                    <span>{property.realtor.user.phone}</span>
+                  </div>
+                )}
+              </div>
+
+              <Link href={`/auth/login?redirect=/properties/${property.id}`}>
+                <Button className="w-full bg-accent hover:bg-accent-600 text-white py-6 text-lg">
+                  Make an Inquiry
+                </Button>
+              </Link>
+              <p className="text-xs text-gray-400 text-center mt-3">
+                Log in or register to contact the agent
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="py-8 px-4 bg-primary mt-12">
+        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-lg font-bold text-white">RMS Platform</span>
+          </div>
+          <p className="text-sm text-white/70">
+            &copy; {new Date().getFullYear()} RMS Platform. All rights reserved.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calculator,
@@ -31,10 +31,11 @@ import {
 import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
-const commissions = [
+const mockCommissions = [
   { id: 1, realtor: 'Chioma Adeyemi', email: 'chioma.adeyemi@rms.com', tier: 'PLATINUM', sale: 'Prime Land in Lekki Phase 1', saleAmount: 285000000, rate: 5.0, commission: 14250000, status: 'PAID', date: '2026-01-20' },
   { id: 2, realtor: 'Emeka Okonkwo', email: 'emeka.okonkwo@rms.com', tier: 'GOLD', sale: 'Luxury Duplex in Banana Island', saleAmount: 750000000, rate: 4.0, commission: 30000000, status: 'PAID', date: '2026-01-18' },
   { id: 3, realtor: 'Chioma Adeyemi', email: 'chioma.adeyemi@rms.com', tier: 'PLATINUM', sale: 'Commercial Land in Victoria Island', saleAmount: 420000000, rate: 5.0, commission: 21000000, status: 'PENDING', date: '2026-01-15' },
@@ -59,8 +60,65 @@ export default function CommissionPage() {
   const [showRateSettings, setShowRateSettings] = useState(false);
   const [tierRates, setTierRates] = useState(defaultTierRates);
   const [editingRates, setEditingRates] = useState(defaultTierRates);
+  const [commissions, setCommissions] = useState(mockCommissions);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+
+  // Fetch commission rates from API
+  const fetchCommissionRates = useCallback(async () => {
+    try {
+      const response = await api.get<any>('/settings/commission-rates');
+      const rates = response.data;
+      // rates is like { BRONZE: 0.03, SILVER: 0.035, GOLD: 0.04, PLATINUM: 0.05 }
+      setTierRates(prev => prev.map(tier => ({
+        ...tier,
+        rate: rates[tier.tier] !== undefined ? rates[tier.tier] * 100 : tier.rate,
+      })));
+      setEditingRates(prev => prev.map(tier => ({
+        ...tier,
+        rate: rates[tier.tier] !== undefined ? rates[tier.tier] * 100 : tier.rate,
+      })));
+    } catch {
+      // Keep hardcoded defaults on failure
+    }
+  }, []);
+
+  // Fetch commission records from API
+  const fetchCommissions = useCallback(async () => {
+    try {
+      const response: any = await api.get('/commissions?limit=50');
+      const payload = response.data || response;
+      const records = Array.isArray(payload) ? payload : payload?.data || [];
+      if (Array.isArray(records) && records.length > 0) {
+        const mapped = records.map((item: any) => {
+          const realtorUser = item.realtor?.user;
+          const realtorName = realtorUser
+            ? `${realtorUser.firstName} ${realtorUser.lastName}`
+            : 'Unknown';
+          return {
+            id: item.id,
+            realtor: realtorName,
+            email: realtorUser?.email || '',
+            tier: item.realtor?.loyaltyTier || 'BRONZE',
+            sale: item.sale?.property?.title || 'N/A',
+            saleAmount: Number(item.sale?.salePrice || 0),
+            rate: item.rate != null ? Number(item.rate) * 100 : 0,
+            commission: Number(item.amount || 0),
+            status: item.status || 'PENDING',
+            date: item.paidAt || item.createdAt || '',
+          };
+        });
+        setCommissions(mapped);
+      }
+    } catch {
+      // Keep mock data as fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCommissionRates();
+    fetchCommissions();
+  }, [fetchCommissionRates, fetchCommissions]);
 
   // Filter commissions by time period
   const filteredByTime = useMemo(() => {
@@ -87,7 +145,7 @@ export default function CommissionPage() {
           return true;
       }
     });
-  }, [timePeriod]);
+  }, [timePeriod, commissions]);
 
   const filteredCommissions = filteredByTime.filter(commission => {
     const matchesSearch = commission.realtor.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -123,10 +181,32 @@ export default function CommissionPage() {
     }
   };
 
-  const handleSaveRates = () => {
-    setTierRates(editingRates);
-    setShowRateSettings(false);
-    toast.success('Commission rates updated successfully!');
+  const handleSaveRates = async () => {
+    try {
+      const body: Record<string, number> = {};
+      editingRates.forEach(tier => {
+        body[tier.tier] = tier.rate / 100;
+      });
+      await api.put('/settings/commission-rates', body);
+      setTierRates(editingRates);
+      setShowRateSettings(false);
+      toast.success('Commission rates updated successfully!');
+    } catch (error: any) {
+      console.error('Commission update error:', error);
+      toast.error(error?.message || 'Failed to update commission rates. Please try again.');
+    }
+  };
+
+  const handleMarkAsPaid = async (commissionId: number) => {
+    try {
+      await api.post(`/commissions/${commissionId}/pay`);
+      setCommissions(prev => prev.map(c =>
+        c.id === commissionId ? { ...c, status: 'PAID' } : c
+      ));
+      toast.success('Commission marked as paid.');
+    } catch {
+      toast.error('Failed to mark commission as paid.');
+    }
   };
 
   const handleRateChange = (tier: string, newRate: number) => {
@@ -144,17 +224,17 @@ export default function CommissionPage() {
       type: 'commission',
       receiptNumber: `COM-${commission.id.toString().padStart(6, '0')}`,
       date: formatDate(commission.date),
-      from: {
+      seller: {
         name: 'RMS Platform',
         email: 'payments@rms.com',
         phone: '+234 800 123 4567',
         address: 'Victoria Island, Lagos, Nigeria',
       },
-      to: {
+      buyer: {
         name: commission.realtor,
         email: commission.email,
       },
-      propertyDetails: {
+      property: {
         name: commission.sale,
         address: 'Lagos, Nigeria',
         type: 'Property Sale',
@@ -166,10 +246,12 @@ export default function CommissionPage() {
         },
       ],
       subtotal: commission.commission,
-      tax: {
-        rate: taxRate,
-        amount: taxAmount,
-      },
+      fees: [
+        {
+          label: `Tax (${taxRate}%)`,
+          amount: -taxAmount,
+        },
+      ],
       total: netAmount,
       status: commission.status === 'PAID' ? 'paid' : 'pending',
       notes: `Commission rate: ${commission.rate}% | Sale Amount: ${formatCurrency(commission.saleAmount)}`,
@@ -359,7 +441,7 @@ export default function CommissionPage() {
                         <td className="py-4 text-sm text-center">{item.rate}%</td>
                         <td className="py-4 font-semibold text-primary text-right">{formatCurrency(item.commission)}</td>
                         <td className="py-4 text-center">{getStatusBadge(item.status)}</td>
-                        <td className="py-4 text-center">
+                        <td className="py-4 text-center flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -367,6 +449,16 @@ export default function CommissionPage() {
                           >
                             <FileText className="w-4 h-4" />
                           </Button>
+                          {item.status !== 'PAID' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleMarkAsPaid(item.id as number)}
+                              title="Mark as Paid"
+                            >
+                              <Send className="w-4 h-4 text-green-600" />
+                            </Button>
+                          )}
                         </td>
                       </tr>
                     ))}

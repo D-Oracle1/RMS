@@ -203,22 +203,34 @@ export class RankingService {
   async getLeaderboard(period: RankingPeriod = 'MONTHLY', limit: number = 10) {
     const now = new Date();
     let periodStart: Date;
+    let periodEnd: Date;
 
     switch (period) {
       case 'WEEKLY':
         periodStart = new Date(now);
         periodStart.setDate(now.getDate() - 7);
+        periodStart.setHours(0, 0, 0, 0);
+        periodEnd = now;
         break;
       case 'MONTHLY':
         periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        break;
+      case 'QUARTERLY':
+        const quarter = Math.floor(now.getMonth() / 3);
+        periodStart = new Date(now.getFullYear(), quarter * 3, 1);
+        periodEnd = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59, 999);
         break;
       case 'YEARLY':
         periodStart = new Date(now.getFullYear(), 0, 1);
+        periodEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
         break;
-      default:
+      default: // ALL_TIME
         periodStart = new Date(2000, 0, 1);
+        periodEnd = now;
     }
 
+    // First try to get pre-calculated rankings
     const rankings = await this.prisma.ranking.findMany({
       where: {
         period,
@@ -230,25 +242,117 @@ export class RankingService {
         realtor: {
           include: {
             user: {
-              select: { firstName: true, lastName: true, avatar: true },
+              select: { id: true, firstName: true, lastName: true, avatar: true, email: true },
             },
           },
         },
       },
     });
 
-    return rankings.map((r) => ({
-      rank: r.rank,
-      realtorId: r.realtorId,
-      name: `${r.realtor.user.firstName} ${r.realtor.user.lastName}`,
-      avatar: r.realtor.user.avatar,
-      tier: r.realtor.loyaltyTier,
-      totalSales: r.totalSales,
-      totalValue: r.totalValue,
-      score: r.score,
-      isRealtorOfMonth: r.realtor.isRealtorOfMonth,
-      isRealtorOfYear: r.realtor.isRealtorOfYear,
-    }));
+    // If we have pre-calculated rankings, return them
+    if (rankings.length > 0) {
+      return rankings.map((r) => ({
+        rank: r.rank,
+        realtorId: r.realtorId,
+        userId: r.realtor.user.id,
+        name: `${r.realtor.user.firstName} ${r.realtor.user.lastName}`,
+        avatar: r.realtor.user.avatar,
+        email: r.realtor.user.email,
+        tier: r.realtor.loyaltyTier,
+        totalSales: r.totalSales,
+        totalValue: r.totalValue,
+        score: r.score,
+        isRealtorOfMonth: r.realtor.isRealtorOfMonth,
+        isRealtorOfYear: r.realtor.isRealtorOfYear,
+      }));
+    }
+
+    // Fallback: Calculate rankings in real-time from sales data
+    this.logger.log(`No pre-calculated rankings found for ${period}, calculating from sales data...`);
+
+    const salesData = await this.prisma.sale.groupBy({
+      by: ['realtorId'],
+      where: {
+        status: SaleStatus.COMPLETED,
+        saleDate: {
+          gte: periodStart,
+          lte: periodEnd,
+        },
+      },
+      _count: { id: true },
+      _sum: { salePrice: true, commissionAmount: true },
+    });
+
+    if (salesData.length === 0) {
+      // No sales data, try to return all realtors with zero sales
+      const allRealtors = await this.prisma.realtorProfile.findMany({
+        take: limit,
+        include: {
+          user: {
+            select: { id: true, firstName: true, lastName: true, avatar: true, email: true },
+          },
+        },
+        orderBy: { totalSales: 'desc' },
+      });
+
+      return allRealtors.map((r, index) => ({
+        rank: index + 1,
+        realtorId: r.id,
+        userId: r.user.id,
+        name: `${r.user.firstName} ${r.user.lastName}`,
+        avatar: r.user.avatar,
+        email: r.user.email,
+        tier: r.loyaltyTier,
+        totalSales: r.totalSales,
+        totalValue: Number(r.totalSalesValue || 0),
+        score: this.calculateScore(r.totalSales, Number(r.totalSalesValue || 0)),
+        isRealtorOfMonth: r.isRealtorOfMonth,
+        isRealtorOfYear: r.isRealtorOfYear,
+      }));
+    }
+
+    // Get realtor details for the sales data
+    const realtorIds = salesData.map(s => s.realtorId);
+    const realtors = await this.prisma.realtorProfile.findMany({
+      where: { id: { in: realtorIds } },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, avatar: true, email: true },
+        },
+      },
+    });
+
+    const realtorMap = new Map(realtors.map(r => [r.id, r]));
+
+    // Calculate scores and sort
+    const rankedData = salesData
+      .map((data) => {
+        const realtor = realtorMap.get(data.realtorId);
+        if (!realtor) return null;
+
+        return {
+          realtorId: data.realtorId,
+          userId: realtor.user.id,
+          name: `${realtor.user.firstName} ${realtor.user.lastName}`,
+          avatar: realtor.user.avatar,
+          email: realtor.user.email,
+          tier: realtor.loyaltyTier,
+          totalSales: data._count.id,
+          totalValue: Number(data._sum.salePrice || 0),
+          score: this.calculateScore(data._count.id, Number(data._sum.salePrice || 0)),
+          isRealtorOfMonth: realtor.isRealtorOfMonth,
+          isRealtorOfYear: realtor.isRealtorOfYear,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b!.score - a!.score)
+      .slice(0, limit)
+      .map((data, index) => ({
+        ...data!,
+        rank: index + 1,
+      }));
+
+    return rankedData;
   }
 
   async getRealtorRanking(realtorId: string) {

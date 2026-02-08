@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Briefcase,
@@ -17,13 +17,15 @@ import {
   UserCheck,
   Trash2,
   Download,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
@@ -40,142 +42,242 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatCurrency } from '@/lib/utils';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
-const initialClients = [
-  { id: 1, name: 'Chukwuemeka Okafor', email: 'chukwuemeka@email.com', phone: '+234 801 111 2222', properties: 3, portfolioValue: 850000000, realtor: 'Adaeze Okonkwo', status: 'ACTIVE' },
-  { id: 2, name: 'Adebayo Adeleke', email: 'adebayo@email.com', phone: '+234 802 222 3333', properties: 2, portfolioValue: 650000000, realtor: 'Chinedu Eze', status: 'ACTIVE' },
-  { id: 3, name: 'Ngozi Okonkwo', email: 'ngozi.o@email.com', phone: '+234 803 333 4444', properties: 5, portfolioValue: 1200000000, realtor: 'Adaeze Okonkwo', status: 'ACTIVE' },
-  { id: 4, name: 'Fatima Ibrahim', email: 'fatima.i@email.com', phone: '+234 804 444 5555', properties: 1, portfolioValue: 180000000, realtor: 'Funke Adeyemi', status: 'ACTIVE' },
-  { id: 5, name: 'Emeka Nnamdi', email: 'emeka.n@email.com', phone: '+234 805 555 6666', properties: 4, portfolioValue: 510000000, realtor: 'Emeka Nwankwo', status: 'INACTIVE' },
-  { id: 6, name: 'Tunde Bakare', email: 'tunde.b@email.com', phone: '+234 806 666 7777', properties: 2, portfolioValue: 125000000, realtor: 'Ngozi Obi', status: 'ACTIVE' },
-];
+interface ClientData {
+  id: string;
+  userId: string;
+  realtorId: string | null;
+  totalPurchaseValue: number | string;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    avatar: string | null;
+    status: string;
+    createdAt: string;
+  };
+  realtor?: {
+    id: string;
+    user: {
+      firstName: string;
+      lastName: string;
+    };
+  } | null;
+  _count: {
+    ownedProperties: number;
+    purchases: number;
+  };
+}
 
-const realtorsList = [
-  'Adaeze Okonkwo',
-  'Chinedu Eze',
-  'Funke Adeyemi',
-  'Emeka Nwankwo',
-  'Ngozi Obi',
-  'Tunde Bakare',
-  'Fatima Ibrahim',
-  'Kola Adesanya',
-];
+interface ClientResponse {
+  data: ClientData[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+interface RealtorOption {
+  id: string;
+  user: {
+    firstName: string;
+    lastName: string;
+  };
+}
 
 interface ClientFormData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
-  realtor: string;
-  address: string;
-  preferredPropertyType: string;
-  budget: string;
+  realtorId: string;
+  password: string;
 }
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState(initialClients);
+  const [clients, setClients] = useState<ClientData[]>([]);
+  const [realtors, setRealtors] = useState<RealtorOption[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<typeof clients[0] | null>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientData | null>(null);
+  const [meta, setMeta] = useState({ page: 1, limit: 50, total: 0, totalPages: 1 });
   const [formData, setFormData] = useState<ClientFormData>({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
-    realtor: '',
-    address: '',
-    preferredPropertyType: 'any',
-    budget: '',
+    realtorId: '',
+    password: '',
   });
+
+  const fetchClients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('page', meta.page.toString());
+      params.append('limit', '50');
+      if (searchTerm) params.append('search', searchTerm);
+
+      const response = await api.get<ClientResponse>(`/clients?${params.toString()}`);
+      const data = response.data || response;
+      setClients(Array.isArray(data) ? data : (data as any).data || []);
+      if ((data as any).meta) {
+        setMeta((data as any).meta);
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch clients:', error);
+      toast.error(error.message || 'Failed to load clients');
+    } finally {
+      setLoading(false);
+    }
+  }, [meta.page, searchTerm]);
+
+  const fetchRealtors = useCallback(async () => {
+    try {
+      const response = await api.get<any>('/admin/realtors?limit=100');
+      const data = response.data || response;
+      setRealtors(Array.isArray(data) ? data : (data as any).data || []);
+    } catch (error) {
+      console.error('Failed to fetch realtors:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClients();
+    fetchRealtors();
+  }, [fetchClients, fetchRealtors]);
 
   const filteredClients = useMemo(() => {
     return clients.filter(client => {
-      const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           client.realtor.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = filterStatus === 'ALL' || client.status === filterStatus;
-      return matchesSearch && matchesStatus;
+      const matchesStatus = filterStatus === 'ALL' || client.user.status === filterStatus;
+      return matchesStatus;
     });
-  }, [clients, searchTerm, filterStatus]);
+  }, [clients, filterStatus]);
 
   const stats = useMemo(() => {
-    const activeCount = clients.filter(c => c.status === 'ACTIVE').length;
-    const totalProperties = clients.reduce((sum, c) => sum + c.properties, 0);
-    const totalPortfolio = clients.reduce((sum, c) => sum + c.portfolioValue, 0);
+    const activeCount = clients.filter(c => c.user.status === 'ACTIVE').length;
+    const totalProperties = clients.reduce((sum, c) => sum + (c._count?.ownedProperties || 0), 0);
+    const totalPortfolio = clients.reduce((sum, c) => sum + Number(c.totalPurchaseValue || 0), 0);
 
     return [
-      { title: 'Total Clients', value: clients.length.toString(), icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+      { title: 'Total Clients', value: meta.total.toString(), icon: Briefcase, color: 'text-blue-600', bgColor: 'bg-blue-100' },
       { title: 'Active Clients', value: activeCount.toString(), icon: Briefcase, color: 'text-green-600', bgColor: 'bg-green-100' },
       { title: 'Total Properties', value: totalProperties.toString(), icon: Home, color: 'text-purple-600', bgColor: 'bg-purple-100' },
       { title: 'Portfolio Value', value: formatCurrency(totalPortfolio), icon: DollarSign, color: 'text-primary', bgColor: 'bg-primary/10' },
     ];
-  }, [clients]);
+  }, [clients, meta.total]);
 
-  const handleAddClient = () => {
-    if (!formData.name || !formData.email || !formData.phone) {
+  const handleAddClient = async () => {
+    if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    const newClient = {
-      id: clients.length + 1,
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      properties: 0,
-      portfolioValue: 0,
-      realtor: formData.realtor || 'Unassigned',
-      status: 'ACTIVE',
-    };
+    setActionLoading('add');
+    try {
+      await api.post('/auth/register', {
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        role: 'CLIENT',
+        realtorId: formData.realtorId || undefined,
+      });
 
-    setClients([...clients, newClient]);
-    setAddDialogOpen(false);
-    setFormData({ name: '', email: '', phone: '', realtor: '', address: '', preferredPropertyType: 'any', budget: '' });
-    toast.success('Client added successfully!');
+      setAddDialogOpen(false);
+      setFormData({ firstName: '', lastName: '', email: '', phone: '', realtorId: '', password: '' });
+      toast.success('Client added successfully!');
+      fetchClients();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to add client');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleEditClient = () => {
+  const handleEditClient = async () => {
     if (!selectedClient) return;
 
-    setClients(clients.map(c =>
-      c.id === selectedClient.id
-        ? { ...c, name: formData.name, email: formData.email, phone: formData.phone, realtor: formData.realtor }
-        : c
-    ));
-    setEditDialogOpen(false);
-    toast.success('Client updated successfully!');
+    setActionLoading('edit');
+    try {
+      await api.patch(`/users/${selectedClient.userId}`, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+      });
+
+      if (formData.realtorId && formData.realtorId !== selectedClient.realtorId) {
+        await api.patch(`/clients/${selectedClient.id}`, {
+          realtorId: formData.realtorId,
+        });
+      }
+
+      setEditDialogOpen(false);
+      toast.success('Client updated successfully!');
+      fetchClients();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update client');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleToggleStatus = (client: typeof clients[0]) => {
-    setClients(clients.map(c =>
-      c.id === client.id
-        ? { ...c, status: c.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' }
-        : c
-    ));
-    toast.success(`Client ${client.status === 'ACTIVE' ? 'deactivated' : 'activated'} successfully!`);
+  const handleToggleStatus = async (client: ClientData) => {
+    setActionLoading(client.id);
+    try {
+      const newStatus = client.user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      await api.patch(`/users/${client.userId}/status`, { status: newStatus });
+      toast.success(`Client ${client.user.status === 'ACTIVE' ? 'deactivated' : 'activated'} successfully!`);
+      fetchClients();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update status');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleDeleteClient = (client: typeof clients[0]) => {
-    setClients(clients.filter(c => c.id !== client.id));
-    toast.success('Client deleted successfully!');
+  const handleDeleteClient = async (client: ClientData) => {
+    if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+      return;
+    }
+
+    setActionLoading(client.id);
+    try {
+      await api.delete(`/users/${client.userId}`);
+      toast.success('Client deleted successfully!');
+      fetchClients();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete client');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const openEditDialog = (client: typeof clients[0]) => {
+  const openEditDialog = (client: ClientData) => {
     setSelectedClient(client);
     setFormData({
-      name: client.name,
-      email: client.email,
-      phone: client.phone,
-      realtor: client.realtor,
-      address: '',
-      preferredPropertyType: 'any',
-      budget: '',
+      firstName: client.user.firstName,
+      lastName: client.user.lastName,
+      email: client.user.email,
+      phone: client.user.phone || '',
+      realtorId: client.realtorId || '',
+      password: '',
     });
     setEditDialogOpen(true);
   };
 
-  const openViewDialog = (client: typeof clients[0]) => {
+  const openViewDialog = (client: ClientData) => {
     setSelectedClient(client);
     setViewDialogOpen(true);
   };
@@ -185,13 +287,13 @@ export default function ClientsPage() {
     const csvContent = [
       headers.join(','),
       ...filteredClients.map(c => [
-        `"${c.name}"`,
-        c.email,
-        c.phone,
-        c.properties,
-        c.portfolioValue,
-        `"${c.realtor}"`,
-        c.status,
+        `"${c.user.firstName} ${c.user.lastName}"`,
+        c.user.email,
+        c.user.phone || '',
+        c._count?.ownedProperties || 0,
+        c.totalPurchaseValue,
+        c.realtor ? `"${c.realtor.user.firstName} ${c.realtor.user.lastName}"` : 'Unassigned',
+        c.user.status,
       ].join(',')),
     ].join('\n');
 
@@ -204,6 +306,21 @@ export default function ClientsPage() {
     window.URL.revokeObjectURL(url);
     toast.success('Clients data exported successfully!');
   };
+
+  const getRealtorName = (client: ClientData) => {
+    if (client.realtor) {
+      return `${client.realtor.user.firstName} ${client.realtor.user.lastName}`;
+    }
+    return 'Unassigned';
+  };
+
+  if (loading && clients.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -260,6 +377,10 @@ export default function ClientsPage() {
                 <option value="ACTIVE">Active</option>
                 <option value="INACTIVE">Inactive</option>
               </select>
+              <Button variant="outline" size="sm" onClick={fetchClients} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
               <Button variant="outline" size="sm" onClick={handleExportCSV}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -290,41 +411,46 @@ export default function ClientsPage() {
                       <td className="py-4">
                         <div className="flex items-center gap-3">
                           <Avatar>
+                            {client.user.avatar && <AvatarImage src={client.user.avatar} alt={`${client.user.firstName} ${client.user.lastName}`} />}
                             <AvatarFallback className="bg-primary text-white">
-                              {client.name.split(' ').map(n => n[0]).join('')}
+                              {client.user.firstName[0]}{client.user.lastName[0]}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">{client.name}</span>
+                          <span className="font-medium">{client.user.firstName} {client.user.lastName}</span>
                         </div>
                       </td>
                       <td className="py-4">
                         <div className="space-y-1">
                           <p className="text-sm flex items-center gap-1">
-                            <Mail className="w-3 h-3" /> {client.email}
+                            <Mail className="w-3 h-3" /> {client.user.email}
                           </p>
                           <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <Phone className="w-3 h-3" /> {client.phone}
+                            <Phone className="w-3 h-3" /> {client.user.phone || 'N/A'}
                           </p>
                         </div>
                       </td>
                       <td className="py-4">
                         <div className="flex items-center gap-1">
                           <Home className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium">{client.properties}</span>
+                          <span className="font-medium">{client._count?.ownedProperties || 0}</span>
                         </div>
                       </td>
-                      <td className="py-4 text-primary font-medium">{formatCurrency(client.portfolioValue)}</td>
-                      <td className="py-4">{client.realtor}</td>
+                      <td className="py-4 text-primary font-medium">{formatCurrency(Number(client.totalPurchaseValue || 0))}</td>
+                      <td className="py-4">{getRealtorName(client)}</td>
                       <td className="py-4">
-                        <Badge variant={client.status === 'ACTIVE' ? 'success' : 'secondary'}>
-                          {client.status}
+                        <Badge variant={client.user.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                          {client.user.status}
                         </Badge>
                       </td>
                       <td className="py-4">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="w-4 h-4" />
+                            <Button variant="ghost" size="icon" disabled={actionLoading === client.id}>
+                              {actionLoading === client.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <MoreHorizontal className="w-4 h-4" />
+                              )}
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
@@ -338,7 +464,7 @@ export default function ClientsPage() {
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleToggleStatus(client)}>
-                              {client.status === 'ACTIVE' ? (
+                              {client.user.status === 'ACTIVE' ? (
                                 <>
                                   <UserX className="w-4 h-4 mr-2" />
                                   Deactivate
@@ -362,7 +488,7 @@ export default function ClientsPage() {
                       </td>
                     </tr>
                   ))}
-                  {filteredClients.length === 0 && (
+                  {filteredClients.length === 0 && !loading && (
                     <tr>
                       <td colSpan={7} className="py-8 text-center text-muted-foreground">
                         No clients found for the selected filters.
@@ -383,14 +509,25 @@ export default function ClientsPage() {
             <DialogTitle>Add New Client</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter full name"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  placeholder="First name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  placeholder="Last name"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
@@ -403,7 +540,17 @@ export default function ClientsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone *</Label>
+              <Label htmlFor="password">Password *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Enter password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 value={formData.phone}
@@ -416,52 +563,24 @@ export default function ClientsPage() {
               <select
                 id="realtor"
                 className="w-full px-3 py-2 border rounded-md text-sm"
-                value={formData.realtor}
-                onChange={(e) => setFormData({ ...formData, realtor: e.target.value })}
+                value={formData.realtorId}
+                onChange={(e) => setFormData({ ...formData, realtorId: e.target.value })}
               >
                 <option value="">Select a realtor</option>
-                {realtorsList.map(realtor => (
-                  <option key={realtor} value={realtor}>{realtor}</option>
+                {realtors.map(realtor => (
+                  <option key={realtor.id} value={realtor.id}>
+                    {realtor.user.firstName} {realtor.user.lastName}
+                  </option>
                 ))}
               </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="propertyType">Preferred Property Type</Label>
-              <select
-                id="propertyType"
-                className="w-full px-3 py-2 border rounded-md text-sm"
-                value={formData.preferredPropertyType}
-                onChange={(e) => setFormData({ ...formData, preferredPropertyType: e.target.value })}
-              >
-                <option value="any">Any</option>
-                <option value="land">Land</option>
-                <option value="house">House</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="budget">Budget Range</Label>
-              <Input
-                id="budget"
-                value={formData.budget}
-                onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                placeholder="e.g., 50M - 200M"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                placeholder="Enter address"
-              />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddClient}>
+            <Button onClick={handleAddClient} disabled={actionLoading === 'add'}>
+              {actionLoading === 'add' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Add Client
             </Button>
           </DialogFooter>
@@ -475,25 +594,36 @@ export default function ClientsPage() {
             <DialogTitle>Edit Client</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">Full Name *</Label>
-              <Input
-                id="edit-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">First Name *</Label>
+                <Input
+                  id="edit-firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">Last Name *</Label>
+                <Input
+                  id="edit-lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email">Email *</Label>
+              <Label htmlFor="edit-email">Email</Label>
               <Input
                 id="edit-email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                disabled
+                className="bg-gray-100"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-phone">Phone *</Label>
+              <Label htmlFor="edit-phone">Phone</Label>
               <Input
                 id="edit-phone"
                 value={formData.phone}
@@ -505,12 +635,14 @@ export default function ClientsPage() {
               <select
                 id="edit-realtor"
                 className="w-full px-3 py-2 border rounded-md text-sm"
-                value={formData.realtor}
-                onChange={(e) => setFormData({ ...formData, realtor: e.target.value })}
+                value={formData.realtorId}
+                onChange={(e) => setFormData({ ...formData, realtorId: e.target.value })}
               >
                 <option value="">Select a realtor</option>
-                {realtorsList.map(realtor => (
-                  <option key={realtor} value={realtor}>{realtor}</option>
+                {realtors.map(realtor => (
+                  <option key={realtor.id} value={realtor.id}>
+                    {realtor.user.firstName} {realtor.user.lastName}
+                  </option>
                 ))}
               </select>
             </div>
@@ -519,7 +651,8 @@ export default function ClientsPage() {
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditClient}>
+            <Button onClick={handleEditClient} disabled={actionLoading === 'edit'}>
+              {actionLoading === 'edit' && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Save Changes
             </Button>
           </DialogFooter>
@@ -536,14 +669,15 @@ export default function ClientsPage() {
             <div className="space-y-6 py-4">
               <div className="flex items-center gap-4">
                 <Avatar className="w-16 h-16">
+                  {selectedClient.user.avatar && <AvatarImage src={selectedClient.user.avatar} />}
                   <AvatarFallback className="bg-primary text-white text-xl">
-                    {selectedClient.name.split(' ').map(n => n[0]).join('')}
+                    {selectedClient.user.firstName[0]}{selectedClient.user.lastName[0]}
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="text-lg font-semibold">{selectedClient.name}</h3>
-                  <Badge variant={selectedClient.status === 'ACTIVE' ? 'success' : 'secondary'}>
-                    {selectedClient.status}
+                  <h3 className="text-lg font-semibold">{selectedClient.user.firstName} {selectedClient.user.lastName}</h3>
+                  <Badge variant={selectedClient.user.status === 'ACTIVE' ? 'success' : 'secondary'}>
+                    {selectedClient.user.status}
                   </Badge>
                 </div>
               </div>
@@ -551,28 +685,28 @@ export default function ClientsPage() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span>{selectedClient.email}</span>
+                  <span>{selectedClient.user.email}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span>{selectedClient.phone}</span>
+                  <span>{selectedClient.user.phone || 'N/A'}</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Properties Owned</p>
-                  <p className="text-xl font-bold">{selectedClient.properties}</p>
+                  <p className="text-xl font-bold">{selectedClient._count?.ownedProperties || 0}</p>
                 </div>
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Portfolio Value</p>
-                  <p className="text-xl font-bold text-primary">{formatCurrency(selectedClient.portfolioValue)}</p>
+                  <p className="text-xl font-bold text-primary">{formatCurrency(Number(selectedClient.totalPurchaseValue || 0))}</p>
                 </div>
               </div>
 
               <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                 <p className="text-sm text-muted-foreground">Assigned Realtor</p>
-                <p className="font-medium">{selectedClient.realtor}</p>
+                <p className="font-medium">{getRealtorName(selectedClient)}</p>
               </div>
             </div>
           )}

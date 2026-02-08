@@ -13,10 +13,7 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build application
+# Build application (includes prisma generate for both schemas + nest build)
 RUN npm run build
 
 # Production stage
@@ -33,7 +30,8 @@ RUN npm ci --only=production
 # Copy Prisma files
 COPY --from=builder /app/prisma ./prisma
 
-# Generate Prisma client for production
+# Generate default Prisma client for production node_modules
+# (master-client is already in dist/generated/ from the build step)
 RUN npx prisma generate
 
 # Copy built application
@@ -49,7 +47,7 @@ EXPOSE 4000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/health || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:4000/api/v1/health || exit 1
 
-# Start application
-CMD ["node", "dist/main.js"]
+# Run migrations and start application
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]

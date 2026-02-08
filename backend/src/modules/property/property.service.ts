@@ -35,8 +35,6 @@ export class PropertyService {
     sortOrder?: 'asc' | 'desc';
   }) {
     const {
-      page = 1,
-      limit = 20,
       search,
       type,
       status,
@@ -50,6 +48,8 @@ export class PropertyService {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = query;
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
     const where: any = {};
@@ -65,10 +65,10 @@ export class PropertyService {
     if (type) where.type = type;
     if (status) where.status = status;
     if (city) where.city = { contains: city, mode: 'insensitive' };
-    if (minPrice !== undefined) where.price = { ...where.price, gte: minPrice };
-    if (maxPrice !== undefined) where.price = { ...where.price, lte: maxPrice };
-    if (minBedrooms !== undefined) where.bedrooms = { ...where.bedrooms, gte: minBedrooms };
-    if (maxBedrooms !== undefined) where.bedrooms = { ...where.bedrooms, lte: maxBedrooms };
+    if (minPrice !== undefined && !isNaN(Number(minPrice))) where.price = { ...where.price, gte: Number(minPrice) };
+    if (maxPrice !== undefined && !isNaN(Number(maxPrice))) where.price = { ...where.price, lte: Number(maxPrice) };
+    if (minBedrooms !== undefined && !isNaN(Number(minBedrooms))) where.bedrooms = { ...where.bedrooms, gte: Number(minBedrooms) };
+    if (maxBedrooms !== undefined && !isNaN(Number(maxBedrooms))) where.bedrooms = { ...where.bedrooms, lte: Number(maxBedrooms) };
     if (isListed !== undefined) where.isListed = isListed;
     if (realtorId) where.realtorId = realtorId;
 
@@ -229,16 +229,89 @@ export class PropertyService {
   async getListedProperties(query: {
     page?: number;
     limit?: number;
+    search?: string;
     type?: PropertyType;
     city?: string;
     minPrice?: number;
     maxPrice?: number;
   }) {
-    return this.findAll({
-      ...query,
-      isListed: true,
-      status: PropertyStatus.LISTED,
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      status: { notIn: [PropertyStatus.SOLD, PropertyStatus.OFF_MARKET] },
+    };
+
+    if (query.search) {
+      where.AND = [
+        {
+          OR: [
+            { title: { contains: query.search, mode: 'insensitive' } },
+            { address: { contains: query.search, mode: 'insensitive' } },
+            { city: { contains: query.search, mode: 'insensitive' } },
+          ],
+        },
+      ];
+    }
+    if (query.type) where.type = query.type;
+    if (query.city) where.city = { contains: query.city, mode: 'insensitive' };
+    if (query.minPrice !== undefined && !isNaN(Number(query.minPrice)))
+      where.price = { ...where.price, gte: Number(query.minPrice) };
+    if (query.maxPrice !== undefined && !isNaN(Number(query.maxPrice)))
+      where.price = { ...where.price, lte: Number(query.maxPrice) };
+
+    const [properties, total] = await Promise.all([
+      this.prisma.property.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          realtor: {
+            include: {
+              user: { select: { firstName: true, lastName: true, avatar: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.property.count({ where }),
+    ]);
+
+    return {
+      data: properties,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findListedById(id: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id, isListed: true },
+      include: {
+        realtor: {
+          include: {
+            user: {
+              select: {
+                firstName: true,
+                lastName: true,
+                avatar: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        priceHistory: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+        },
+      },
     });
+
+    if (!property) {
+      throw new NotFoundException('Property not found or not listed');
+    }
+
+    return property;
   }
 
   async submitOffer(

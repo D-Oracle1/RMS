@@ -17,7 +17,9 @@ export class UsersService {
     const { page = 1, limit = 20, role, status, search } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: any = {
+      role: { not: UserRole.SUPER_ADMIN },
+    };
 
     if (role) {
       where.role = role;
@@ -54,6 +56,12 @@ export class UsersService {
           lastLoginAt: true,
           createdAt: true,
           updatedAt: true,
+          staffProfile: {
+            select: {
+              title: true,
+              department: { select: { name: true } },
+            },
+          },
         },
       }),
       this.prisma.user.count({ where }),
@@ -164,13 +172,14 @@ export class UsersService {
   }
 
   async getStats() {
+    const excludeSuperAdmin = { role: { not: UserRole.SUPER_ADMIN } };
     const [totalUsers, activeUsers, realtors, clients, admins] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { status: UserStatus.ACTIVE } }),
+      this.prisma.user.count({ where: excludeSuperAdmin }),
+      this.prisma.user.count({ where: { status: UserStatus.ACTIVE, ...excludeSuperAdmin } }),
       this.prisma.user.count({ where: { role: UserRole.REALTOR } }),
       this.prisma.user.count({ where: { role: UserRole.CLIENT } }),
       this.prisma.user.count({
-        where: { role: { in: [UserRole.ADMIN, UserRole.SUPER_ADMIN] } },
+        where: { role: UserRole.ADMIN },
       }),
     ]);
 

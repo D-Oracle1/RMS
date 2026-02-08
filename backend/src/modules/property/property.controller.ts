@@ -85,10 +85,12 @@ export class PropertyController {
   @Get('listed')
   @Public()
   @ApiOperation({ summary: 'Get listed properties (public)' })
+  @ApiQuery({ name: 'search', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Listed properties' })
   async getListedProperties(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('search') search?: string,
     @Query('type') type?: PropertyType,
     @Query('city') city?: string,
     @Query('minPrice') minPrice?: number,
@@ -97,11 +99,21 @@ export class PropertyController {
     return this.propertyService.getListedProperties({
       page,
       limit,
+      search,
       type,
       city,
       minPrice,
       maxPrice,
     });
+  }
+
+  @Get('listed/:id')
+  @Public()
+  @ApiOperation({ summary: 'Get a single listed property (public)' })
+  @ApiResponse({ status: 200, description: 'Property details' })
+  @ApiResponse({ status: 404, description: 'Property not found' })
+  async getListedPropertyById(@Param('id') id: string) {
+    return this.propertyService.findListedById(id);
   }
 
   @Get('stats')

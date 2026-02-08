@@ -22,9 +22,16 @@ export class AdminController {
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get admin dashboard statistics' })
+  @ApiQuery({ name: 'period', required: false, enum: ['daily', 'weekly', 'monthly', 'yearly'] })
+  @ApiQuery({ name: 'month', required: false, type: Number, description: '0-11' })
+  @ApiQuery({ name: 'year', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Dashboard statistics' })
-  async getDashboardStats() {
-    return this.adminService.getDashboardStats();
+  async getDashboardStats(
+    @Query('period') period?: 'daily' | 'weekly' | 'monthly' | 'yearly',
+    @Query('month') month?: number,
+    @Query('year') year?: number,
+  ) {
+    return this.adminService.getDashboardStats(period, month, year);
   }
 
   @Get('realtors')
@@ -72,10 +79,14 @@ export class AdminController {
   @Get('analytics')
   @ApiOperation({ summary: 'Get performance analytics' })
   @ApiQuery({ name: 'period', required: false, enum: ['week', 'month', 'quarter', 'year'] })
+  @ApiQuery({ name: 'year', required: false, type: Number, description: 'Year for the analytics data' })
+  @ApiQuery({ name: 'month', required: false, type: Number, description: 'Month (0-11) for monthly period' })
   @ApiResponse({ status: 200, description: 'Performance analytics' })
   async getPerformanceAnalytics(
     @Query('period') period: 'week' | 'month' | 'quarter' | 'year' = 'month',
+    @Query('year') year?: number,
+    @Query('month') month?: number,
   ) {
-    return this.adminService.getPerformanceAnalytics(period);
+    return this.adminService.getPerformanceAnalytics(period, year, month);
   }
 }

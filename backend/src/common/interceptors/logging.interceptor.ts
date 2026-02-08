@@ -22,7 +22,7 @@ export class LoggingInterceptor implements NestInterceptor {
       `[${method}] ${url} - User: ${userId} - Request started`,
     );
 
-    return next.handle().pipe(
+    return (next.handle() as any).pipe(
       tap({
         next: () => {
           const response = context.switchToHttp().getResponse();

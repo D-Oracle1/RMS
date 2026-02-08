@@ -13,9 +13,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { memoryStorage } from 'multer';
 import { Request } from 'express';
 
 interface MulterFile {
@@ -30,6 +28,18 @@ interface MulterFile {
   buffer: Buffer;
 }
 
+const imageFileFilter = (
+  _req: Request,
+  file: MulterFile,
+  callback: (error: Error | null, acceptFile: boolean) => void,
+) => {
+  if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+    callback(new Error('Only image files are allowed!'), false);
+    return;
+  }
+  callback(null, true);
+};
+
 @ApiTags('Upload')
 @Controller('upload')
 @UseGuards(JwtAuthGuard)
@@ -40,31 +50,9 @@ export class UploadController {
   @Post('avatar')
   @UseInterceptors(
     FileInterceptor('avatar', {
-      storage: diskStorage({
-        destination: join(process.cwd(), 'uploads', 'avatars'),
-        filename: (
-          _req: Request,
-          file: MulterFile,
-          callback: (error: Error | null, filename: string) => void,
-        ) => {
-          const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-          callback(null, uniqueName);
-        },
-      }),
-      fileFilter: (
-        _req: Request,
-        file: MulterFile,
-        callback: (error: Error | null, acceptFile: boolean) => void,
-      ) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          callback(new Error('Only image files are allowed!'), false);
-          return;
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB max
-      },
+      storage: memoryStorage(),
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
   @ApiOperation({ summary: 'Upload user avatar' })
@@ -73,10 +61,7 @@ export class UploadController {
     schema: {
       type: 'object',
       properties: {
-        avatar: {
-          type: 'string',
-          format: 'binary',
-        },
+        avatar: { type: 'string', format: 'binary' },
       },
     },
   })
@@ -91,7 +76,7 @@ export class UploadController {
     }
 
     const userId = req.user.id;
-    return this.uploadService.updateUserAvatar(userId, file.filename);
+    return this.uploadService.updateUserAvatar(userId, file);
   }
 
   @Delete('avatar')
@@ -105,31 +90,9 @@ export class UploadController {
   @Post('property-images')
   @UseInterceptors(
     FilesInterceptor('images', 10, {
-      storage: diskStorage({
-        destination: join(process.cwd(), 'uploads', 'properties'),
-        filename: (
-          _req: Request,
-          file: MulterFile,
-          callback: (error: Error | null, filename: string) => void,
-        ) => {
-          const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-          callback(null, uniqueName);
-        },
-      }),
-      fileFilter: (
-        _req: Request,
-        file: MulterFile,
-        callback: (error: Error | null, acceptFile: boolean) => void,
-      ) => {
-        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
-          callback(new Error('Only image files are allowed!'), false);
-          return;
-        }
-        callback(null, true);
-      },
-      limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB max per file
-      },
+      storage: memoryStorage(),
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
   @ApiOperation({ summary: 'Upload property images' })
@@ -140,24 +103,86 @@ export class UploadController {
       properties: {
         images: {
           type: 'array',
-          items: {
-            type: 'string',
-            format: 'binary',
-          },
+          items: { type: 'string', format: 'binary' },
         },
       },
     },
   })
   @ApiResponse({ status: 200, description: 'Images uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Invalid files' })
-  async uploadPropertyImages(
-    @UploadedFiles() files: MulterFile[],
-  ) {
+  async uploadPropertyImages(@UploadedFiles() files: MulterFile[]) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
     }
 
     const urls = await this.uploadService.uploadPropertyImages(files);
+    return { urls };
+  }
+
+  @Post('gallery-images')
+  @UseInterceptors(
+    FilesInterceptor('images', 20, {
+      storage: memoryStorage(),
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload gallery images' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 200, description: 'Gallery images uploaded' })
+  async uploadGalleryImages(@UploadedFiles() files: MulterFile[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+    const urls = await this.uploadService.uploadGalleryFiles(files);
+    return { urls };
+  }
+
+  @Post('gallery-videos')
+  @UseInterceptors(
+    FilesInterceptor('videos', 5, {
+      storage: memoryStorage(),
+      fileFilter: (
+        _req: Request,
+        file: MulterFile,
+        callback: (error: Error | null, acceptFile: boolean) => void,
+      ) => {
+        if (!file.mimetype.match(/^video\/(mp4|webm|mov|quicktime|x-msvideo|avi)$/)) {
+          callback(new Error('Only video files are allowed!'), false);
+          return;
+        }
+        callback(null, true);
+      },
+      limits: { fileSize: 100 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload gallery videos' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 200, description: 'Gallery videos uploaded' })
+  async uploadGalleryVideos(@UploadedFiles() files: MulterFile[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+    const urls = await this.uploadService.uploadGalleryFiles(files);
+    return { urls };
+  }
+
+  @Post('cms-images')
+  @UseInterceptors(
+    FilesInterceptor('images', 5, {
+      storage: memoryStorage(),
+      fileFilter: imageFileFilter,
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload CMS images' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 200, description: 'CMS images uploaded' })
+  async uploadCmsImages(@UploadedFiles() files: MulterFile[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+    const urls = await this.uploadService.uploadCmsFiles(files);
     return { urls };
   }
 }

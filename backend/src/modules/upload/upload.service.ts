@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { unlink } from 'fs/promises';
-import { join } from 'path';
-import { existsSync, mkdirSync } from 'fs';
+import { put, del } from '@vercel/blob';
+import { v4 as uuidv4 } from 'uuid';
+import { extname } from 'path';
 
 interface MulterFile {
   fieldname: string;
@@ -18,20 +18,29 @@ interface MulterFile {
 
 @Injectable()
 export class UploadService {
-  constructor(private readonly prisma: PrismaService) {
-    // Ensure upload directories exist
-    const avatarDir = join(process.cwd(), 'uploads', 'avatars');
-    const propertyDir = join(process.cwd(), 'uploads', 'properties');
+  constructor(private readonly prisma: PrismaService) {}
 
-    if (!existsSync(avatarDir)) {
-      mkdirSync(avatarDir, { recursive: true });
-    }
-    if (!existsSync(propertyDir)) {
-      mkdirSync(propertyDir, { recursive: true });
+  private async uploadToBlob(
+    file: MulterFile,
+    folder: string,
+  ): Promise<string> {
+    const ext = extname(file.originalname);
+    const pathname = `${folder}/${uuidv4()}${ext}`;
+    const blob = await put(pathname, file.buffer, { access: 'public' });
+    return blob.url;
+  }
+
+  private async deleteFromBlob(url: string): Promise<void> {
+    try {
+      if (url && url.startsWith('https://')) {
+        await del(url);
+      }
+    } catch (error) {
+      console.error('Error deleting blob:', error);
     }
   }
 
-  async updateUserAvatar(userId: string, filename: string) {
+  async updateUserAvatar(userId: string, file: MulterFile) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -42,18 +51,11 @@ export class UploadService {
 
     // Delete old avatar if exists
     if (user.avatar) {
-      const oldAvatarPath = join(process.cwd(), 'uploads', 'avatars', user.avatar.split('/').pop() || '');
-      try {
-        if (existsSync(oldAvatarPath)) {
-          await unlink(oldAvatarPath);
-        }
-      } catch (error) {
-        console.error('Error deleting old avatar:', error);
-      }
+      await this.deleteFromBlob(user.avatar);
     }
 
-    // Update user with new avatar URL
-    const avatarUrl = `/uploads/avatars/${filename}`;
+    // Upload new avatar to Vercel Blob
+    const avatarUrl = await this.uploadToBlob(file, 'avatars');
 
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
@@ -81,14 +83,7 @@ export class UploadService {
     }
 
     if (user.avatar) {
-      const avatarPath = join(process.cwd(), 'uploads', 'avatars', user.avatar.split('/').pop() || '');
-      try {
-        if (existsSync(avatarPath)) {
-          await unlink(avatarPath);
-        }
-      } catch (error) {
-        console.error('Error deleting avatar:', error);
-      }
+      await this.deleteFromBlob(user.avatar);
     }
 
     const updatedUser = await this.prisma.user.update({
@@ -108,18 +103,27 @@ export class UploadService {
   }
 
   async uploadPropertyImages(files: MulterFile[]): Promise<string[]> {
-    const urls = files.map((file) => `/uploads/properties/${file.filename}`);
+    const urls = await Promise.all(
+      files.map((file) => this.uploadToBlob(file, 'properties')),
+    );
     return urls;
   }
 
-  async deletePropertyImage(filename: string): Promise<void> {
-    const imagePath = join(process.cwd(), 'uploads', 'properties', filename);
-    try {
-      if (existsSync(imagePath)) {
-        await unlink(imagePath);
-      }
-    } catch (error) {
-      console.error('Error deleting property image:', error);
-    }
+  async deletePropertyImage(url: string): Promise<void> {
+    await this.deleteFromBlob(url);
+  }
+
+  async uploadGalleryFiles(files: MulterFile[]): Promise<string[]> {
+    const urls = await Promise.all(
+      files.map((file) => this.uploadToBlob(file, 'gallery')),
+    );
+    return urls;
+  }
+
+  async uploadCmsFiles(files: MulterFile[]): Promise<string[]> {
+    const urls = await Promise.all(
+      files.map((file) => this.uploadToBlob(file, 'cms')),
+    );
+    return urls;
   }
 }

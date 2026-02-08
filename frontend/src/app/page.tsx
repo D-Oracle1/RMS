@@ -1,4 +1,8 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import {
   Building2,
@@ -8,191 +12,754 @@ import {
   BarChart3,
   MessageSquare,
   Award,
-  Zap
+  Zap,
+  Search,
+  MapPin,
+  Home,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  ArrowRight,
+  CheckCircle2,
+  Phone,
+  Mail,
+  Clock,
+  BedDouble,
+  Bath,
+  Maximize,
+  LandPlot,
+  Loader2,
 } from 'lucide-react';
+import { PublicNavbar } from '@/components/layout/public-navbar';
+import { PublicFooter } from '@/components/layout/public-footer';
+import { getImageUrl } from '@/lib/api';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+const PROPERTY_TYPES = [
+  { value: '', label: 'All Types' },
+  { value: 'RESIDENTIAL', label: 'Residential' },
+  { value: 'COMMERCIAL', label: 'Commercial' },
+  { value: 'LAND', label: 'Land' },
+  { value: 'APARTMENT', label: 'Apartment' },
+  { value: 'VILLA', label: 'Villa' },
+  { value: 'CONDO', label: 'Condo' },
+  { value: 'TOWNHOUSE', label: 'Townhouse' },
+  { value: 'INDUSTRIAL', label: 'Industrial' },
+  { value: 'MIXED_USE', label: 'Mixed Use' },
+];
+
+const PRICE_RANGES = [
+  { value: '', label: 'Any Price', min: undefined, max: undefined },
+  { value: '0-50', label: 'Under ₦50M', min: 0, max: 50000000 },
+  { value: '50-100', label: '₦50M - ₦100M', min: 50000000, max: 100000000 },
+  { value: '100-500', label: '₦100M - ₦500M', min: 100000000, max: 500000000 },
+  { value: '500-1000', label: '₦500M - ₦1B', min: 500000000, max: 1000000000 },
+  { value: '1000+', label: 'Above ₦1B', min: 1000000000, max: undefined },
+];
+
+const DEFAULTS = {
+  hero: {
+    title: 'Search Properties',
+    titleAccent: 'with Ease',
+    subtitle: "Discover your perfect property with our comprehensive search platform. From luxury homes to commercial spaces, find exactly what you're looking for.",
+    badgeText: 'Trusted by 10,000+ Property Seekers',
+    backgroundImage: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=2075&q=80',
+    stats: [
+      { value: '200+', label: 'Premium Properties' },
+      { value: '50+', label: 'Happy Clients' },
+      { value: '10+', label: 'Years Experience' },
+    ],
+  },
+  agents: {
+    agents: [
+      { name: 'David Chen', role: 'Senior Agent', deals: '156', rating: '5', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop' },
+      { name: 'Sarah Miller', role: 'Property Expert', deals: '142', rating: '5', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop' },
+      { name: 'James Wilson', role: 'Commercial Lead', deals: '128', rating: '5', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop' },
+      { name: 'Emily Brown', role: 'Luxury Specialist', deals: '134', rating: '5', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop' },
+    ],
+  },
+  features: {
+    features: [
+      { title: 'Property Management', description: 'Navigate the housing market with expert guidance and comprehensive property listings.', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=250&fit=crop' },
+      { title: 'Smart Search', description: 'Our intelligent search helps you find properties that match your exact requirements.', image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=250&fit=crop' },
+      { title: 'Verified Agents', description: 'Connect with verified sellers and agents for seamless property transactions.', image: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=400&h=250&fit=crop' },
+    ],
+  },
+  platform_features: {
+    features: [
+      { icon: 'Users', title: 'Realtor Management', description: 'Track performance, commissions, and rankings for all your realtors' },
+      { icon: 'Building2', title: 'Property Portfolio', description: 'Manage listings, track appreciation, and handle offers seamlessly' },
+      { icon: 'TrendingUp', title: 'Sales Analytics', description: 'Real-time dashboards with comprehensive sales insights' },
+      { icon: 'Award', title: 'Loyalty System', description: 'Gamified rewards with tier-based benefits and achievements' },
+      { icon: 'BarChart3', title: 'Commission Engine', description: 'Automated commission calculation with tax reporting' },
+      { icon: 'MessageSquare', title: 'Real-time Chat', description: 'Built-in messaging between admins, realtors, and clients' },
+      { icon: 'Shield', title: 'Role-Based Access', description: 'Secure access control for all user types' },
+      { icon: 'Zap', title: 'AI Insights', description: 'Property price prediction and market trend analysis' },
+    ],
+  },
+  about: {
+    title: 'The Most Trusted Real Estate Platform',
+    subtitle: 'About Us',
+    content: "<p>We've been helping people find their dream properties for over a decade. Our platform combines cutting-edge technology with experienced professionals to deliver exceptional results.</p>",
+    image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1073&q=80',
+    items: [
+      { text: 'Verified property listings with detailed information' },
+      { text: 'Expert agents available 24/7 for assistance' },
+      { text: 'Secure transactions with full transparency' },
+      { text: 'AI-powered property recommendations' },
+    ],
+  },
+  stats: {
+    stats: [
+      { value: '10K+', label: 'Properties Managed' },
+      { value: '₦500B+', label: 'Total Sales Volume' },
+      { value: '2,500+', label: 'Active Realtors' },
+      { value: '99.9%', label: 'Client Satisfaction' },
+    ],
+  },
+  cta: {
+    title: 'Ready to Find Your Dream Property?',
+    subtitle: 'Join thousands of satisfied clients who found their perfect property with RMS Platform',
+    primaryButtonText: 'Start Your Search',
+    secondaryButtonText: 'Contact Us',
+  },
+  contact: {
+    phone: '+234 800 123 4567',
+    email: 'hello@rmsplatform.com',
+    address: 'Lagos, Nigeria',
+    hours: 'Mon - Fri: 9AM - 6PM',
+  },
+};
+
+const ICON_MAP: Record<string, any> = {
+  Users, Building2, TrendingUp, Award, BarChart3, MessageSquare, Shield, Zap, Star, Search,
+};
+
+function formatPrice(price: number): string {
+  if (price >= 1000000000) return `₦${(price / 1000000000).toFixed(1)}B`;
+  if (price >= 1000000) return `₦${(price / 1000000).toFixed(0)}M`;
+  if (price >= 1000) return `₦${(price / 1000).toFixed(0)}K`;
+  return `₦${price.toLocaleString()}`;
+}
+
+function getTypeIcon(type: string) {
+  switch (type) {
+    case 'LAND': return LandPlot;
+    case 'COMMERCIAL': case 'INDUSTRIAL': return Building2;
+    default: return Home;
+  }
+}
 
 export default function HomePage() {
+  const [searchLocation, setSearchLocation] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [priceRange, setPriceRange] = useState('');
+  const [properties, setProperties] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showPriceDropdown, setShowPriceDropdown] = useState(false);
+  const [cms, setCms] = useState<Record<string, any>>({});
+
+  // Fetch CMS content
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/v1/cms/public`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((raw) => {
+        const data = raw?.data || raw;
+        if (data && typeof data === 'object') setCms(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const hero = { ...DEFAULTS.hero, ...cms.hero };
+  const agents = { ...DEFAULTS.agents, ...cms.agents };
+  const features = { ...DEFAULTS.features, ...cms.features };
+  const platformFeatures = { ...DEFAULTS.platform_features, ...cms.platform_features };
+  const about = { ...DEFAULTS.about, ...cms.about };
+  const stats = { ...DEFAULTS.stats, ...cms.stats };
+  const cta = { ...DEFAULTS.cta, ...cms.cta };
+  const contact = { ...DEFAULTS.contact, ...cms.contact };
+
+  const fetchProperties = useCallback(async (currentPage = 1) => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('page', String(currentPage));
+      params.append('limit', '12');
+      if (searchLocation) params.append('search', searchLocation);
+      if (propertyType) params.append('type', propertyType);
+      const range = PRICE_RANGES.find(r => r.value === priceRange);
+      if (range?.min !== undefined) params.append('minPrice', String(range.min));
+      if (range?.max !== undefined) params.append('maxPrice', String(range.max));
+
+      const res = await fetch(`${API_BASE_URL}/api/v1/properties/listed?${params.toString()}`);
+      if (res.ok) {
+        const raw = await res.json();
+        const wrapped = raw?.data || raw;
+        const items = Array.isArray(wrapped) ? wrapped : (wrapped?.data || []);
+        const meta = wrapped?.meta;
+        setProperties(items);
+        setTotalPages(meta?.totalPages || 1);
+        setTotalCount(meta?.total || 0);
+      }
+    } catch {
+      setProperties([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [searchLocation, propertyType, priceRange]);
+
+  useEffect(() => {
+    fetchProperties(1);
+  }, [fetchProperties]);
+
+  const handleSearch = () => {
+    setPage(1);
+    fetchProperties(1);
+    document.getElementById('properties')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    fetchProperties(newPage);
+    document.getElementById('properties')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const selectedTypeLabel = PROPERTY_TYPES.find(t => t.value === propertyType)?.label || 'All Types';
+  const selectedPriceLabel = PRICE_RANGES.find(r => r.value === priceRange)?.label || 'Any Price';
+
+  const heroImage = hero.backgroundImage?.startsWith('http') ? hero.backgroundImage : getImageUrl(hero.backgroundImage);
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 glass border-b">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold text-primary">RMS Platform</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/auth/login">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-            <Link href="/auth/register">
-              <Button className="bg-primary hover:bg-primary-600">Get Started</Button>
-            </Link>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-white dark:bg-primary-950">
+      <PublicNavbar currentPage="/" branding={cms.branding} />
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="container mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-            <Zap className="w-4 h-4" />
-            Enterprise-Grade PropTech Solution
-          </div>
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white">
-            Realtors Management
-            <br />
-            <span className="text-primary">System</span>
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
-            A comprehensive platform for managing realtors, tracking sales,
-            commissions, and building a thriving real estate business.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register">
-              <Button size="lg" className="bg-primary hover:bg-primary-600 text-lg px-8">
-                Start Free Trial
-              </Button>
-            </Link>
-            <Link href="#features">
-              <Button size="lg" variant="outline" className="text-lg px-8">
-                Learn More
-              </Button>
-            </Link>
+      <section className="relative min-h-[90vh] flex items-center">
+        <div className="absolute inset-0">
+          <Image
+            src={heroImage}
+            alt="Modern luxury home"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/85 to-primary/70" />
+          <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
+        </div>
+
+        <div className="container mx-auto px-4 relative z-10 pt-20">
+          <div className="max-w-3xl">
+            {hero.badgeText && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/40 text-accent text-sm font-medium mb-6">
+                <Star className="w-4 h-4 fill-accent" />
+                <span>{hero.badgeText}</span>
+              </div>
+            )}
+
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
+              {hero.title}
+              {hero.titleAccent && (
+                <>
+                  <br />
+                  <span className="text-accent">{hero.titleAccent}</span>
+                </>
+              )}
+            </h1>
+            <p className="text-lg text-white/80 mb-10 max-w-xl">
+              {hero.subtitle}
+            </p>
+
+            {/* Search Bar */}
+            <div className="bg-white rounded-2xl p-2 shadow-2xl max-w-2xl">
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex-1 flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-gray-200">
+                  <MapPin className="w-5 h-5 text-accent" />
+                  <div className="flex-1">
+                    <p className="text-xs text-gray-500 font-medium">Location</p>
+                    <input
+                      type="text"
+                      placeholder="Enter city or area"
+                      value={searchLocation}
+                      onChange={(e) => setSearchLocation(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      className="w-full text-sm text-gray-800 bg-transparent outline-none placeholder:text-gray-400"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-gray-200 relative">
+                  <Home className="w-5 h-5 text-accent" />
+                  <div className="flex-1 cursor-pointer" onClick={() => { setShowTypeDropdown(!showTypeDropdown); setShowPriceDropdown(false); }}>
+                    <p className="text-xs text-gray-500 font-medium">Property Type</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-800">{selectedTypeLabel}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                  {showTypeDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-60 overflow-y-auto">
+                      {PROPERTY_TYPES.map((t) => (
+                        <button
+                          key={t.value}
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-accent/10 transition-colors ${propertyType === t.value ? 'text-accent font-medium bg-accent/5' : 'text-gray-700'}`}
+                          onClick={() => { setPropertyType(t.value); setShowTypeDropdown(false); }}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 flex items-center gap-3 px-4 py-3 relative">
+                  <BarChart3 className="w-5 h-5 text-accent" />
+                  <div className="flex-1 cursor-pointer" onClick={() => { setShowPriceDropdown(!showPriceDropdown); setShowTypeDropdown(false); }}>
+                    <p className="text-xs text-gray-500 font-medium">Price Range</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-800">{selectedPriceLabel}</span>
+                      <ChevronDown className="w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+                  {showPriceDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+                      {PRICE_RANGES.map((r) => (
+                        <button
+                          key={r.value}
+                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-accent/10 transition-colors ${priceRange === r.value ? 'text-accent font-medium bg-accent/5' : 'text-gray-700'}`}
+                          onClick={() => { setPriceRange(r.value); setShowPriceDropdown(false); }}
+                        >
+                          {r.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <Button onClick={handleSearch} className="bg-accent hover:bg-accent-600 text-white px-6 py-6 rounded-xl">
+                  <Search className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Stats */}
+            {hero.stats && hero.stats.length > 0 && (
+              <div className="flex flex-wrap gap-8 md:gap-12 mt-12">
+                {hero.stats.map((stat: any, i: number) => (
+                  <div key={i} className="flex items-center gap-8 md:gap-12">
+                    {i > 0 && <div className="w-px h-12 bg-white/30 hidden md:block -ml-8 md:-ml-12" />}
+                    <div>
+                      <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
+                      <div className="text-white/70 text-sm">{stat.label}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-20 px-4 bg-gray-50 dark:bg-gray-900/50">
+      {/* Browse Properties Section */}
+      <section id="properties" className="py-20 px-4 bg-white dark:bg-primary-950">
         <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-              Everything You Need to Succeed
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Powerful features designed for modern real estate professionals
-            </p>
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
+            <div>
+              <span className="text-accent font-semibold text-sm uppercase tracking-wider">Browse</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 text-gray-900 dark:text-white">
+                Available Properties
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 mt-2">
+                {totalCount > 0 ? `${totalCount} properties found` : 'Explore our curated selection of premium properties'}
+              </p>
+            </div>
+            <Link href="/properties" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group">
+              View All Properties
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              <span className="ml-3 text-gray-500">Loading properties...</span>
+            </div>
+          ) : properties.length === 0 ? (
+            <div className="text-center py-20">
+              <Building2 className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Properties Found</h3>
+              <p className="text-gray-500 dark:text-gray-400">Try adjusting your search filters or check back later.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {properties.map((property: any) => {
+                  const TypeIcon = getTypeIcon(property.type);
+                  return (
+                    <Link key={property.id} href={`/properties/${property.id}`} className="group">
+                      <div className="bg-white dark:bg-primary-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-primary-800">
+                        <div className="relative h-52 overflow-hidden">
+                          {property.images && property.images.length > 0 ? (
+                            <Image
+                              src={property.images[0]}
+                              alt={property.title}
+                              fill
+                              className="object-cover group-hover:scale-110 transition-transform duration-500"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                              <TypeIcon className="w-16 h-16 text-primary/30" />
+                            </div>
+                          )}
+                          <div className="absolute top-3 left-3">
+                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-accent text-white">
+                              {property.type.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                            <div className="text-xl font-bold text-white">
+                              {formatPrice(Number(property.price))}
+                            </div>
+                            {property.pricePerSqm && (
+                              <div className="text-xs text-white/80">
+                                {formatPrice(Number(property.pricePerSqm))}/sqm
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="p-5">
+                          <h3 className="font-semibold text-gray-900 dark:text-white mb-1 group-hover:text-accent transition-colors line-clamp-1">
+                            {property.title}
+                          </h3>
+                          <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400 text-sm mb-3">
+                            <MapPin className="w-3.5 h-3.5" />
+                            <span className="line-clamp-1">{property.city}, {property.state}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 pt-3 border-t border-gray-100 dark:border-primary-700">
+                            {property.bedrooms != null && (
+                              <div className="flex items-center gap-1">
+                                <BedDouble className="w-4 h-4" />
+                                <span>{property.bedrooms} Beds</span>
+                              </div>
+                            )}
+                            {property.bathrooms != null && (
+                              <div className="flex items-center gap-1">
+                                <Bath className="w-4 h-4" />
+                                <span>{property.bathrooms} Baths</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1">
+                              <Maximize className="w-4 h-4" />
+                              <span>{Number(property.area).toLocaleString()} sqft</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-10">
+                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => handlePageChange(page - 1)} className="border-gray-300">
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+                    const pageNum = start + i;
+                    if (pageNum > totalPages) return null;
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={pageNum === page ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handlePageChange(pageNum)}
+                        className={pageNum === page ? 'bg-accent hover:bg-accent-600 text-white' : 'border-gray-300'}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => handlePageChange(page + 1)} className="border-gray-300">
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* Featured Agents Section */}
+      <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
+        <div className="container mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
+            <div>
+              <span className="text-accent font-semibold text-sm uppercase tracking-wider">Our Team</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 text-gray-900 dark:text-white">
+                Meet Our Top Realtors
+              </h2>
+            </div>
+            <Link href="/auth/register" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group">
+              View All Agents
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {
-                icon: Users,
-                title: 'Realtor Management',
-                description: 'Track performance, commissions, and rankings for all your realtors',
-              },
-              {
-                icon: Building2,
-                title: 'Property Portfolio',
-                description: 'Manage listings, track appreciation, and handle offers seamlessly',
-              },
-              {
-                icon: TrendingUp,
-                title: 'Sales Analytics',
-                description: 'Real-time dashboards with comprehensive sales insights',
-              },
-              {
-                icon: Award,
-                title: 'Loyalty System',
-                description: 'Gamified rewards with tier-based benefits and achievements',
-              },
-              {
-                icon: BarChart3,
-                title: 'Commission Engine',
-                description: 'Automated commission calculation with tax reporting',
-              },
-              {
-                icon: MessageSquare,
-                title: 'Real-time Chat',
-                description: 'Built-in messaging between admins, realtors, and clients',
-              },
-              {
-                icon: Shield,
-                title: 'Role-Based Access',
-                description: 'Secure access control for Super Admin, Admin, Realtor, and Client',
-              },
-              {
-                icon: Zap,
-                title: 'AI Insights',
-                description: 'Property price prediction and market trend analysis',
-              },
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className="glass-card p-6 hover:shadow-glass-lg transition-all duration-300"
-              >
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-primary" />
+            {(agents.agents || []).map((agent: any, index: number) => (
+              <div key={index} className="bg-white dark:bg-primary-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="relative">
+                    <Image
+                      src={agent.image?.startsWith('http') ? agent.image : getImageUrl(agent.image || '')}
+                      alt={agent.name}
+                      width={60}
+                      height={60}
+                      className="rounded-full object-cover"
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-accent transition-colors">{agent.name}</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{agent.role}</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  {feature.description}
-                </p>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-primary-700">
+                  <div className="flex items-center gap-1">
+                    {[...Array(Number(agent.rating) || 5)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-accent text-accent" />
+                    ))}
+                  </div>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">{agent.deals} deals</span>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 px-4">
+      {/* Features Section */}
+      <section id="features" className="py-20 px-4 bg-white dark:bg-primary-950">
         <div className="container mx-auto">
-          <div className="glass-card p-8 md:p-12">
-            <div className="grid md:grid-cols-4 gap-8 text-center">
-              {[
-                { value: '10K+', label: 'Properties Managed' },
-                { value: '₦500B+', label: 'Total Sales Volume' },
-                { value: '2,500+', label: 'Active Realtors' },
-                { value: '99.9%', label: 'Uptime SLA' },
-              ].map((stat, index) => (
-                <div key={index}>
-                  <div className="text-4xl md:text-5xl font-bold text-primary mb-2">
-                    {stat.value}
-                  </div>
-                  <div className="text-gray-600 dark:text-gray-400">{stat.label}</div>
+          <div className="text-center mb-16">
+            <span className="text-accent font-semibold text-sm uppercase tracking-wider">Why Choose Us</span>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-gray-900 dark:text-white">
+              Search Properties with Ease
+            </h2>
+            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-4">
+              Powerful features designed for modern real estate professionals and property seekers
+            </p>
+            <Link href="/features" className="text-accent hover:text-accent-600 font-medium inline-flex items-center gap-2 group">
+              View All Features
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {(features.features || []).map((feature: any, index: number) => (
+              <div key={index} className="group bg-white dark:bg-primary-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-primary-800">
+                <div className="relative h-48 overflow-hidden">
+                  <Image
+                    src={feature.image?.startsWith('http') ? feature.image : getImageUrl(feature.image || '')}
+                    alt={feature.title}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                 </div>
-              ))}
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white group-hover:text-accent transition-colors">{feature.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">{feature.description}</p>
+                  <Link href="/properties" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group/link">
+                    Browse Properties
+                    <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Platform Features */}
+      <section className="py-20 px-4 bg-primary dark:bg-primary-900">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <span className="text-accent font-semibold text-sm uppercase tracking-wider">Platform Features</span>
+            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-white">Everything You Need to Succeed</h2>
+            <p className="text-lg text-white/70 max-w-2xl mx-auto">Comprehensive tools for managing your real estate business</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {(platformFeatures.features || []).map((feature: any, index: number) => {
+              const FeatureIcon = ICON_MAP[feature.icon] || Zap;
+              return (
+                <div key={index} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 group">
+                  <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4 group-hover:bg-accent group-hover:scale-110 transition-all">
+                    <FeatureIcon className="w-6 h-6 text-accent group-hover:text-white transition-colors" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2 text-white">{feature.title}</h3>
+                  <p className="text-white/70 text-sm">{feature.description}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section id="about" className="py-20 px-4 bg-white dark:bg-primary-950">
+        <div className="container mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="relative">
+              <div className="relative h-[500px] rounded-2xl overflow-hidden">
+                <Image
+                  src={about.image?.startsWith('http') ? about.image : getImageUrl(about.image || '')}
+                  alt="Modern building"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="absolute -bottom-6 -right-6 bg-accent text-white p-6 rounded-2xl shadow-accent">
+                <div className="text-4xl font-bold">10+</div>
+                <div className="text-white/90">Years of Excellence</div>
+              </div>
+            </div>
+            <div>
+              <span className="text-accent font-semibold text-sm uppercase tracking-wider">{about.subtitle || 'About Us'}</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6 text-gray-900 dark:text-white">{about.title}</h2>
+              <div className="text-gray-600 dark:text-gray-400 mb-8 prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: about.content || '' }} />
+              <div className="space-y-4">
+                {(about.items || []).map((item: any, index: number) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-accent flex-shrink-0" />
+                    <span className="text-gray-700 dark:text-gray-300">{item.text}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-8 flex items-center gap-4">
+                <Link href="/auth/register">
+                  <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent">
+                    Get Started Today
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </Link>
+                <Link href="/about" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group">
+                  Learn More
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
+        <div className="container mx-auto">
+          <div className="bg-white dark:bg-primary-800 rounded-3xl p-8 md:p-12 shadow-xl">
+            <div className="grid md:grid-cols-4 gap-8 text-center">
+              {(stats.stats || []).map((stat: any, index: number) => {
+                const StatIcon = ICON_MAP[stat.icon] || [Building2, TrendingUp, Users, Star][index % 4];
+                return (
+                  <div key={index} className="group">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/10 flex items-center justify-center group-hover:bg-accent group-hover:scale-110 transition-all">
+                      <StatIcon className="w-8 h-8 text-accent group-hover:text-white transition-colors" />
+                    </div>
+                    <div className="text-3xl md:text-4xl font-bold text-primary dark:text-white mb-2">{stat.value}</div>
+                    <div className="text-gray-600 dark:text-gray-400">{stat.label}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 bg-primary">
+      <section className="py-20 px-4 bg-gradient-to-r from-primary via-primary-600 to-primary">
         <div className="container mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
-            Ready to Transform Your Real Estate Business?
-          </h2>
-          <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">
-            Join thousands of successful real estate professionals using RMS Platform
-          </p>
-          <Link href="/auth/register">
-            <Button size="lg" variant="secondary" className="text-lg px-8">
-              Get Started Today
-            </Button>
-          </Link>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">{cta.title}</h2>
+          <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">{cta.subtitle}</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/auth/register">
+              <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent text-lg px-8">
+                {cta.primaryButtonText || 'Start Your Search'}
+              </Button>
+            </Link>
+            <Link href="/contact">
+              <Button size="lg" variant="outline" className="text-white border-white/40 hover:bg-white/10 text-lg px-8">
+                {cta.secondaryButtonText || 'Contact Us'}
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-8 px-4 border-t">
-        <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Building2 className="w-4 h-4 text-white" />
+      {/* Contact Section */}
+      <section id="contact" className="py-20 px-4 bg-white dark:bg-primary-950">
+        <div className="container mx-auto">
+          <div className="grid lg:grid-cols-2 gap-12">
+            <div>
+              <span className="text-accent font-semibold text-sm uppercase tracking-wider">Get In Touch</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6 text-gray-900 dark:text-white">Contact Us</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-8">
+                Have questions? We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as possible.
+              </p>
+              <div className="space-y-6">
+                {[
+                  { icon: Phone, label: 'Phone', value: contact.phone },
+                  { icon: Mail, label: 'Email', value: contact.email },
+                  { icon: MapPin, label: 'Address', value: contact.address },
+                  { icon: Clock, label: 'Working Hours', value: contact.hours },
+                ].map((item, index) => (
+                  <div key={index} className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
+                      <item.icon className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
+                      <p className="font-medium text-gray-900 dark:text-white">{item.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <span className="font-semibold text-primary">RMS Platform</span>
+            <div className="bg-gray-50 dark:bg-primary-900 rounded-2xl p-8">
+              <form className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
+                    <input type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="John" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
+                    <input type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="Doe" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+                  <input type="email" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="john@example.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Message</label>
+                  <textarea rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all resize-none" placeholder="Your message..." />
+                </div>
+                <Button type="button" className="w-full bg-accent hover:bg-accent-600 text-white shadow-accent py-6">
+                  Send Message
+                  <ArrowRight className="w-5 h-5 ml-2" />
+                </Button>
+              </form>
+            </div>
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            © {new Date().getFullYear()} RMS Platform. All rights reserved.
-          </p>
         </div>
-      </footer>
+      </section>
+
+      <PublicFooter cmsData={cms.footer} branding={cms.branding} />
     </div>
   );
 }

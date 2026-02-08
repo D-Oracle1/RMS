@@ -119,4 +119,10 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   budget?: string;
+
+  // Multi-tenancy: invite code to join a company
+  @ApiPropertyOptional({ example: 'INV-A1B2C3D4', description: 'Company invite code for tenant registration' })
+  @IsOptional()
+  @IsString()
+  inviteCode?: string;
 }

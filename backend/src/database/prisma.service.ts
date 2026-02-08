@@ -6,18 +6,30 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
+    const isProduction = process.env.NODE_ENV === 'production';
     super({
-      log: [
-        { emit: 'event', level: 'query' },
-        { emit: 'stdout', level: 'info' },
-        { emit: 'stdout', level: 'warn' },
-        { emit: 'stdout', level: 'error' },
-      ],
-      errorFormat: 'colorless',
+      log: isProduction
+        ? [
+            { emit: 'stdout', level: 'warn' },
+            { emit: 'stdout', level: 'error' },
+          ]
+        : [
+            { emit: 'event', level: 'query' },
+            { emit: 'stdout', level: 'info' },
+            { emit: 'stdout', level: 'warn' },
+            { emit: 'stdout', level: 'error' },
+          ],
+      errorFormat: isProduction ? 'minimal' : 'colorless',
+      datasourceUrl: process.env.DATABASE_URL,
     });
   }
 
   async onModuleInit() {
+    if (process.env.VERCEL) {
+      // Lazy connect in serverless — Prisma connects on first query
+      this.logger.log('Serverless mode: database will connect on first query');
+      return;
+    }
     await this.$connect();
     this.logger.log('Database connected successfully');
   }

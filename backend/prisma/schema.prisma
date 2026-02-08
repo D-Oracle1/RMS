@@ -3,12 +3,14 @@
 // ===========================================
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ===========================================
@@ -20,6 +22,7 @@ enum UserRole {
   ADMIN
   REALTOR
   CLIENT
+  STAFF
 }
 
 enum UserStatus {
@@ -81,6 +84,21 @@ enum NotificationType {
   PRICE_CHANGE
   LISTING
   OFFER
+  AWARD
+  // Staff & HR notifications
+  LEAVE_REQUEST
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  TASK_ASSIGNED
+  TASK_COMPLETED
+  REVIEW_SCHEDULED
+  REVIEW_COMPLETED
+  MENTION
+  CHANNEL_INVITE
+  PAYROLL_PROCESSED
+  // Callout bell system
+  CALLOUT
+  CALLOUT_RESPONSE
 }
 
 enum NotificationPriority {
@@ -141,6 +159,114 @@ enum OfferStatus {
   WITHDRAWN
 }
 
+enum AwardType {
+  STAFF_OF_MONTH
+  REALTOR_OF_MONTH
+  CLIENT_OF_MONTH
+}
+
+enum PaymentPlan {
+  FULL
+  INSTALLMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ===========================================
+// STAFF & HR ENUMS
+// ===========================================
+
+enum StaffPosition {
+  EXECUTIVE
+  DIRECTOR
+  MANAGER
+  TEAM_LEAD
+  SENIOR
+  JUNIOR
+  INTERN
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  WORK_FROM_HOME
+  ON_LEAVE
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  COMPASSIONATE
+  UNPAID
+  STUDY
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ReviewCycle {
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+}
+
+enum ReviewStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  ACKNOWLEDGED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+  BLOCKED
+}
+
+enum ChannelType {
+  DEPARTMENT
+  PROJECT
+  ANNOUNCEMENT
+  GENERAL
+}
+
+enum PayrollStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PAID
+  CANCELLED
+}
+
 // ===========================================
 // MODELS
 // ===========================================
@@ -164,6 +290,7 @@ model User {
   adminProfile   AdminProfile?
   realtorProfile RealtorProfile?
   clientProfile  ClientProfile?
+  staffProfile   StaffProfile?
 
   // Notifications
   notifications Notification[]
@@ -177,6 +304,9 @@ model User {
 
   // Refresh tokens
   refreshTokens RefreshToken[]
+
+  // Awards
+  monthlyAwards MonthlyAward[]
 
   @@index([email])
   @@index([role])
@@ -261,6 +391,13 @@ model ClientProfile {
   zipCode            String?
   country            String?
 
+  // Ranking fields
+  currentRank        Int             @default(0)
+  isClientOfMonth    Boolean         @default(false)
+  isClientOfYear     Boolean         @default(false)
+  clientOfMonthCount Int             @default(0)
+  clientOfYearCount  Int             @default(0)
+
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
@@ -268,6 +405,7 @@ model ClientProfile {
   ownedProperties    Property[]
   purchases          Sale[]          @relation("ClientPurchases")
   offers             Offer[]
+  rankings           ClientRanking[]
 
   @@index([realtorId])
   @@map("client_profiles")
@@ -365,6 +503,16 @@ model Sale {
   notes           String?
   closingDate     DateTime?
 
+  // Payment plan
+  paymentPlan          PaymentPlan @default(FULL)
+  numberOfInstallments Int         @default(1)
+  totalPaid            Decimal     @default(0) @db.Decimal(15, 2)
+  remainingBalance     Decimal     @default(0) @db.Decimal(15, 2)
+  nextPaymentDue       DateTime?
+
+  // Area sold (sqm deducted from property on sale)
+  areaSold             Float?
+
   // Loyalty points awarded
   loyaltyPointsAwarded Int      @default(0)
 
@@ -376,6 +524,7 @@ model Sale {
   tax             Tax?
   transaction     Transaction?
   loyaltyPoints   LoyaltyPoints?
+  payments        Payment[]
 
   @@index([realtorId])
   @@index([clientId])
@@ -463,6 +612,110 @@ model Ranking {
   @@index([period])
   @@index([rank])
   @@map("rankings")
+}
+
+model StaffRanking {
+  id              String        @id @default(uuid())
+  staffProfileId  String
+  staffProfile    StaffProfile  @relation(fields: [staffProfileId], references: [id])
+
+  period          RankingPeriod
+  periodStart     DateTime
+  periodEnd       DateTime
+  rank            Int
+
+  tasksCompleted  Int           @default(0)
+  tasksOnTime     Int           @default(0)
+  attendanceDays  Int           @default(0)
+  attendanceRate  Float         @default(0)
+  avgReviewScore  Float         @default(0)
+  score           Float
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([staffProfileId, period, periodStart])
+  @@index([period])
+  @@index([rank])
+  @@map("staff_rankings")
+}
+
+model ClientRanking {
+  id                 String        @id @default(uuid())
+  clientProfileId    String
+  clientProfile      ClientProfile @relation(fields: [clientProfileId], references: [id])
+
+  period             RankingPeriod
+  periodStart        DateTime
+  periodEnd          DateTime
+  rank               Int
+
+  propertiesOwned    Int           @default(0)
+  purchaseCount      Int           @default(0)
+  totalPurchaseValue Decimal       @default(0) @db.Decimal(15, 2)
+  totalPropertyValue Decimal       @default(0) @db.Decimal(15, 2)
+  score              Float
+
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([clientProfileId, period, periodStart])
+  @@index([period])
+  @@index([rank])
+  @@map("client_rankings")
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  saleId           String
+  sale             Sale          @relation(fields: [saleId], references: [id])
+
+  paymentNumber    Int
+  amount           Decimal       @db.Decimal(15, 2)
+  paymentDate      DateTime
+
+  // Commission & Tax for this payment
+  commissionRate   Float
+  commissionAmount Decimal       @db.Decimal(15, 2)
+  taxRate          Float
+  taxAmount        Decimal       @db.Decimal(15, 2)
+  netCommission    Decimal       @db.Decimal(15, 2)
+
+  // Status & metadata
+  status           PaymentStatus @default(COMPLETED)
+  paymentMethod    String?
+  reference        String?
+  notes            String?
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([saleId])
+  @@index([status])
+  @@index([paymentDate])
+  @@map("payments")
+}
+
+model MonthlyAward {
+  id          String    @id @default(uuid())
+  type        AwardType
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+
+  month       Int
+  year        Int
+  reason      String
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([type, month, year])
+  @@index([userId])
+  @@index([type])
+  @@index([isPublished])
+  @@map("monthly_awards")
 }
 
 model Offer {
@@ -656,4 +909,636 @@ model SystemSetting {
   updatedAt DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+// ===========================================
+// STAFF & HR MODELS
+// ===========================================
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique
+  description String?
+
+  // Parent department for hierarchy
+  parentId    String?
+  parent      Department?  @relation("DepartmentHierarchy", fields: [parentId], references: [id])
+  children    Department[] @relation("DepartmentHierarchy")
+
+  // Department head
+  headId      String?  @unique
+  head        StaffProfile? @relation("DepartmentHead", fields: [headId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  staff       StaffProfile[] @relation("DepartmentStaff")
+  channels    TeamChannel[]
+
+  @@index([parentId])
+  @@map("departments")
+}
+
+model StaffProfile {
+  id              String         @id @default(uuid())
+  userId          String         @unique
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Employment details
+  employeeId      String         @unique
+  position        StaffPosition
+  title           String         // Job title
+  employmentType  EmploymentType @default(FULL_TIME)
+  hireDate        DateTime
+  terminationDate DateTime?
+  isActive        Boolean        @default(true)
+
+  // Department & Reporting
+  departmentId    String
+  department      Department     @relation("DepartmentStaff", fields: [departmentId], references: [id])
+  managerId       String?
+  manager         StaffProfile?  @relation("StaffHierarchy", fields: [managerId], references: [id])
+  directReports   StaffProfile[] @relation("StaffHierarchy")
+
+  // Compensation
+  baseSalary      Decimal        @db.Decimal(15, 2)
+  currency        String         @default("NGN")
+
+  // Leave balances
+  annualLeaveBalance Int         @default(20)
+  sickLeaveBalance   Int         @default(10)
+
+  // Ranking fields
+  currentRank        Int         @default(0)
+  isStaffOfMonth     Boolean     @default(false)
+  isStaffOfYear      Boolean     @default(false)
+  staffOfMonthCount  Int         @default(0)
+  staffOfYearCount   Int         @default(0)
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  headOfDepartment  Department?          @relation("DepartmentHead")
+  permissions       StaffPermission[]
+  attendance        Attendance[]
+  leaveRequests     LeaveRequest[]
+  reviewsGiven      PerformanceReview[]  @relation("Reviewer")
+  reviewsReceived   PerformanceReview[]  @relation("Reviewee")
+  tasksAssigned     StaffTask[]          @relation("TaskAssignee")
+  tasksCreated      StaffTask[]          @relation("TaskCreator")
+  payrollRecords    PayrollRecord[]
+  channelMemberships ChannelMember[]
+  mentions          Mention[]
+  rankings          StaffRanking[]
+  penalties         PenaltyRecord[]
+
+  @@index([departmentId])
+  @@index([managerId])
+  @@index([employeeId])
+  @@map("staff_profiles")
+}
+
+model StaffPermission {
+  id              String       @id @default(uuid())
+  staffProfileId  String
+  staffProfile    StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  resource        String       // e.g., "properties", "sales", "clients", "staff"
+  action          String       // e.g., "read", "write", "delete", "manage"
+  scope           String?      // e.g., "own_department", "all", "team"
+
+  createdAt       DateTime     @default(now())
+
+  @@unique([staffProfileId, resource, action])
+  @@index([staffProfileId])
+  @@map("staff_permissions")
+}
+
+model Attendance {
+  id              String           @id @default(uuid())
+  staffProfileId  String
+  staffProfile    StaffProfile     @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  date            DateTime         @db.Date
+  clockIn         DateTime?
+  clockOut        DateTime?
+  status          AttendanceStatus
+  hoursWorked     Float?
+  overtime        Float?           @default(0)
+
+  notes           String?
+  location        String?          // For geolocation tracking
+  ipAddress       String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@unique([staffProfileId, date])
+  @@index([staffProfileId])
+  @@index([date])
+  @@index([status])
+  @@map("attendance")
+}
+
+model LeaveRequest {
+  id              String       @id @default(uuid())
+  staffProfileId  String
+  staffProfile    StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  type            LeaveType
+  startDate       DateTime     @db.Date
+  endDate         DateTime     @db.Date
+  totalDays       Int
+  reason          String
+  status          LeaveStatus  @default(PENDING)
+
+  // Approval workflow
+  approverId      String?
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  // Attachments (e.g., medical certificates)
+  attachments     String[]     @default([])
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([staffProfileId])
+  @@index([status])
+  @@index([startDate])
+  @@map("leave_requests")
+}
+
+model PerformanceReview {
+  id              String       @id @default(uuid())
+
+  // Participants
+  revieweeId      String
+  reviewee        StaffProfile @relation("Reviewee", fields: [revieweeId], references: [id])
+  reviewerId      String
+  reviewer        StaffProfile @relation("Reviewer", fields: [reviewerId], references: [id])
+
+  // Review details
+  cycle           ReviewCycle
+  periodStart     DateTime     @db.Date
+  periodEnd       DateTime     @db.Date
+  status          ReviewStatus @default(DRAFT)
+
+  // Ratings (1-5 scale)
+  overallRating   Float?
+  ratings         Json?        // { category: rating, ... }
+
+  // Feedback
+  strengths       String?
+  areasForImprovement String?
+  goals           Json?        // Array of goals with metrics
+  reviewerComments String?
+  revieweeComments String?
+
+  // Acknowledgement
+  acknowledgedAt  DateTime?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([revieweeId])
+  @@index([reviewerId])
+  @@index([status])
+  @@map("performance_reviews")
+}
+
+model PayrollRecord {
+  id              String        @id @default(uuid())
+  staffProfileId  String
+  staffProfile    StaffProfile  @relation(fields: [staffProfileId], references: [id])
+
+  // Pay period
+  periodStart     DateTime      @db.Date
+  periodEnd       DateTime      @db.Date
+  payDate         DateTime?     @db.Date
+
+  // Earnings
+  baseSalary      Decimal       @db.Decimal(15, 2)
+  overtime        Decimal       @default(0) @db.Decimal(15, 2)
+  bonus           Decimal       @default(0) @db.Decimal(15, 2)
+  allowances      Json?         // { type: amount, ... }
+  grossPay        Decimal       @db.Decimal(15, 2)
+
+  // Deductions
+  tax             Decimal       @default(0) @db.Decimal(15, 2)
+  pension         Decimal       @default(0) @db.Decimal(15, 2)
+  otherDeductions Json?         // { type: amount, ... }
+  totalDeductions Decimal       @db.Decimal(15, 2)
+
+  // Net
+  netPay          Decimal       @db.Decimal(15, 2)
+  currency        String        @default("NGN")
+
+  status          PayrollStatus @default(DRAFT)
+  approvedBy      String?
+  approvedAt      DateTime?
+  paidAt          DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([staffProfileId, periodStart, periodEnd])
+  @@index([staffProfileId])
+  @@index([status])
+  @@map("payroll_records")
+}
+
+model StaffTask {
+  id              String       @id @default(uuid())
+  title           String
+  description     String?
+
+  // Assignment
+  assigneeId      String
+  assignee        StaffProfile @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creatorId       String?
+  creator         StaffProfile? @relation("TaskCreator", fields: [creatorId], references: [id])
+  createdByUserId String?
+
+  // Task details
+  priority        TaskPriority @default(MEDIUM)
+  status          TaskStatus   @default(TODO)
+  dueDate         DateTime?
+  completedAt     DateTime?
+
+  // Organization
+  tags            String[]     @default([])
+  attachments     String[]     @default([])
+
+  // Relation to property/sale if applicable
+  propertyId      String?
+  saleId          String?
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  comments        TaskComment[]
+
+  @@index([assigneeId])
+  @@index([creatorId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("staff_tasks")
+}
+
+model TaskComment {
+  id         String    @id @default(uuid())
+  taskId     String
+  task       StaffTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId   String    // User ID
+  content    String
+  attachments String[] @default([])
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([taskId])
+  @@map("task_comments")
+}
+
+model TeamChannel {
+  id           String      @id @default(uuid())
+  name         String
+  description  String?
+  type         ChannelType
+
+  // Optional department association
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  isPrivate    Boolean     @default(false)
+  createdById  String      // User who created
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  members      ChannelMember[]
+  messages     ChannelMessage[]
+
+  @@index([departmentId])
+  @@index([type])
+  @@map("team_channels")
+}
+
+model ChannelMember {
+  id             String       @id @default(uuid())
+  channelId      String
+  channel        TeamChannel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  staffProfileId String
+  staffProfile   StaffProfile @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  isAdmin        Boolean      @default(false)
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime?
+
+  @@unique([channelId, staffProfileId])
+  @@index([channelId])
+  @@index([staffProfileId])
+  @@map("channel_members")
+}
+
+model ChannelMessage {
+  id          String      @id @default(uuid())
+  channelId   String
+  channel     TeamChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  senderId    String      // User ID
+
+  content     String
+  attachments Json?
+  isPinned    Boolean     @default(false)
+
+  // For threading
+  parentId    String?
+  parent      ChannelMessage?  @relation("MessageThread", fields: [parentId], references: [id])
+  replies     ChannelMessage[] @relation("MessageThread")
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  mentions    Mention[]
+  reactions   MessageReaction[]
+
+  @@index([channelId])
+  @@index([senderId])
+  @@index([parentId])
+  @@map("channel_messages")
+}
+
+model Mention {
+  id              String         @id @default(uuid())
+  messageId       String
+  message         ChannelMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  staffProfileId  String
+  staffProfile    StaffProfile   @relation(fields: [staffProfileId], references: [id], onDelete: Cascade)
+
+  isRead          Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+
+  @@unique([messageId, staffProfileId])
+  @@index([staffProfileId])
+  @@map("mentions")
+}
+
+model MessageReaction {
+  id        String         @id @default(uuid())
+  messageId String
+  message   ChannelMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  emoji     String
+
+  createdAt DateTime       @default(now())
+
+  @@unique([messageId, userId, emoji])
+  @@index([messageId])
+  @@map("message_reactions")
+}
+
+model SharedFile {
+  id           String   @id @default(uuid())
+  name         String
+  url          String
+  size         Int
+  mimeType     String
+  uploadedById String   // User ID
+
+  // Can be shared in channel or department
+  channelId    String?
+  departmentId String?
+
+  // Access control
+  isPublic     Boolean  @default(false)
+  accessList   String[] @default([]) // User IDs with access
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([channelId])
+  @@index([departmentId])
+  @@map("shared_files")
+}
+
+// ===========================================
+// HR POLICIES & DEDUCTIONS
+// ===========================================
+
+enum PolicyType {
+  LATENESS
+  ABSENCE
+  LATE_TASK
+  EARLY_DEPARTURE
+  DRESS_CODE
+  MISCONDUCT
+  OTHER
+}
+
+enum AllowanceType {
+  HOUSING
+  TRANSPORT
+  MEAL
+  MEDICAL
+  COMMUNICATION
+  ENTERTAINMENT
+  EDUCATION
+  OTHER
+}
+
+enum DeductionType {
+  TAX
+  PENSION
+  HEALTH_INSURANCE
+  LOAN_REPAYMENT
+  LATENESS_PENALTY
+  ABSENCE_PENALTY
+  LATE_TASK_PENALTY
+  OTHER
+}
+
+model HRPolicy {
+  id              String      @id @default(uuid())
+  name            String
+  type            PolicyType
+  description     String?
+
+  // Rule configuration
+  isActive        Boolean     @default(true)
+  isAutomatic     Boolean     @default(true)  // Auto-apply or manual
+
+  // Penalty configuration
+  penaltyType     String      // "fixed" or "percentage"
+  penaltyAmount   Decimal     @db.Decimal(15, 2)  // Fixed amount or percentage
+  penaltyBasis    String?     // "daily_salary", "monthly_salary", "hourly_rate"
+
+  // Thresholds
+  graceMinutes    Int?        // Grace period for lateness
+  maxOccurrences  Int?        // Max occurrences before escalation
+  escalationRate  Float?      // Multiplier for repeated offenses
+
+  // Time-based rules
+  effectiveFrom   DateTime?
+  effectiveTo     DateTime?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  penalties       PenaltyRecord[]
+
+  @@index([type])
+  @@index([isActive])
+  @@map("hr_policies")
+}
+
+model PenaltyRecord {
+  id              String        @id @default(uuid())
+  staffProfileId  String
+  staffProfile    StaffProfile  @relation(fields: [staffProfileId], references: [id])
+  policyId        String?
+  policy          HRPolicy?     @relation(fields: [policyId], references: [id])
+
+  // Penalty details
+  type            PolicyType
+  description     String
+  amount          Decimal       @db.Decimal(15, 2)
+
+  // Reference to what caused the penalty
+  referenceType   String?       // "attendance", "task", "manual"
+  referenceId     String?       // ID of attendance/task record
+  occurredAt      DateTime      // When the violation occurred
+
+  // Status
+  isApplied       Boolean       @default(false)  // Applied to payroll
+  appliedToPayrollId String?
+  appliedAt       DateTime?
+
+  // Waiver
+  isWaived        Boolean       @default(false)
+  waivedBy        String?
+  waivedAt        DateTime?
+  waiverReason    String?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([staffProfileId])
+  @@index([policyId])
+  @@index([type])
+  @@index([isApplied])
+  @@map("penalty_records")
+}
+
+model AllowanceConfig {
+  id              String        @id @default(uuid())
+  name            String
+  type            AllowanceType
+  description     String?
+
+  // Amount configuration
+  amountType      String        // "fixed" or "percentage"
+  amount          Decimal       @db.Decimal(15, 2)
+  percentageBasis String?       // "base_salary" if percentage
+
+  // Eligibility
+  isActive        Boolean       @default(true)
+  positionLevels  StaffPosition[] // Which positions get this
+  minServiceMonths Int?         // Minimum months of service
+
+  // Taxable
+  isTaxable       Boolean       @default(true)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+  @@map("allowance_configs")
+}
+
+model DeductionConfig {
+  id              String         @id @default(uuid())
+  name            String
+  type            DeductionType
+  description     String?
+
+  // Amount configuration
+  amountType      String         // "fixed" or "percentage"
+  amount          Decimal        @db.Decimal(15, 2)
+  percentageBasis String?        // "base_salary", "gross_salary"
+
+  // Configuration
+  isActive        Boolean        @default(true)
+  isMandatory     Boolean        @default(false)  // e.g., tax, pension
+  maxAmount       Decimal?       @db.Decimal(15, 2)  // Cap if percentage
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+  @@map("deduction_configs")
+}
+
+model SalaryStructure {
+  id              String        @id @default(uuid())
+  name            String
+  description     String?
+
+  // Position-based salary ranges
+  position        StaffPosition
+  minSalary       Decimal       @db.Decimal(15, 2)
+  maxSalary       Decimal       @db.Decimal(15, 2)
+
+  // Standard work hours
+  workHoursPerDay Float         @default(8)
+  workDaysPerWeek Int           @default(5)
+
+  // Overtime rates
+  overtimeRate    Float         @default(1.5)  // Multiplier
+  weekendRate     Float         @default(2.0)  // Weekend multiplier
+  holidayRate     Float         @default(2.5)  // Holiday multiplier
+
+  isActive        Boolean       @default(true)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([position])
+  @@index([isActive])
+  @@map("salary_structures")
+}
+
+// ============ CMS & Gallery ============
+
+enum GalleryItemType {
+  PHOTO
+  VIDEO
+}
+
+model GalleryItem {
+  id           String          @id @default(uuid())
+  title        String?
+  description  String?
+  type         GalleryItemType
+  url          String
+  thumbnailUrl String?
+  order        Int             @default(0)
+  isPublished  Boolean         @default(true)
+
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([type])
+  @@index([isPublished])
+  @@index([order])
+  @@map("gallery_items")
 }

@@ -1,10 +1,19 @@
+import { getToken } from './auth-storage';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+/** Resolve a backend-relative image path (e.g. /uploads/properties/x.jpg) to a full URL */
+export function getImageUrl(path: string): string {
+  if (!path) return '';
+  if (path.startsWith('http://') || path.startsWith('https://')) return path;
+  return `${API_BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+}
 
 export const api = {
   baseUrl: `${API_BASE_URL}/api/v1`,
 
   getHeaders(): HeadersInit {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const token = getToken();
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -12,11 +21,11 @@ export const api = {
   },
 
   getAuthHeaders(): HeadersInit {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const token = getToken();
     return token ? { Authorization: `Bearer ${token}` } : {};
   },
 
-  async get<T>(endpoint: string): Promise<T> {
+  async get<T = any>(endpoint: string): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'GET',
       headers: this.getHeaders(),
@@ -28,7 +37,7 @@ export const api = {
     return response.json();
   },
 
-  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+  async post<T = any>(endpoint: string, data?: unknown): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'POST',
       headers: this.getHeaders(),
@@ -41,7 +50,7 @@ export const api = {
     return response.json();
   },
 
-  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+  async put<T = any>(endpoint: string, data?: unknown): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'PUT',
       headers: this.getHeaders(),
@@ -54,7 +63,7 @@ export const api = {
     return response.json();
   },
 
-  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+  async patch<T = any>(endpoint: string, data?: unknown): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'PATCH',
       headers: this.getHeaders(),
@@ -67,7 +76,7 @@ export const api = {
     return response.json();
   },
 
-  async delete<T>(endpoint: string): Promise<T> {
+  async delete<T = any>(endpoint: string): Promise<T> {
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'DELETE',
       headers: this.getHeaders(),
@@ -97,6 +106,8 @@ export const api = {
     }
 
     const result = await response.json();
-    return result.urls || result;
+    // Unwrap TransformInterceptor { success, data: { urls }, timestamp }
+    const inner = result?.data || result;
+    return inner?.urls || inner;
   },
 };

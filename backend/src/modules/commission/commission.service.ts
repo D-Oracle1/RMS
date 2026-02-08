@@ -1,12 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CommissionStatus, LoyaltyTier } from '@prisma/client';
+import { SettingsService } from '../settings/settings.service';
 
 @Injectable()
 export class CommissionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settingsService: SettingsService,
+  ) {}
 
-  // Commission rates by tier
+  // Fallback commission rates by tier
   private readonly COMMISSION_RATES = {
     [LoyaltyTier.BRONZE]: 0.03,
     [LoyaltyTier.SILVER]: 0.035,
@@ -66,7 +70,7 @@ export class CommissionService {
           realtor: {
             include: {
               user: {
-                select: { firstName: true, lastName: true },
+                select: { firstName: true, lastName: true, email: true },
               },
             },
           },
@@ -224,10 +228,19 @@ export class CommissionService {
     return this.COMMISSION_RATES[tier] || 0.03;
   }
 
+  async getCommissionRateFromSettings(tier: LoyaltyTier): Promise<number> {
+    try {
+      const rates = await this.settingsService.getCommissionRates();
+      return rates[tier] ?? this.COMMISSION_RATES[tier] ?? 0.03;
+    } catch {
+      return this.COMMISSION_RATES[tier] || 0.03;
+    }
+  }
+
   async calculateCommission(saleValue: number, tier: LoyaltyTier) {
-    const rate = this.getCommissionRate(tier);
+    const rate = await this.getCommissionRateFromSettings(tier);
     const amount = saleValue * rate;
-    const taxRate = 0.15;
+    const taxRate = await this.settingsService.getMainTaxRate();
     const taxAmount = amount * taxRate;
     const netAmount = amount - taxAmount;
 

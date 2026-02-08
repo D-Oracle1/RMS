@@ -45,9 +45,17 @@ export class RealtorController {
   @Get('dashboard')
   @Roles('REALTOR')
   @ApiOperation({ summary: 'Get realtor dashboard' })
+  @ApiQuery({ name: 'period', required: false, enum: ['daily', 'weekly', 'monthly', 'yearly'] })
+  @ApiQuery({ name: 'month', required: false, type: Number, description: '0-11' })
+  @ApiQuery({ name: 'year', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Realtor dashboard data' })
-  async getDashboard(@CurrentUser('id') userId: string) {
-    return this.realtorService.getDashboard(userId);
+  async getDashboard(
+    @CurrentUser('id') userId: string,
+    @Query('period') period?: 'daily' | 'weekly' | 'monthly' | 'yearly',
+    @Query('month') month?: number,
+    @Query('year') year?: number,
+  ) {
+    return this.realtorService.getDashboard(userId, period, month, year);
   }
 
   @Get('leaderboard')

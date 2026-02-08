@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calculator,
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
@@ -35,6 +36,40 @@ export default function RealtorCommissionPage() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
+  const [commissionRates, setCommissionRates] = useState<Record<string, number>>({
+    BRONZE: 3.0,
+    SILVER: 3.5,
+    GOLD: 4.0,
+    PLATINUM: 5.0,
+  });
+  const [taxRate, setTaxRate] = useState(15);
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await api.get<any>('/settings/commission-rates');
+        const rates = res.data;
+        const converted: Record<string, number> = {};
+        for (const [tier, rate] of Object.entries(rates)) {
+          converted[tier] = Number(rate) * 100;
+        }
+        setCommissionRates(converted);
+      } catch {
+        // Keep hardcoded fallback values
+      }
+
+      try {
+        const res = await api.get<any>('/settings/tax-rates');
+        if (res.data?.incomeTax != null) {
+          setTaxRate(Number(res.data.incomeTax) * 100);
+        }
+      } catch {
+        // Keep hardcoded fallback value
+      }
+    };
+
+    fetchSettings();
+  }, []);
 
   const filterByTimePeriod = (date: string) => {
     const itemDate = new Date(date);
@@ -71,9 +106,9 @@ export default function RealtorCommissionPage() {
       netEarnings,
       pendingPayment,
       tier: 'GOLD',
-      rate: 4.0,
+      rate: commissionRates['GOLD'] ?? 4.0,
     };
-  }, [filteredCommissions]);
+  }, [filteredCommissions, commissionRates]);
 
   const stats = useMemo(() => {
     const paidAmount = filteredCommissions
@@ -129,7 +164,7 @@ export default function RealtorCommissionPage() {
       ],
       subtotal: item.commission,
       fees: [
-        { label: 'Tax Deduction (15%)', amount: -item.tax },
+        { label: `Tax Deduction (${taxRate}%)`, amount: -item.tax },
       ],
       total: item.net,
       status: item.status === 'PAID' ? 'paid' : 'pending',
@@ -231,7 +266,7 @@ export default function RealtorCommissionPage() {
                   <span className="font-semibold">{formatCurrency(earningsBreakdown.grossCommission)}</span>
                 </div>
                 <div className="flex items-center justify-between text-red-600">
-                  <span>Tax Deducted (15%)</span>
+                  <span>Tax Deducted ({taxRate}%)</span>
                   <span className="font-semibold">-{formatCurrency(earningsBreakdown.taxDeducted)}</span>
                 </div>
                 <div className="border-t pt-4 flex items-center justify-between">

@@ -78,6 +78,34 @@ export class UpdatePropertyDto {
   @Min(0)
   area?: number;
 
+  @ApiPropertyOptional({ example: 5000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  lotSize?: number;
+
+  @ApiPropertyOptional({ example: 150000 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  pricePerSqm?: number;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  numberOfPlots?: number;
+
+  @ApiPropertyOptional({ example: 'Nigeria' })
+  @IsOptional()
+  @IsString()
+  country?: string;
+
+  @ApiPropertyOptional({ example: 'https://example.com/tour' })
+  @IsOptional()
+  @IsString()
+  virtualTourUrl?: string;
+
   @ApiPropertyOptional({ example: ['Pool', 'Garage', 'Garden'] })
   @IsOptional()
   @IsArray()

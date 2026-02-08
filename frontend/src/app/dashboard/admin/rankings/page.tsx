@@ -1,23 +1,27 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Crown,
   Trophy,
   Medal,
   Star,
-  TrendingUp,
   Calendar,
   Award,
   Users,
   Building,
   Wallet,
   Mail,
-  Phone,
-  MapPin,
   BarChart3,
-  Target,
+  Send,
+  Check,
+  Loader2,
+  EyeOff,
+  Eye,
+  RefreshCw,
+  Briefcase,
+  ClipboardCheck,
   Clock,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,70 +34,59 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, getTierBgClass } from '@/lib/utils';
+import { api, getImageUrl } from '@/lib/api';
 
-interface Realtor {
+interface LeaderboardRealtor {
   rank: number;
+  realtorId: string;
+  userId: string;
   name: string;
+  avatar: string | null;
+  email: string;
   tier: string;
-  sales: number;
+  totalSales: number;
   totalValue: number;
-  commission: number;
-  change: number;
-  avatar: string | null;
-  email: string;
-  phone: string;
-  location: string;
-  joinDate: string;
-  monthlySales: number[];
-  specialization: string;
-  activeListings: number;
-  closedDeals: number;
+  score: number;
+  isRealtorOfMonth: boolean;
+  isRealtorOfYear: boolean;
 }
 
-interface Client {
+interface StaffLeaderboardEntry {
   rank: number;
+  staffProfileId: string;
+  userId: string;
   name: string;
-  propertiesOwned: number;
-  portfolioValue: number;
-  totalPurchases: number;
-  memberSince: string;
   avatar: string | null;
   email: string;
-  phone: string;
-  location: string;
-  monthlyInvestments: number[];
-  preferredType: string;
-  pendingOffers: number;
-  completedDeals: number;
+  position: string;
+  department: string;
+  title: string;
+  tasksCompleted: number;
+  tasksOnTime: number;
+  attendanceRate: number;
+  avgReviewScore: number;
+  score: number;
+  isStaffOfMonth: boolean;
+  isStaffOfYear: boolean;
 }
 
-// Base data - will be filtered based on time period
-const allRealtors: Realtor[] = [
-  { rank: 1, name: 'Chioma Adeyemi', tier: 'PLATINUM', sales: 45, totalValue: 125000000, commission: 5000000, change: 0, avatar: null, email: 'chioma.adeyemi@rms.com', phone: '+234 801 234 5678', location: 'Lagos, Nigeria', joinDate: 'Jan 2022', monthlySales: [3, 5, 4, 6, 5, 4, 3, 5, 4, 3, 4, 5], specialization: 'Land & Commercial', activeListings: 12, closedDeals: 45 },
-  { rank: 2, name: 'Emeka Okonkwo', tier: 'GOLD', sales: 38, totalValue: 98000000, commission: 3920000, change: 1, avatar: null, email: 'emeka.okonkwo@rms.com', phone: '+234 802 345 6789', location: 'Abuja, Nigeria', joinDate: 'Mar 2022', monthlySales: [2, 4, 3, 4, 3, 4, 3, 4, 3, 4, 2, 4], specialization: 'Residential', activeListings: 8, closedDeals: 38 },
-  { rank: 3, name: 'Aisha Mohammed', tier: 'GOLD', sales: 35, totalValue: 82000000, commission: 3280000, change: -1, avatar: null, email: 'aisha.mohammed@rms.com', phone: '+234 803 456 7890', location: 'Kano, Nigeria', joinDate: 'Feb 2022', monthlySales: [3, 3, 2, 4, 3, 3, 2, 3, 4, 3, 3, 2], specialization: 'Land', activeListings: 6, closedDeals: 35 },
-  { rank: 4, name: 'Tunde Bakare', tier: 'SILVER', sales: 32, totalValue: 71000000, commission: 2485000, change: 2, avatar: null, email: 'tunde.bakare@rms.com', phone: '+234 804 567 8901', location: 'Ibadan, Nigeria', joinDate: 'Jun 2022', monthlySales: [2, 3, 3, 2, 3, 3, 2, 3, 3, 2, 3, 3], specialization: 'Residential', activeListings: 5, closedDeals: 32 },
-  { rank: 5, name: 'Ngozi Eze', tier: 'SILVER', sales: 30, totalValue: 65000000, commission: 2275000, change: 0, avatar: null, email: 'ngozi.eze@rms.com', phone: '+234 805 678 9012', location: 'Port Harcourt, Nigeria', joinDate: 'Apr 2022', monthlySales: [2, 2, 3, 3, 2, 3, 2, 3, 2, 3, 2, 3], specialization: 'Commercial', activeListings: 4, closedDeals: 30 },
-  { rank: 6, name: 'Olumide Adebayo', tier: 'SILVER', sales: 28, totalValue: 59000000, commission: 2065000, change: -2, avatar: null, email: 'olumide.adebayo@rms.com', phone: '+234 806 789 0123', location: 'Lagos, Nigeria', joinDate: 'May 2022', monthlySales: [2, 3, 2, 2, 3, 2, 2, 3, 2, 2, 3, 2], specialization: 'Land', activeListings: 7, closedDeals: 28 },
-  { rank: 7, name: 'Funke Oladipo', tier: 'BRONZE', sales: 25, totalValue: 52000000, commission: 1560000, change: 1, avatar: null, email: 'funke.oladipo@rms.com', phone: '+234 807 890 1234', location: 'Benin City, Nigeria', joinDate: 'Jul 2022', monthlySales: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3], specialization: 'Residential', activeListings: 3, closedDeals: 25 },
-  { rank: 8, name: 'Chukwudi Nnamdi', tier: 'BRONZE', sales: 22, totalValue: 46000000, commission: 1380000, change: -1, avatar: null, email: 'chukwudi.nnamdi@rms.com', phone: '+234 808 901 2345', location: 'Enugu, Nigeria', joinDate: 'Aug 2022', monthlySales: [1, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2], specialization: 'Land', activeListings: 4, closedDeals: 22 },
-  { rank: 9, name: 'Yetunde Alabi', tier: 'BRONZE', sales: 20, totalValue: 41000000, commission: 1230000, change: 3, avatar: null, email: 'yetunde.alabi@rms.com', phone: '+234 809 012 3456', location: 'Abeokuta, Nigeria', joinDate: 'Sep 2022', monthlySales: [1, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 2], specialization: 'Residential', activeListings: 2, closedDeals: 20 },
-  { rank: 10, name: 'Kelechi Uche', tier: 'BRONZE', sales: 18, totalValue: 37000000, commission: 1110000, change: -1, avatar: null, email: 'kelechi.uche@rms.com', phone: '+234 810 123 4567', location: 'Owerri, Nigeria', joinDate: 'Oct 2022', monthlySales: [1, 1, 2, 2, 1, 2, 1, 2, 1, 2, 1, 2], specialization: 'Land', activeListings: 3, closedDeals: 18 },
-];
-
-const allClients: Client[] = [
-  { rank: 1, name: 'Alhaji Musa Dantata', propertiesOwned: 12, portfolioValue: 450000000, totalPurchases: 15, memberSince: '2020', avatar: null, email: 'musa.dantata@gmail.com', phone: '+234 811 234 5678', location: 'Kano, Nigeria', monthlyInvestments: [25000000, 35000000, 40000000, 30000000, 45000000, 50000000, 35000000, 40000000, 30000000, 45000000, 35000000, 40000000], preferredType: 'Land & Commercial', pendingOffers: 2, completedDeals: 15 },
-  { rank: 2, name: 'Chief Emeka Okafor', propertiesOwned: 9, portfolioValue: 320000000, totalPurchases: 11, memberSince: '2019', avatar: null, email: 'emeka.okafor@yahoo.com', phone: '+234 812 345 6789', location: 'Lagos, Nigeria', monthlyInvestments: [20000000, 25000000, 30000000, 25000000, 35000000, 30000000, 25000000, 30000000, 25000000, 35000000, 20000000, 20000000], preferredType: 'Commercial', pendingOffers: 1, completedDeals: 11 },
-  { rank: 3, name: 'Dr. Amina Bello', propertiesOwned: 8, portfolioValue: 280000000, totalPurchases: 10, memberSince: '2021', avatar: null, email: 'amina.bello@gmail.com', phone: '+234 813 456 7890', location: 'Abuja, Nigeria', monthlyInvestments: [18000000, 22000000, 25000000, 28000000, 30000000, 25000000, 22000000, 28000000, 25000000, 22000000, 18000000, 17000000], preferredType: 'Residential', pendingOffers: 0, completedDeals: 10 },
-  { rank: 4, name: 'Engr. Chidi Nwachukwu', propertiesOwned: 7, portfolioValue: 195000000, totalPurchases: 8, memberSince: '2020', avatar: null, email: 'chidi.nwachukwu@outlook.com', phone: '+234 814 567 8901', location: 'Port Harcourt, Nigeria', monthlyInvestments: [15000000, 18000000, 16000000, 20000000, 18000000, 15000000, 16000000, 18000000, 15000000, 16000000, 14000000, 14000000], preferredType: 'Land', pendingOffers: 1, completedDeals: 8 },
-  { rank: 5, name: 'Mrs. Folake Adeleke', propertiesOwned: 6, portfolioValue: 175000000, totalPurchases: 7, memberSince: '2022', avatar: null, email: 'folake.adeleke@gmail.com', phone: '+234 815 678 9012', location: 'Ibadan, Nigeria', monthlyInvestments: [12000000, 15000000, 18000000, 16000000, 14000000, 15000000, 16000000, 14000000, 15000000, 13000000, 14000000, 13000000], preferredType: 'Residential', pendingOffers: 2, completedDeals: 7 },
-  { rank: 6, name: 'Barr. Kunle Ayodele', propertiesOwned: 5, portfolioValue: 145000000, totalPurchases: 6, memberSince: '2021', avatar: null, email: 'kunle.ayodele@law.com', phone: '+234 816 789 0123', location: 'Lagos, Nigeria', monthlyInvestments: [10000000, 12000000, 14000000, 12000000, 13000000, 12000000, 11000000, 13000000, 12000000, 12000000, 12000000, 12000000], preferredType: 'Commercial', pendingOffers: 0, completedDeals: 6 },
-  { rank: 7, name: 'Prof. Ibrahim Sule', propertiesOwned: 5, portfolioValue: 120000000, totalPurchases: 5, memberSince: '2022', avatar: null, email: 'ibrahim.sule@uni.edu.ng', phone: '+234 817 890 1234', location: 'Zaria, Nigeria', monthlyInvestments: [8000000, 10000000, 12000000, 10000000, 11000000, 10000000, 9000000, 10000000, 10000000, 10000000, 10000000, 10000000], preferredType: 'Land', pendingOffers: 1, completedDeals: 5 },
-  { rank: 8, name: 'Arc. Ngozi Obi', propertiesOwned: 4, portfolioValue: 98000000, totalPurchases: 5, memberSince: '2023', avatar: null, email: 'ngozi.obi@architecture.com', phone: '+234 818 901 2345', location: 'Enugu, Nigeria', monthlyInvestments: [6000000, 8000000, 9000000, 8000000, 9000000, 8000000, 8000000, 9000000, 8000000, 8000000, 8000000, 9000000], preferredType: 'Residential', pendingOffers: 0, completedDeals: 5 },
-  { rank: 9, name: 'Hon. Babatunde Raji', propertiesOwned: 4, portfolioValue: 85000000, totalPurchases: 4, memberSince: '2022', avatar: null, email: 'babatunde.raji@gov.ng', phone: '+234 819 012 3456', location: 'Osogbo, Nigeria', monthlyInvestments: [5000000, 7000000, 8000000, 7000000, 8000000, 7000000, 7000000, 8000000, 7000000, 7000000, 7000000, 7000000], preferredType: 'Land', pendingOffers: 1, completedDeals: 4 },
-  { rank: 10, name: 'Hajiya Fatima Abubakar', propertiesOwned: 3, portfolioValue: 72000000, totalPurchases: 4, memberSince: '2023', avatar: null, email: 'fatima.abubakar@gmail.com', phone: '+234 820 123 4567', location: 'Kaduna, Nigeria', monthlyInvestments: [4000000, 6000000, 7000000, 6000000, 7000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000, 6000000], preferredType: 'Residential', pendingOffers: 0, completedDeals: 4 },
-];
+interface ClientLeaderboardEntry {
+  rank: number;
+  clientProfileId: string;
+  userId: string;
+  name: string;
+  avatar: string | null;
+  email: string;
+  propertiesOwned: number;
+  purchaseCount: number;
+  totalPurchaseValue: number;
+  totalPropertyValue: number;
+  score: number;
+  isClientOfMonth: boolean;
+  isClientOfYear: boolean;
+}
 
 const getRankIcon = (rank: number) => {
   if (rank === 1) return <Trophy className="w-6 h-6 text-yellow-500" />;
@@ -102,110 +95,190 @@ const getRankIcon = (rank: number) => {
   return <span className="w-6 h-6 flex items-center justify-center font-bold text-muted-foreground">{rank}</span>;
 };
 
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+type TimePeriod = 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'ALL_TIME';
 
-type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
+const PERIOD_LABELS: Record<TimePeriod, string> = {
+  MONTHLY: 'This Month',
+  QUARTERLY: 'This Quarter',
+  YEARLY: 'This Year',
+  ALL_TIME: 'All Time',
+};
+
+const AWARD_LABELS: Record<string, string> = {
+  STAFF_OF_MONTH: 'Staff of the Month',
+  REALTOR_OF_MONTH: 'Realtor of the Month',
+  CLIENT_OF_MONTH: 'Client of the Month',
+};
+
+const AWARD_COLORS: Record<string, string> = {
+  STAFF_OF_MONTH: 'from-blue-500 to-blue-600',
+  REALTOR_OF_MONTH: 'from-[#0b5c46] to-[#0e7a5e]',
+  CLIENT_OF_MONTH: 'from-[#fca639] to-[#e8953a]',
+};
+
+const MONTH_NAMES = [
+  '', 'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 export default function RankingsPage() {
-  const [activeTab, setActiveTab] = useState<'realtors' | 'clients'>('realtors');
-  const [selectedRealtor, setSelectedRealtor] = useState<Realtor | null>(null);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const [activeTab, setActiveTab] = useState<'realtors' | 'staff' | 'clients'>('realtors');
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('ALL_TIME');
+  const [loading, setLoading] = useState(true);
 
-  // Calculate rankings based on time period
-  const filteredRealtors = useMemo(() => {
-    const currentMonth = 0; // January (index 0)
+  // Data from API
+  const [realtors, setRealtors] = useState<LeaderboardRealtor[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffLeaderboardEntry[]>([]);
+  const [clientRankings, setClientRankings] = useState<ClientLeaderboardEntry[]>([]);
 
-    return allRealtors.map(realtor => {
-      let periodSales: number;
-      let periodValue: number;
-      let periodCommission: number;
+  // Award publishing state
+  const [awardCategory, setAwardCategory] = useState<'STAFF_OF_MONTH' | 'REALTOR_OF_MONTH' | 'CLIENT_OF_MONTH'>('REALTOR_OF_MONTH');
+  const [awardReason, setAwardReason] = useState('');
+  const [awardUserId, setAwardUserId] = useState('');
+  const [awardUserName, setAwardUserName] = useState('');
+  const [publishingAward, setPublishingAward] = useState(false);
+  const [awardSuccess, setAwardSuccess] = useState('');
+  const [awardError, setAwardError] = useState('');
+  const [currentMonthAwards, setCurrentMonthAwards] = useState<any[]>([]);
+  const [showAwardDialog, setShowAwardDialog] = useState(false);
+  const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
 
-      switch (timePeriod) {
-        case 'month':
-          periodSales = realtor.monthlySales[currentMonth];
-          periodValue = Math.round(realtor.totalValue / 12);
-          periodCommission = Math.round(realtor.commission / 12);
-          break;
-        case 'quarter':
-          periodSales = realtor.monthlySales.slice(0, 3).reduce((a, b) => a + b, 0);
-          periodValue = Math.round(realtor.totalValue / 4);
-          periodCommission = Math.round(realtor.commission / 4);
-          break;
-        case 'year':
-        case 'all':
-        default:
-          periodSales = realtor.sales;
-          periodValue = realtor.totalValue;
-          periodCommission = realtor.commission;
-      }
+  // Staff search for STAFF_OF_MONTH
+  const [staffList, setStaffList] = useState<any[]>([]);
 
-      return {
-        ...realtor,
-        sales: periodSales,
-        totalValue: periodValue,
-        commission: periodCommission,
-      };
-    })
-    .sort((a, b) => b.sales - a.sales || b.totalValue - a.totalValue)
-    .map((realtor, index) => ({
-      ...realtor,
-      rank: index + 1,
-      change: realtor.rank - (index + 1),
-    }));
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+
+  const fetchRealtorLeaderboard = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res: any = await api.get(`/rankings/leaderboard?period=${timePeriod}&limit=20`);
+      const data = Array.isArray(res) ? res : (res?.data || []);
+      setRealtors(data);
+    } catch (err) {
+      console.error('Failed to fetch leaderboard:', err);
+      setRealtors([]);
+    } finally {
+      setLoading(false);
+    }
   }, [timePeriod]);
 
-  const filteredClients = useMemo(() => {
-    const currentMonth = 0; // January (index 0)
+  const handleRefresh = () => {
+    fetchRealtorLeaderboard();
+    fetchStaffLeaderboard();
+    fetchClientLeaderboard();
+    fetchCurrentMonthAwards();
+  };
 
-    return allClients.map(client => {
-      let periodPurchases: number;
-      let periodValue: number;
-
-      switch (timePeriod) {
-        case 'month':
-          periodPurchases = Math.ceil(client.totalPurchases / 12);
-          periodValue = client.monthlyInvestments[currentMonth];
-          break;
-        case 'quarter':
-          periodPurchases = Math.ceil(client.totalPurchases / 4);
-          periodValue = client.monthlyInvestments.slice(0, 3).reduce((a, b) => a + b, 0);
-          break;
-        case 'year':
-        case 'all':
-        default:
-          periodPurchases = client.totalPurchases;
-          periodValue = client.portfolioValue;
-      }
-
-      return {
-        ...client,
-        totalPurchases: periodPurchases,
-        portfolioValue: periodValue,
-      };
-    })
-    .sort((a, b) => b.portfolioValue - a.portfolioValue || b.totalPurchases - a.totalPurchases)
-    .map((client, index) => ({
-      ...client,
-      rank: index + 1,
-    }));
+  const fetchStaffLeaderboard = useCallback(async () => {
+    try {
+      const res: any = await api.get(`/rankings/staff/leaderboard?period=${timePeriod}&limit=20`);
+      const data = Array.isArray(res) ? res : (res?.data || []);
+      setStaffMembers(data);
+    } catch (err) {
+      console.error('Failed to fetch staff leaderboard:', err);
+      setStaffMembers([]);
+    }
   }, [timePeriod]);
 
-  // Get top performer for featured cards
-  const topRealtor = filteredRealtors[0];
-  const topClient = filteredClients[0];
+  const fetchClientLeaderboard = useCallback(async () => {
+    try {
+      const res: any = await api.get(`/rankings/clients/leaderboard?period=${timePeriod}&limit=20`);
+      const data = Array.isArray(res) ? res : (res?.data || []);
+      setClientRankings(data);
+    } catch (err) {
+      console.error('Failed to fetch client leaderboard:', err);
+      setClientRankings([]);
+    }
+  }, [timePeriod]);
 
-  const maxSales = selectedRealtor ? Math.max(...selectedRealtor.monthlySales) : 0;
-  const maxInvestment = selectedClient ? Math.max(...selectedClient.monthlyInvestments) : 0;
+  const fetchStaff = useCallback(async () => {
+    try {
+      const res: any = await api.get('/staff?limit=50');
+      const raw = res?.data?.data || res?.data || [];
+      setStaffList(Array.isArray(raw) ? raw : []);
+    } catch {
+      setStaffList([]);
+    }
+  }, []);
 
-  const getPeriodLabel = () => {
-    switch (timePeriod) {
-      case 'month': return 'January 2026';
-      case 'quarter': return 'Q1 2026';
-      case 'year': return '2025';
-      case 'all': return 'All Time';
+  const fetchCurrentMonthAwards = useCallback(async () => {
+    try {
+      const res: any = await api.get('/awards/current-month');
+      setCurrentMonthAwards(res?.data || res || []);
+    } catch {
+      setCurrentMonthAwards([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRealtorLeaderboard();
+    fetchStaffLeaderboard();
+    fetchClientLeaderboard();
+  }, [fetchRealtorLeaderboard, fetchStaffLeaderboard, fetchClientLeaderboard]);
+
+  useEffect(() => {
+    fetchCurrentMonthAwards();
+    fetchStaff();
+  }, [fetchCurrentMonthAwards, fetchStaff]);
+
+  const handlePublishAward = async () => {
+    if (!awardUserId || !awardReason) {
+      setAwardError('Please select a user and provide a reason.');
+      return;
+    }
+    setPublishingAward(true);
+    setAwardError('');
+    try {
+      await api.post('/awards', {
+        type: awardCategory,
+        userId: awardUserId,
+        month: currentMonth,
+        year: currentYear,
+        reason: awardReason,
+        publishImmediately: true,
+      });
+      setAwardSuccess(`${AWARD_LABELS[awardCategory]} published successfully!`);
+      setAwardReason('');
+      setAwardUserId('');
+      setAwardUserName('');
+      setShowAwardDialog(false);
+      await fetchCurrentMonthAwards();
+      setTimeout(() => setAwardSuccess(''), 3000);
+    } catch (err: any) {
+      setAwardError(err?.message || 'Failed to publish award.');
+    } finally {
+      setPublishingAward(false);
     }
   };
+
+  const handleUnpublishAward = async (awardId: string) => {
+    setUnpublishingId(awardId);
+    try {
+      await api.patch(`/awards/${awardId}/unpublish`);
+      await fetchCurrentMonthAwards();
+    } catch (err: any) {
+      setAwardError(err?.message || 'Failed to unpublish award.');
+    } finally {
+      setUnpublishingId(null);
+    }
+  };
+
+  const handleRepublishAward = async (awardId: string) => {
+    setUnpublishingId(awardId);
+    try {
+      await api.patch(`/awards/${awardId}/publish`);
+      await fetchCurrentMonthAwards();
+    } catch (err: any) {
+      setAwardError(err?.message || 'Failed to republish award.');
+    } finally {
+      setUnpublishingId(null);
+    }
+  };
+
+  const topRealtor = realtors[0];
+  const topStaff = staffMembers[0];
+  const topClient = clientRankings[0];
 
   return (
     <div className="space-y-6">
@@ -221,6 +294,14 @@ export default function RankingsPage() {
             Realtor Rankings
           </Button>
           <Button
+            variant={activeTab === 'staff' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('staff')}
+            className="flex items-center gap-2"
+          >
+            <Briefcase className="w-4 h-4" />
+            Staff Rankings
+          </Button>
+          <Button
             variant={activeTab === 'clients' ? 'default' : 'outline'}
             onClick={() => setActiveTab('clients')}
             className="flex items-center gap-2"
@@ -228,46 +309,326 @@ export default function RankingsPage() {
             <Users className="w-4 h-4" />
             Client Rankings
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         {/* Time Period Filter */}
         <div className="flex gap-2">
-          <Button
-            variant={timePeriod === 'month' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('month')}
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            This Month
-          </Button>
-          <Button
-            variant={timePeriod === 'quarter' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('quarter')}
-          >
-            Quarter
-          </Button>
-          <Button
-            variant={timePeriod === 'year' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('year')}
-          >
-            This Year
-          </Button>
-          <Button
-            variant={timePeriod === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('all')}
-          >
-            All Time
-          </Button>
+          {(['MONTHLY', 'QUARTERLY', 'YEARLY', 'ALL_TIME'] as TimePeriod[]).map((p) => (
+            <Button
+              key={p}
+              variant={timePeriod === p ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTimePeriod(p)}
+            >
+              {p === 'MONTHLY' && <Calendar className="w-4 h-4 mr-2" />}
+              {PERIOD_LABELS[p]}
+            </Button>
+          ))}
         </div>
       </div>
+
+      {/* Award Publishing Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <Card className="shadow-sm border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500" />
+              Monthly Awards - {MONTH_NAMES[currentMonth]} {currentYear}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {awardSuccess && (
+              <div className="mb-4 p-3 rounded-lg bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 flex items-center gap-2">
+                <Check className="w-4 h-4" />
+                {awardSuccess}
+              </div>
+            )}
+
+            {awardError && !showAwardDialog && (
+              <div className="mb-4 p-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                {awardError}
+              </div>
+            )}
+
+            {/* Current Month Awards (Published + Unpublished) */}
+            {currentMonthAwards.length > 0 && (
+              <div className="grid gap-3 md:grid-cols-3 mb-4">
+                {currentMonthAwards.map((award: any) => (
+                  <div
+                    key={award.id}
+                    className={`rounded-xl bg-gradient-to-br ${
+                      award.isPublished
+                        ? (AWARD_COLORS[award.type] || 'from-gray-500 to-gray-600')
+                        : 'from-gray-400 to-gray-500'
+                    } p-4 text-white ${!award.isPublished ? 'opacity-75' : ''}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <Crown className="w-4 h-4 text-yellow-300" />
+                        <span className="text-xs font-medium opacity-90">{AWARD_LABELS[award.type]}</span>
+                      </div>
+                      {award.isPublished ? (
+                        <button
+                          onClick={() => handleUnpublishAward(award.id)}
+                          disabled={unpublishingId === award.id}
+                          className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                          title="Unpublish award"
+                        >
+                          {unpublishingId === award.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <EyeOff className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRepublishAward(award.id)}
+                          disabled={unpublishingId === award.id}
+                          className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 transition-colors disabled:opacity-50"
+                          title="Republish award"
+                        >
+                          {unpublishingId === award.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Eye className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    <p className="font-bold">
+                      {award.user?.firstName} {award.user?.lastName}
+                    </p>
+                    <p className="text-xs opacity-80 mt-1">{award.reason}</p>
+                    <Badge className={`text-xs mt-2 ${award.isPublished ? 'bg-white/20 text-white' : 'bg-red-500/30 text-white'}`}>
+                      {award.isPublished ? 'Published' : 'Unpublished'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Publish New Award Buttons */}
+            <div className="flex flex-wrap gap-2">
+              {(['STAFF_OF_MONTH', 'REALTOR_OF_MONTH', 'CLIENT_OF_MONTH'] as const).map((type) => {
+                const existingAward = Array.isArray(currentMonthAwards) && currentMonthAwards.find(
+                  (a: any) => a.type === type
+                );
+                const alreadyPublished = existingAward?.isPublished;
+                const existsButUnpublished = existingAward && !existingAward.isPublished;
+
+                // Don't show "Publish" button if there's an unpublished award (use the Republish button on the card instead)
+                if (existsButUnpublished) return null;
+
+                return (
+                  <Button
+                    key={type}
+                    variant={alreadyPublished ? 'outline' : 'default'}
+                    size="sm"
+                    disabled={alreadyPublished}
+                    onClick={() => {
+                      setAwardCategory(type);
+                      setShowAwardDialog(true);
+                      setAwardError('');
+                      setAwardUserId('');
+                      setAwardUserName('');
+                    }}
+                    className={alreadyPublished ? 'opacity-60' : 'bg-amber-600 hover:bg-amber-700 text-white'}
+                  >
+                    {alreadyPublished ? (
+                      <><Check className="w-4 h-4 mr-1" /> {AWARD_LABELS[type]}</>
+                    ) : (
+                      <><Send className="w-4 h-4 mr-1" /> Publish {AWARD_LABELS[type]}</>
+                    )}
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Award Publishing Dialog */}
+      <Dialog open={showAwardDialog} onOpenChange={setShowAwardDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500" />
+              Publish {AWARD_LABELS[awardCategory]}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <p className="text-sm text-muted-foreground">
+              Select the winner for {MONTH_NAMES[currentMonth]} {currentYear}. They will see a celebration on their dashboard.
+            </p>
+
+            {/* Winner Selection */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Select Winner</label>
+              {awardCategory === 'REALTOR_OF_MONTH' ? (
+                <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+                  {realtors.length === 0 && (
+                    <p className="text-sm text-muted-foreground p-2">No realtors found. Make sure there are completed sales.</p>
+                  )}
+                  {realtors.slice(0, 10).map((r) => (
+                    <button
+                      key={r.userId}
+                      onClick={() => {
+                        setAwardUserName(r.name);
+                        setAwardUserId(r.userId);
+                      }}
+                      className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
+                        awardUserId === r.userId
+                          ? 'bg-primary/10 border border-primary'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <div className="w-6 text-center text-sm font-bold text-muted-foreground">#{r.rank}</div>
+                      <Avatar className="w-8 h-8">
+                        {r.avatar && <AvatarImage src={getImageUrl(r.avatar)} alt={r.name} />}
+                        <AvatarFallback className="bg-primary text-white text-xs">
+                          {r.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{r.name}</p>
+                        <p className="text-xs text-muted-foreground">{r.totalSales} sales - {formatCurrency(r.totalValue)}</p>
+                      </div>
+                      {awardUserId === r.userId && <Check className="w-4 h-4 text-primary" />}
+                    </button>
+                  ))}
+                </div>
+              ) : awardCategory === 'CLIENT_OF_MONTH' ? (
+                <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+                  {clientRankings.length === 0 && (
+                    <p className="text-sm text-muted-foreground p-2">No clients found. Make sure there are purchases or properties.</p>
+                  )}
+                  {clientRankings.slice(0, 10).map((c) => (
+                    <button
+                      key={c.userId}
+                      onClick={() => {
+                        setAwardUserName(c.name);
+                        setAwardUserId(c.userId);
+                      }}
+                      className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
+                        awardUserId === c.userId
+                          ? 'bg-emerald-500/10 border border-emerald-500'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <div className="w-6 text-center text-sm font-bold text-muted-foreground">#{c.rank}</div>
+                      <Avatar className="w-8 h-8">
+                        {c.avatar && <AvatarImage src={getImageUrl(c.avatar)} alt={c.name} />}
+                        <AvatarFallback className="bg-emerald-600 text-white text-xs">
+                          {c.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{c.name}</p>
+                        <p className="text-xs text-muted-foreground">{c.propertiesOwned} properties - {c.purchaseCount} purchases</p>
+                      </div>
+                      {awardUserId === c.userId && <Check className="w-4 h-4 text-emerald-500" />}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-1 border rounded-lg p-2">
+                  {staffList.length === 0 && (
+                    <div className="p-2">
+                      <p className="text-sm text-muted-foreground mb-2">No staff found. Enter user ID manually:</p>
+                      <input
+                        type="text"
+                        placeholder="Staff user ID"
+                        value={awardUserId}
+                        onChange={(e) => setAwardUserId(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                  )}
+                  {staffList.map((s: any) => {
+                    const staffUserId = s.user?.id || s.userId || s.id;
+                    const staffName = `${s.user?.firstName || s.firstName || ''} ${s.user?.lastName || s.lastName || ''}`.trim();
+                    return (
+                      <button
+                        key={staffUserId}
+                        onClick={() => {
+                          setAwardUserName(staffName);
+                          setAwardUserId(staffUserId);
+                        }}
+                        className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-colors ${
+                          awardUserId === staffUserId
+                            ? 'bg-blue-500/10 border border-blue-500'
+                            : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                        }`}
+                      >
+                        <Avatar className="w-8 h-8">
+                          <AvatarFallback className="bg-blue-600 text-white text-xs">
+                            {staffName.split(' ').map((n: string) => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{staffName}</p>
+                          <p className="text-xs text-muted-foreground">{s.user?.email || s.email || ''}</p>
+                        </div>
+                        {awardUserId === staffUserId && <Check className="w-4 h-4 text-blue-500" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Reason */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Achievement / Reason</label>
+              <Textarea
+                placeholder="e.g., Closed 12 deals worth over ₦125M this month..."
+                value={awardReason}
+                onChange={(e) => setAwardReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            {awardError && (
+              <p className="text-sm text-red-600">{awardError}</p>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowAwardDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePublishAward}
+                disabled={publishingAward || !awardUserId || !awardReason}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {publishingAward ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Publishing...</>
+                ) : (
+                  <><Send className="w-4 h-4 mr-2" /> Publish Award</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Realtor Featured Cards */}
       {activeTab === 'realtors' && topRealtor && (
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Top Realtor Card */}
           <motion.div
             key={`realtor-${timePeriod}`}
             initial={{ opacity: 0, y: 20 }}
@@ -277,18 +638,15 @@ export default function RankingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Star className="w-5 h-5" />
-                  {timePeriod === 'month' ? 'Realtor of the Month' :
-                   timePeriod === 'quarter' ? 'Realtor of the Quarter' :
-                   timePeriod === 'year' ? 'Realtor of the Year' : 'Top Realtor'}
+                  {timePeriod === 'MONTHLY' ? 'Realtor of the Month' :
+                   timePeriod === 'QUARTERLY' ? 'Realtor of the Quarter' :
+                   timePeriod === 'YEARLY' ? 'Realtor of the Year' : 'Top Realtor'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4">
-                  <Avatar
-                    className="w-16 h-16 border-4 border-white/30 cursor-pointer"
-                    onClick={() => setSelectedRealtor(allRealtors.find(r => r.name === topRealtor.name) || null)}
-                  >
-                    {topRealtor.avatar && <AvatarImage src={topRealtor.avatar} alt={topRealtor.name} />}
+                  <Avatar className="w-16 h-16 border-4 border-white/30">
+                    {topRealtor.avatar && <AvatarImage src={getImageUrl(topRealtor.avatar)} alt={topRealtor.name} />}
                     <AvatarFallback className="bg-white/20 text-white text-xl">
                       {topRealtor.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
@@ -296,12 +654,12 @@ export default function RankingsPage() {
                   <div>
                     <h3 className="text-xl font-bold">{topRealtor.name}</h3>
                     <Badge className="bg-white/20 text-white">{topRealtor.tier}</Badge>
-                    <p className="text-sm text-white/80 mt-1">{getPeriodLabel()}</p>
+                    <p className="text-sm text-white/80 mt-1">{PERIOD_LABELS[timePeriod]}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-6">
                   <div>
-                    <p className="text-2xl font-bold">{topRealtor.sales}</p>
+                    <p className="text-2xl font-bold">{topRealtor.totalSales}</p>
                     <p className="text-sm text-white/80">Sales</p>
                   </div>
                   <div>
@@ -313,7 +671,6 @@ export default function RankingsPage() {
             </Card>
           </motion.div>
 
-          {/* Stats Summary */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -323,26 +680,118 @@ export default function RankingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
-                  {getPeriodLabel()} Summary
+                  {PERIOD_LABELS[timePeriod]} Summary
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-white/10 rounded-lg">
-                    <p className="text-3xl font-bold">{filteredRealtors.reduce((acc, r) => acc + r.sales, 0)}</p>
+                    <p className="text-3xl font-bold">{realtors.reduce((acc, r) => acc + r.totalSales, 0)}</p>
                     <p className="text-sm text-white/80">Total Sales</p>
                   </div>
                   <div className="p-4 bg-white/10 rounded-lg">
-                    <p className="text-3xl font-bold">{filteredRealtors.length}</p>
+                    <p className="text-3xl font-bold">{realtors.length}</p>
                     <p className="text-sm text-white/80">Active Realtors</p>
                   </div>
-                  <div className="p-4 bg-white/10 rounded-lg">
-                    <p className="text-2xl font-bold">{formatCurrency(filteredRealtors.reduce((acc, r) => acc + r.totalValue, 0))}</p>
+                  <div className="p-4 bg-white/10 rounded-lg col-span-2">
+                    <p className="text-2xl font-bold">{formatCurrency(realtors.reduce((acc, r) => acc + r.totalValue, 0))}</p>
                     <p className="text-sm text-white/80">Total Value</p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Staff Featured Cards */}
+      {activeTab === 'staff' && topStaff && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <motion.div
+            key={`staff-${timePeriod}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Star className="w-5 h-5" />
+                  {timePeriod === 'MONTHLY' ? 'Staff of the Month' :
+                   timePeriod === 'QUARTERLY' ? 'Staff of the Quarter' :
+                   timePeriod === 'YEARLY' ? 'Staff of the Year' : 'Top Staff'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-4">
+                  <Avatar className="w-16 h-16 border-4 border-white/30">
+                    {topStaff.avatar && <AvatarImage src={getImageUrl(topStaff.avatar)} alt={topStaff.name} />}
+                    <AvatarFallback className="bg-white/20 text-white text-xl">
+                      {topStaff.name.split(' ').map(n => n[0]).join('')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="text-xl font-bold">{topStaff.name}</h3>
+                    <Badge className="bg-white/20 text-white">{topStaff.position || topStaff.title || 'Staff'}</Badge>
+                    {topStaff.department && (
+                      <p className="text-sm text-white/80 mt-1">{topStaff.department}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 mt-6">
+                  <div>
+                    <p className="text-2xl font-bold">{topStaff.tasksCompleted}</p>
+                    <p className="text-sm text-white/80">Tasks Done</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{topStaff.attendanceRate.toFixed(0)}%</p>
+                    <p className="text-sm text-white/80">Attendance</p>
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold">{topStaff.avgReviewScore.toFixed(1)}</p>
+                    <p className="text-sm text-white/80">Review Score</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  {PERIOD_LABELS[timePeriod]} Staff Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-white/10 rounded-lg">
-                    <p className="text-2xl font-bold">{formatCurrency(filteredRealtors.reduce((acc, r) => acc + r.commission, 0))}</p>
-                    <p className="text-sm text-white/80">Total Commission</p>
+                    <p className="text-3xl font-bold">{staffMembers.reduce((acc, s) => acc + s.tasksCompleted, 0)}</p>
+                    <p className="text-sm text-white/80">Total Tasks Completed</p>
+                  </div>
+                  <div className="p-4 bg-white/10 rounded-lg">
+                    <p className="text-3xl font-bold">{staffMembers.length}</p>
+                    <p className="text-sm text-white/80">Active Staff</p>
+                  </div>
+                  <div className="p-4 bg-white/10 rounded-lg">
+                    <p className="text-2xl font-bold">
+                      {staffMembers.length > 0
+                        ? (staffMembers.reduce((acc, s) => acc + s.attendanceRate, 0) / staffMembers.length).toFixed(0)
+                        : 0}%
+                    </p>
+                    <p className="text-sm text-white/80">Avg Attendance</p>
+                  </div>
+                  <div className="p-4 bg-white/10 rounded-lg">
+                    <p className="text-2xl font-bold">
+                      {staffMembers.length > 0
+                        ? (staffMembers.reduce((acc, s) => acc + s.avgReviewScore, 0) / staffMembers.length).toFixed(1)
+                        : 0}
+                    </p>
+                    <p className="text-sm text-white/80">Avg Review Score</p>
                   </div>
                 </div>
               </CardContent>
@@ -354,7 +803,6 @@ export default function RankingsPage() {
       {/* Client Featured Cards */}
       {activeTab === 'clients' && topClient && (
         <div className="grid gap-6 md:grid-cols-2">
-          {/* Top Client Card */}
           <motion.div
             key={`client-${timePeriod}`}
             initial={{ opacity: 0, y: 20 }}
@@ -364,26 +812,24 @@ export default function RankingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Star className="w-5 h-5" />
-                  {timePeriod === 'month' ? 'Client of the Month' :
-                   timePeriod === 'quarter' ? 'Client of the Quarter' :
-                   timePeriod === 'year' ? 'Client of the Year' : 'Top Client'}
+                  {timePeriod === 'MONTHLY' ? 'Client of the Month' :
+                   timePeriod === 'QUARTERLY' ? 'Client of the Quarter' :
+                   timePeriod === 'YEARLY' ? 'Client of the Year' : 'Top Client'}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-4">
-                  <Avatar
-                    className="w-16 h-16 border-4 border-white/30 cursor-pointer"
-                    onClick={() => setSelectedClient(allClients.find(c => c.name === topClient.name) || null)}
-                  >
-                    {topClient.avatar && <AvatarImage src={topClient.avatar} alt={topClient.name} />}
+                  <Avatar className="w-16 h-16 border-4 border-white/30">
+                    {topClient.avatar && <AvatarImage src={getImageUrl(topClient.avatar)} alt={topClient.name} />}
                     <AvatarFallback className="bg-white/20 text-white text-xl">
                       {topClient.name.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <h3 className="text-xl font-bold">{topClient.name}</h3>
-                    <Badge className="bg-white/20 text-white">VIP Client</Badge>
-                    <p className="text-sm text-white/80 mt-1">{getPeriodLabel()}</p>
+                    <Badge className="bg-white/20 text-white">
+                      {topClient.isClientOfMonth ? 'Client of the Month' : 'VIP Client'}
+                    </Badge>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-6">
@@ -392,15 +838,14 @@ export default function RankingsPage() {
                     <p className="text-sm text-white/80">Properties Owned</p>
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{formatCurrency(topClient.portfolioValue)}</p>
-                    <p className="text-sm text-white/80">Portfolio Value</p>
+                    <p className="text-2xl font-bold">{topClient.purchaseCount}</p>
+                    <p className="text-sm text-white/80">Purchases</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Client Stats Summary */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -410,22 +855,22 @@ export default function RankingsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
-                  {getPeriodLabel()} Summary
+                  {PERIOD_LABELS[timePeriod]} Client Summary
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-white/10 rounded-lg">
-                    <p className="text-3xl font-bold">{filteredClients.reduce((acc, c) => acc + c.totalPurchases, 0)}</p>
+                    <p className="text-3xl font-bold">{clientRankings.reduce((acc, c) => acc + c.purchaseCount, 0)}</p>
                     <p className="text-sm text-white/80">Total Purchases</p>
                   </div>
                   <div className="p-4 bg-white/10 rounded-lg">
-                    <p className="text-3xl font-bold">{filteredClients.length}</p>
-                    <p className="text-sm text-white/80">Active Clients</p>
+                    <p className="text-3xl font-bold">{clientRankings.length}</p>
+                    <p className="text-sm text-white/80">Ranked Clients</p>
                   </div>
                   <div className="p-4 bg-white/10 rounded-lg col-span-2">
-                    <p className="text-2xl font-bold">{formatCurrency(filteredClients.reduce((acc, c) => acc + c.portfolioValue, 0))}</p>
-                    <p className="text-sm text-white/80">Total Investment Value</p>
+                    <p className="text-2xl font-bold">{clientRankings.reduce((acc, c) => acc + c.propertiesOwned, 0)}</p>
+                    <p className="text-sm text-white/80">Total Properties Owned</p>
                   </div>
                 </div>
               </CardContent>
@@ -445,61 +890,151 @@ export default function RankingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-primary" />
-                Top Realtors Leaderboard - {getPeriodLabel()}
+                Top Realtors Leaderboard - {PERIOD_LABELS[timePeriod]}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {filteredRealtors.map((realtor, index) => (
-                  <motion.div
-                    key={realtor.name}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + index * 0.05 }}
-                    onClick={() => setSelectedRealtor(allRealtors.find(r => r.name === realtor.name) || null)}
-                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all hover:shadow-md hover:scale-[1.01] ${
-                      realtor.rank <= 3
-                        ? 'bg-gradient-to-r from-primary/10 to-transparent hover:from-primary/20'
-                        : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <div className="w-10 flex justify-center">
-                      {getRankIcon(realtor.rank)}
-                    </div>
-                    <Avatar>
-                      {realtor.avatar && <AvatarImage src={realtor.avatar} alt={realtor.name} />}
-                      <AvatarFallback className="bg-primary text-white">
-                        {realtor.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold">{realtor.name}</p>
-                        <Badge className={getTierBgClass(realtor.tier)}>{realtor.tier}</Badge>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : realtors.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No ranking data available for this period. Rankings are generated from completed sales.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {realtors.map((realtor, index) => (
+                    <motion.div
+                      key={realtor.realtorId}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + index * 0.05 }}
+                      className={`flex items-center gap-4 p-4 rounded-lg transition-all hover:shadow-md hover:scale-[1.01] ${
+                        realtor.rank <= 3
+                          ? 'bg-gradient-to-r from-primary/10 to-transparent hover:from-primary/20'
+                          : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <div className="w-10 flex justify-center">
+                        {getRankIcon(realtor.rank)}
                       </div>
-                      <p className="text-sm text-muted-foreground">{realtor.sales} sales</p>
-                    </div>
-                    <div className="text-right hidden md:block">
-                      <p className="font-semibold">{formatCurrency(realtor.totalValue)}</p>
-                      <p className="text-sm text-muted-foreground">Total Value</p>
-                    </div>
-                    <div className="text-right w-24 hidden lg:block">
-                      <p className="font-semibold text-primary">{formatCurrency(realtor.commission)}</p>
-                      <p className="text-sm text-muted-foreground">Commission</p>
-                    </div>
-                    <div className="w-12 text-center hidden md:block">
-                      {realtor.change !== 0 && (
-                        <span className={`text-sm font-medium ${realtor.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {realtor.change > 0 ? '↑' : '↓'} {Math.abs(realtor.change)}
-                        </span>
-                      )}
-                      {realtor.change === 0 && (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                      <Avatar>
+                        {realtor.avatar && <AvatarImage src={getImageUrl(realtor.avatar)} alt={realtor.name} />}
+                        <AvatarFallback className="bg-primary text-white">
+                          {realtor.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold">{realtor.name}</p>
+                          <Badge className={getTierBgClass(realtor.tier)}>{realtor.tier}</Badge>
+                          {realtor.isRealtorOfMonth && <Badge className="bg-yellow-500 text-white text-xs">ROTM</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{realtor.totalSales} sales</p>
+                      </div>
+                      <div className="text-right hidden md:block">
+                        <p className="font-semibold">{formatCurrency(realtor.totalValue)}</p>
+                        <p className="text-sm text-muted-foreground">Total Value</p>
+                      </div>
+                      <div className="text-right hidden md:block">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground truncate max-w-[140px]">{realtor.email}</p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Staff Leaderboard */}
+      {activeTab === 'staff' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-blue-600" />
+                Staff Leaderboard - {PERIOD_LABELS[timePeriod]}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : staffMembers.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No staff ranking data available for this period. Rankings are generated from tasks, attendance, and reviews.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {staffMembers.map((staff, index) => (
+                    <motion.div
+                      key={staff.staffProfileId}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + index * 0.05 }}
+                      className={`flex items-center gap-4 p-4 rounded-lg transition-all hover:shadow-md hover:scale-[1.01] ${
+                        staff.rank <= 3
+                          ? 'bg-gradient-to-r from-blue-500/10 to-transparent hover:from-blue-500/20'
+                          : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <div className="w-10 flex justify-center">
+                        {getRankIcon(staff.rank)}
+                      </div>
+                      <Avatar>
+                        {staff.avatar && <AvatarImage src={getImageUrl(staff.avatar)} alt={staff.name} />}
+                        <AvatarFallback className="bg-blue-600 text-white">
+                          {staff.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold">{staff.name}</p>
+                          {staff.department && (
+                            <Badge variant="secondary" className="text-xs">{staff.department}</Badge>
+                          )}
+                          {staff.isStaffOfMonth && <Badge className="bg-blue-500 text-white text-xs">SOTM</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{staff.position || staff.title || 'Staff'}</p>
+                      </div>
+                      <div className="text-right hidden md:flex items-center gap-6">
+                        <div className="flex items-center gap-1.5">
+                          <ClipboardCheck className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-semibold text-sm">{staff.tasksCompleted}</p>
+                            <p className="text-xs text-muted-foreground">Tasks</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-semibold text-sm">{staff.attendanceRate.toFixed(0)}%</p>
+                            <p className="text-xs text-muted-foreground">Attendance</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Star className="w-4 h-4 text-muted-foreground" />
+                          <div>
+                            <p className="font-semibold text-sm">{staff.avgReviewScore.toFixed(1)}</p>
+                            <p className="text-xs text-muted-foreground">Review</p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -516,305 +1051,74 @@ export default function RankingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-primary" />
-                Top Clients Leaderboard - {getPeriodLabel()}
+                Client Leaderboard - {PERIOD_LABELS[timePeriod]}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {filteredClients.map((client, index) => (
-                  <motion.div
-                    key={client.name}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + index * 0.05 }}
-                    onClick={() => setSelectedClient(allClients.find(c => c.name === client.name) || null)}
-                    className={`flex items-center gap-4 p-4 rounded-lg cursor-pointer transition-all hover:shadow-md hover:scale-[1.01] ${
-                      client.rank <= 3
-                        ? 'bg-gradient-to-r from-emerald-500/10 to-transparent hover:from-emerald-500/20'
-                        : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    <div className="w-10 flex justify-center">
-                      {getRankIcon(client.rank)}
-                    </div>
-                    <Avatar>
-                      {client.avatar && <AvatarImage src={client.avatar} alt={client.name} />}
-                      <AvatarFallback className="bg-emerald-600 text-white">
-                        {client.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold">{client.name}</p>
-                        {client.rank <= 3 && (
-                          <Badge className="bg-emerald-600 text-white">VIP</Badge>
-                        )}
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : clientRankings.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No client ranking data available for this period. Rankings are generated from purchases and property ownership.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {clientRankings.map((client, index) => (
+                    <motion.div
+                      key={client.clientProfileId}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + index * 0.05 }}
+                      className={`flex items-center gap-4 p-4 rounded-lg transition-all hover:shadow-md hover:scale-[1.01] ${
+                        client.rank <= 3
+                          ? 'bg-gradient-to-r from-emerald-500/10 to-transparent hover:from-emerald-500/20'
+                          : 'bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      <div className="w-10 flex justify-center">
+                        {getRankIcon(client.rank)}
                       </div>
-                      <p className="text-sm text-muted-foreground">Member since {client.memberSince}</p>
-                    </div>
-                    <div className="text-right hidden md:block">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Building className="w-4 h-4 text-muted-foreground" />
-                        <p className="font-semibold">{client.propertiesOwned}</p>
+                      <Avatar>
+                        {client.avatar && <AvatarImage src={getImageUrl(client.avatar)} alt={client.name} />}
+                        <AvatarFallback className="bg-emerald-600 text-white">
+                          {client.name.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold">{client.name}</p>
+                          {client.isClientOfMonth && <Badge className="bg-emerald-600 text-white text-xs">COTM</Badge>}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{client.email}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">Properties</p>
-                    </div>
-                    <div className="text-right hidden lg:block">
-                      <p className="font-semibold">{formatCurrency(client.portfolioValue)}</p>
-                      <p className="text-sm text-muted-foreground">Portfolio Value</p>
-                    </div>
-                    <div className="text-right w-24 hidden md:block">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Wallet className="w-4 h-4 text-emerald-600" />
-                        <p className="font-semibold text-emerald-600">{client.totalPurchases}</p>
+                      <div className="text-right hidden md:block">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Building className="w-4 h-4 text-muted-foreground" />
+                          <p className="font-semibold">{client.propertiesOwned}</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Properties</p>
                       </div>
-                      <p className="text-sm text-muted-foreground">Purchases</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                      <div className="text-right hidden md:block">
+                        <div className="flex items-center gap-1 justify-end">
+                          <Wallet className="w-4 h-4 text-emerald-600" />
+                          <p className="font-semibold text-emerald-600">{client.purchaseCount}</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Purchases</p>
+                      </div>
+                      <div className="text-right hidden lg:block">
+                        <p className="font-semibold">{formatCurrency(client.totalPurchaseValue)}</p>
+                        <p className="text-sm text-muted-foreground">Total Value</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
       )}
-
-      {/* Realtor Detail Dialog */}
-      <Dialog open={!!selectedRealtor} onOpenChange={() => setSelectedRealtor(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          {selectedRealtor && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-4">
-                  <Avatar className="w-16 h-16">
-                    {selectedRealtor.avatar && <AvatarImage src={selectedRealtor.avatar} alt={selectedRealtor.name} />}
-                    <AvatarFallback className="bg-primary text-white text-xl">
-                      {selectedRealtor.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{selectedRealtor.name}</span>
-                      <Badge className={getTierBgClass(selectedRealtor.tier)}>{selectedRealtor.tier}</Badge>
-                      {selectedRealtor.rank <= 3 && <Trophy className="w-5 h-5 text-yellow-500" />}
-                    </div>
-                    <p className="text-sm text-muted-foreground font-normal">Rank #{selectedRealtor.rank} Realtor</p>
-                  </div>
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-6 mt-4">
-                {/* Contact Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedRealtor.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedRealtor.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedRealtor.location}</span>
-                  </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Target className="w-6 h-6 mx-auto mb-2 text-primary" />
-                      <p className="text-2xl font-bold">{selectedRealtor.sales}</p>
-                      <p className="text-xs text-muted-foreground">Total Sales</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Wallet className="w-6 h-6 mx-auto mb-2 text-green-600" />
-                      <p className="text-2xl font-bold">{formatCurrency(selectedRealtor.commission)}</p>
-                      <p className="text-xs text-muted-foreground">Commission Earned</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Building className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-                      <p className="text-2xl font-bold">{selectedRealtor.activeListings}</p>
-                      <p className="text-xs text-muted-foreground">Active Listings</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Clock className="w-6 h-6 mx-auto mb-2 text-orange-600" />
-                      <p className="text-2xl font-bold">{selectedRealtor.joinDate}</p>
-                      <p className="text-xs text-muted-foreground">Joined</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Additional Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Specialization</p>
-                      <p className="font-semibold">{selectedRealtor.specialization}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Total Sales Value</p>
-                      <p className="font-semibold">{formatCurrency(selectedRealtor.totalValue)}</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Monthly Sales Chart */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      Monthly Sales Performance
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-end gap-2 h-32">
-                      {selectedRealtor.monthlySales.map((sales, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <div
-                            className="w-full bg-primary rounded-t transition-all"
-                            style={{ height: `${(sales / maxSales) * 100}%` }}
-                          />
-                          <span className="text-xs text-muted-foreground">{months[i]}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Client Detail Dialog */}
-      <Dialog open={!!selectedClient} onOpenChange={() => setSelectedClient(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          {selectedClient && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-4">
-                  <Avatar className="w-16 h-16">
-                    {selectedClient.avatar && <AvatarImage src={selectedClient.avatar} alt={selectedClient.name} />}
-                    <AvatarFallback className="bg-emerald-600 text-white text-xl">
-                      {selectedClient.name.split(' ').map(n => n[0]).join('')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{selectedClient.name}</span>
-                      {selectedClient.rank <= 3 && (
-                        <>
-                          <Badge className="bg-emerald-600 text-white">VIP</Badge>
-                          <Trophy className="w-5 h-5 text-yellow-500" />
-                        </>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground font-normal">Rank #{selectedClient.rank} Client</p>
-                  </div>
-                </DialogTitle>
-              </DialogHeader>
-
-              <div className="space-y-6 mt-4">
-                {/* Contact Info */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedClient.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedClient.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <MapPin className="w-4 h-4 text-muted-foreground" />
-                    <span>{selectedClient.location}</span>
-                  </div>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Building className="w-6 h-6 mx-auto mb-2 text-primary" />
-                      <p className="text-2xl font-bold">{selectedClient.propertiesOwned}</p>
-                      <p className="text-xs text-muted-foreground">Properties Owned</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Wallet className="w-6 h-6 mx-auto mb-2 text-green-600" />
-                      <p className="text-2xl font-bold">{formatCurrency(selectedClient.portfolioValue)}</p>
-                      <p className="text-xs text-muted-foreground">Portfolio Value</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Target className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-                      <p className="text-2xl font-bold">{selectedClient.completedDeals}</p>
-                      <p className="text-xs text-muted-foreground">Completed Deals</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <Clock className="w-6 h-6 mx-auto mb-2 text-orange-600" />
-                      <p className="text-2xl font-bold">{selectedClient.memberSince}</p>
-                      <p className="text-xs text-muted-foreground">Member Since</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Additional Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Preferred Property Type</p>
-                      <p className="font-semibold">{selectedClient.preferredType}</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground">Pending Offers</p>
-                      <p className="font-semibold">{selectedClient.pendingOffers}</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Monthly Investment Chart */}
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      Monthly Investment Activity
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-end gap-2 h-32">
-                      {selectedClient.monthlyInvestments.map((investment, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <div
-                            className="w-full bg-emerald-600 rounded-t transition-all"
-                            style={{ height: `${(investment / maxInvestment) * 100}%` }}
-                          />
-                          <span className="text-xs text-muted-foreground">{months[i]}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

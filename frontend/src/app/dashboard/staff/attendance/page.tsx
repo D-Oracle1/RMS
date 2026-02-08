@@ -1,0 +1,430 @@
+'use client';
+
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
+import {
+  Clock,
+  LogIn,
+  LogOut,
+  Calendar,
+  Timer,
+  TrendingUp,
+  CheckCircle2,
+  MapPin,
+  Loader2,
+  RefreshCw,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { toast } from 'sonner';
+import { api } from '@/lib/api';
+
+interface AttendanceRecord {
+  id: string;
+  date: string;
+  clockIn: string | null;
+  clockOut: string | null;
+  hoursWorked: number | null;
+  overtime: number | null;
+  status: string;
+  notes: string | null;
+  location: string | null;
+}
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'PRESENT':
+      return <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Present</Badge>;
+    case 'LATE':
+      return <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">Late</Badge>;
+    case 'ABSENT':
+      return <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">Absent</Badge>;
+    case 'ON_LEAVE':
+      return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">On Leave</Badge>;
+    case 'WORK_FROM_HOME':
+      return <Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">WFH</Badge>;
+    case 'HALF_DAY':
+      return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400">Half Day</Badge>;
+    default:
+      return <Badge variant="secondary">{status}</Badge>;
+  }
+};
+
+const formatTime = (dateString: string | null) => {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+};
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
+
+const getDayName = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { weekday: 'long' });
+};
+
+const formatDuration = (totalMinutes: number) => {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = Math.floor(totalMinutes % 60);
+  return `${hours}h ${minutes}m`;
+};
+
+export default function AttendancePage() {
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [attendanceHistory, setAttendanceHistory] = useState<AttendanceRecord[]>([]);
+  const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isClockedIn = todayRecord?.clockIn && !todayRecord?.clockOut;
+
+  // Calculate weekly stats from history
+  const weeklyStats = useCallback(() => {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - now.getDay()); // Start of week (Sunday)
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekRecords = attendanceHistory.filter((r) => {
+      const recordDate = new Date(r.date);
+      return recordDate >= weekStart && recordDate <= now;
+    });
+
+    const totalHours = weekRecords.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+    const totalOvertime = weekRecords.reduce((sum, r) => sum + (r.overtime || 0), 0);
+    const onTimeDays = weekRecords.filter((r) => r.status === 'PRESENT').length;
+    const totalDays = weekRecords.filter((r) => r.clockIn).length;
+
+    // Calculate average clock-in time
+    const clockInTimes = weekRecords
+      .filter((r) => r.clockIn)
+      .map((r) => {
+        const date = new Date(r.clockIn!);
+        return date.getHours() * 60 + date.getMinutes();
+      });
+    const avgClockInMinutes = clockInTimes.length > 0
+      ? Math.round(clockInTimes.reduce((a, b) => a + b, 0) / clockInTimes.length)
+      : 0;
+    const avgHours = Math.floor(avgClockInMinutes / 60);
+    const avgMins = avgClockInMinutes % 60;
+    const avgClockIn = clockInTimes.length > 0
+      ? `${avgHours > 12 ? avgHours - 12 : avgHours}:${avgMins.toString().padStart(2, '0')} ${avgHours >= 12 ? 'PM' : 'AM'}`
+      : '-';
+
+    return [
+      { label: 'Total Hours', value: `${totalHours.toFixed(1)}h`, icon: Clock, color: 'text-blue-600', bg: 'bg-blue-100' },
+      { label: 'On Time Days', value: `${onTimeDays}/${totalDays}`, icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100' },
+      { label: 'Overtime', value: `${totalOvertime.toFixed(1)}h`, icon: TrendingUp, color: 'text-purple-600', bg: 'bg-purple-100' },
+      { label: 'Avg. Clock In', value: avgClockIn, icon: LogIn, color: 'text-primary', bg: 'bg-primary/10' },
+    ];
+  }, [attendanceHistory]);
+
+  const fetchAttendance = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch both attendance history and today's status in parallel
+      const [historyRes, todayRes] = await Promise.all([
+        api.get('/hr/attendance/my'),
+        api.get('/hr/attendance/today'),
+      ]);
+
+      const historyData = Array.isArray(historyRes) ? historyRes : (historyRes?.data || []);
+      setAttendanceHistory(historyData);
+
+      // Use the dedicated today endpoint for accurate status
+      const todayData = todayRes?.data || todayRes;
+      const todayRec = todayData?.record || null;
+
+      setTodayRecord(todayRec);
+
+      // Start timer if clocked in (has clockIn but no clockOut)
+      if (todayRec?.clockIn && !todayRec?.clockOut) {
+        const clockInTime = new Date(todayRec.clockIn).getTime();
+        const elapsed = Date.now();
+        setElapsedTime(Math.floor((elapsed - clockInTime) / 1000));
+      } else {
+        setElapsedTime(0);
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch attendance:', err);
+      toast.error(err.message || 'Failed to load attendance data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAttendance();
+  }, [fetchAttendance]);
+
+  // Live timer effect
+  useEffect(() => {
+    if (isClockedIn && todayRecord?.clockIn) {
+      timerRef.current = setInterval(() => {
+        const clockInTime = new Date(todayRecord.clockIn!).getTime();
+        const now = Date.now();
+        setElapsedTime(Math.floor((now - clockInTime) / 1000));
+      }, 1000);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isClockedIn, todayRecord?.clockIn]);
+
+  const handleClockIn = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/hr/attendance/clock-in', {});
+      toast.success('Clocked in successfully!');
+      fetchAttendance();
+    } catch (err: any) {
+      const errorMsg = err.message || 'Failed to clock in';
+      // If already clocked in, refresh to get correct state
+      if (errorMsg.toLowerCase().includes('already clocked in') || errorMsg.toLowerCase().includes('clock out first')) {
+        toast.info('You are already clocked in. Refreshing status...');
+        fetchAttendance();
+      } else {
+        toast.error(errorMsg);
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleClockOut = async () => {
+    setActionLoading(true);
+    try {
+      await api.post('/hr/attendance/clock-out', {});
+      toast.success('Clocked out successfully!');
+      fetchAttendance();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to clock out');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const currentDuration = formatDuration(elapsedTime / 60);
+  const stats = weeklyStats();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Attendance</h1>
+          <p className="text-muted-foreground">Track your work hours and attendance</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2" onClick={fetchAttendance} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Clock In/Out Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <Card className="border-2 border-primary/20">
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Clock className="w-10 h-10 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {isClockedIn
+                      ? 'Currently Working'
+                      : todayRecord?.clockOut
+                        ? 'On Break / Clocked Out'
+                        : 'Not Clocked In'}
+                  </p>
+                  <p className="text-4xl font-bold font-mono">
+                    {isClockedIn ? currentDuration : '0h 0m'}
+                  </p>
+                  <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground flex-wrap">
+                    {todayRecord?.clockIn && (
+                      <span className="flex items-center gap-1">
+                        <LogIn className="w-4 h-4" />
+                        {isClockedIn ? 'Session started:' : 'Last clock in:'} {formatTime(todayRecord.clockIn)}
+                      </span>
+                    )}
+                    {todayRecord?.clockOut && (
+                      <span className="flex items-center gap-1">
+                        <LogOut className="w-4 h-4" />
+                        Last clock out: {formatTime(todayRecord.clockOut)}
+                      </span>
+                    )}
+                    {todayRecord?.hoursWorked != null && todayRecord.hoursWorked > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Timer className="w-4 h-4" />
+                        Total today: {todayRecord.hoursWorked.toFixed(1)}h
+                      </span>
+                    )}
+                    {todayRecord?.overtime != null && todayRecord.overtime > 0 && (
+                      <span className="flex items-center gap-1 text-green-600">
+                        <TrendingUp className="w-4 h-4" />
+                        Overtime: +{todayRecord.overtime.toFixed(1)}h
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  size="lg"
+                  variant={isClockedIn ? 'destructive' : 'default'}
+                  className="gap-2 min-w-[150px]"
+                  onClick={isClockedIn ? handleClockOut : handleClockIn}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : isClockedIn ? (
+                    <>
+                      <LogOut className="w-5 h-5" />
+                      Clock Out
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="w-5 h-5" />
+                      Clock In
+                    </>
+                  )}
+                </Button>
+                {todayRecord?.clockOut && !isClockedIn && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Last session: {todayRecord.hoursWorked?.toFixed(1) || 0}h worked
+                  </p>
+                )}
+                {todayRecord?.location && (
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <MapPin className="w-4 h-4" />
+                    {todayRecord.location}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Weekly Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className={`p-3 rounded-lg ${stat.bg}`}>
+                    <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <h3 className="text-2xl font-bold">{stat.value}</h3>
+                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Attendance History */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-primary" />
+              Attendance History
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {attendanceHistory.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>No attendance records yet</p>
+                <p className="text-sm">Clock in to start tracking your attendance</p>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Day</TableHead>
+                    <TableHead>Clock In</TableHead>
+                    <TableHead>Clock Out</TableHead>
+                    <TableHead>Hours</TableHead>
+                    <TableHead>Overtime</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attendanceHistory.map((record) => (
+                    <TableRow key={record.id}>
+                      <TableCell className="font-medium">{formatDate(record.date)}</TableCell>
+                      <TableCell>{getDayName(record.date)}</TableCell>
+                      <TableCell>{formatTime(record.clockIn)}</TableCell>
+                      <TableCell>{formatTime(record.clockOut)}</TableCell>
+                      <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
+                      <TableCell>
+                        {record.overtime && record.overtime > 0 ? (
+                          <span className="text-green-600">+{record.overtime.toFixed(1)}h</span>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}

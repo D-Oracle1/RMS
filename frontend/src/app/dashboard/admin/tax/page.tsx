@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   FileText,
@@ -30,6 +30,7 @@ import {
 import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
@@ -66,6 +67,39 @@ export default function TaxPage() {
   const [editingSettings, setEditingSettings] = useState<TaxSettings>(defaultTaxSettings);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [taxRecords, setTaxRecords] = useState(taxReports);
+
+  // Fetch tax rates from API on mount
+  const fetchTaxRates = useCallback(async () => {
+    try {
+      const data = await api.get<{ incomeTax: number; withholdingTax: number; vat: number; stampDuty: number }>('/settings/tax-rates');
+      setTaxSettings({
+        standardRate: Math.round(data.incomeTax * 100 * 100) / 100,
+        withholdingRate: Math.round(data.withholdingTax * 100 * 100) / 100,
+        vatRate: Math.round(data.vat * 100 * 100) / 100,
+        stampDutyRate: Math.round(data.stampDuty * 100 * 100) / 100,
+      });
+    } catch {
+      // Keep existing defaults on failure
+    }
+  }, []);
+
+  // Fetch tax records from API on mount
+  const fetchTaxRecords = useCallback(async () => {
+    try {
+      const data = await api.get<typeof taxReports>('/taxes?limit=50');
+      if (Array.isArray(data) && data.length > 0) {
+        setTaxRecords(data);
+      }
+    } catch {
+      // Keep mock data as fallback
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTaxRates();
+    fetchTaxRecords();
+  }, [fetchTaxRates, fetchTaxRecords]);
 
   // Filter by time period
   const filteredByTime = useMemo(() => {
@@ -73,7 +107,7 @@ export default function TaxPage() {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    return taxReports.filter(report => {
+    return taxRecords.filter(report => {
       switch (timePeriod) {
         case 'month':
           return report.month === currentMonth && report.year === currentYear;
@@ -88,7 +122,7 @@ export default function TaxPage() {
           return true;
       }
     });
-  }, [timePeriod]);
+  }, [timePeriod, taxRecords]);
 
   const filteredReports = filteredByTime.filter(report => {
     return report.realtor.toLowerCase().includes(searchTerm.toLowerCase());
@@ -108,10 +142,20 @@ export default function TaxPage() {
     ];
   }, [filteredByTime, taxSettings.standardRate]);
 
-  const handleSaveSettings = () => {
-    setTaxSettings(editingSettings);
-    setShowTaxSettings(false);
-    toast.success('Tax rates updated successfully!');
+  const handleSaveSettings = async () => {
+    try {
+      await api.put('/settings/tax-rates', {
+        incomeTax: editingSettings.standardRate / 100,
+        withholdingTax: editingSettings.withholdingRate / 100,
+        vat: editingSettings.vatRate / 100,
+        stampDuty: editingSettings.stampDutyRate / 100,
+      });
+      setTaxSettings(editingSettings);
+      setShowTaxSettings(false);
+      toast.success('Tax rates updated successfully!');
+    } catch {
+      toast.error('Failed to update tax rates. Please try again.');
+    }
   };
 
   const generateTaxStatement = (report: typeof taxReports[0]) => {
@@ -119,13 +163,13 @@ export default function TaxPage() {
       type: 'tax',
       receiptNumber: `TAX-${report.year}-${report.id.toString().padStart(6, '0')}`,
       date: `${report.year}-${(report.month + 1).toString().padStart(2, '0')}-01`,
-      from: {
+      seller: {
         name: 'RMS Platform - Tax Division',
         email: 'tax@rms.com',
         phone: '+234 800 123 4567',
         address: 'Victoria Island, Lagos, Nigeria',
       },
-      to: {
+      buyer: {
         name: report.realtor,
         email: report.email,
       },
@@ -140,10 +184,12 @@ export default function TaxPage() {
         },
       ],
       subtotal: report.grossCommission,
-      tax: {
-        rate: report.taxRate,
-        amount: report.taxAmount,
-      },
+      fees: [
+        {
+          label: `Tax (${report.taxRate}%)`,
+          amount: report.taxAmount,
+        },
+      ],
       total: report.netEarnings,
       status: report.status === 'FILED' ? 'completed' : 'pending',
       notes: `Tax Year: ${report.year} | This document serves as an official tax deduction statement for income tax purposes.`,

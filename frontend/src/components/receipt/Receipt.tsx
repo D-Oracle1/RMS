@@ -43,6 +43,18 @@ export interface ReceiptData {
   total: number;
   // Status
   status: 'paid' | 'pending' | 'completed' | 'cancelled';
+  // Payment history (for installment sales)
+  paymentHistory?: {
+    number: number;
+    amount: number;
+    date: string;
+    method?: string;
+    reference?: string;
+    commission?: number;
+    tax?: number;
+  }[];
+  totalPaid?: number;
+  remainingBalance?: number;
   // Additional info
   notes?: string;
 }
@@ -203,6 +215,50 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             </div>
           </div>
         </div>
+
+        {/* Payment History */}
+        {data.paymentHistory && data.paymentHistory.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Payment History</h3>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 text-xs font-semibold text-gray-500 uppercase">#</th>
+                  <th className="text-left py-2 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                  <th className="text-left py-2 text-xs font-semibold text-gray-500 uppercase">Method</th>
+                  <th className="text-right py-2 text-xs font-semibold text-gray-500 uppercase">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.paymentHistory.map((p) => (
+                  <tr key={p.number} className="border-b">
+                    <td className="py-2 text-sm text-gray-600">{p.number}</td>
+                    <td className="py-2 text-sm text-gray-600">{formatDate(p.date)}</td>
+                    <td className="py-2 text-sm text-gray-600">
+                      {p.method?.replace('_', ' ') || '—'}
+                      {p.reference ? <span className="text-xs text-gray-400 ml-1">({p.reference})</span> : ''}
+                    </td>
+                    <td className="py-2 text-sm text-gray-900 font-medium text-right">{formatCurrency(p.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t">
+                  <td colSpan={3} className="py-2 text-sm font-semibold text-gray-700">Total Paid</td>
+                  <td className="py-2 text-sm font-bold text-gray-900 text-right">
+                    {formatCurrency(data.totalPaid ?? data.paymentHistory.reduce((sum, p) => sum + p.amount, 0))}
+                  </td>
+                </tr>
+                {data.remainingBalance !== undefined && data.remainingBalance > 0 && (
+                  <tr>
+                    <td colSpan={3} className="py-1 text-sm font-semibold text-orange-600">Remaining Balance</td>
+                    <td className="py-1 text-sm font-bold text-orange-600 text-right">{formatCurrency(data.remainingBalance)}</td>
+                  </tr>
+                )}
+              </tfoot>
+            </table>
+          </div>
+        )}
 
         {/* Notes */}
         {data.notes && (

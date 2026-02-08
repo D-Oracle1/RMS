@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
+import { TenantMiddleware } from './common/middleware/tenant.middleware';
 
 // Configuration
 import configuration from './config/configuration';
@@ -30,8 +31,27 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AiModule } from './modules/ai/ai.module';
 import { UploadModule } from './modules/upload/upload.module';
-import { WebsocketModule } from './websocket/websocket.module';
+import { PusherModule } from './common/services/pusher.module';
+import { CallModule } from './modules/call/call.module';
+import { CronModule } from './modules/cron/cron.module';
 import { HealthModule } from './health/health.module';
+
+// Staff & HR Modules
+import { StaffModule } from './modules/staff/staff.module';
+import { DepartmentModule } from './modules/department/department.module';
+import { HrModule } from './modules/hr/hr.module';
+import { TasksModule } from './modules/tasks/tasks.module';
+
+// Awards
+import { AwardModule } from './modules/award/award.module';
+import { SettingsModule } from './modules/settings/settings.module';
+
+// CMS & Gallery
+import { CmsModule } from './modules/cms/cms.module';
+import { GalleryModule } from './modules/gallery/gallery.module';
+
+// Multi-tenancy
+import { CompanyModule } from './modules/company/company.module';
 
 @Module({
   imports: [
@@ -54,8 +74,8 @@ import { HealthModule } from './health/health.module';
       ],
     }),
 
-    // Scheduler
-    ScheduleModule.forRoot(),
+    // Scheduler (disabled in serverless — cron jobs use HTTP endpoints instead)
+    ...(process.env.VERCEL ? [] : [ScheduleModule.forRoot()]),
 
     // Database
     DatabaseModule,
@@ -78,8 +98,29 @@ import { HealthModule } from './health/health.module';
     AiModule,
     UploadModule,
 
-    // WebSocket
-    WebsocketModule,
+    // Staff & HR Modules
+    StaffModule,
+    DepartmentModule,
+    HrModule,
+    TasksModule,
+
+    // Awards
+    AwardModule,
+    SettingsModule,
+
+    // CMS & Gallery
+    CmsModule,
+    GalleryModule,
+
+    // Multi-tenancy
+    CompanyModule,
+
+    // Real-time (Pusher)
+    PusherModule,
+    CallModule,
+
+    // Cron (HTTP-triggered scheduled jobs)
+    CronModule,
 
     // Health Check
     HealthModule,
@@ -91,4 +132,8 @@ import { HealthModule } from './health/health.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(TenantMiddleware).forRoutes('*');
+  }
+}

@@ -72,3 +72,41 @@ export function truncate(str: string, length: number): string {
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+// --- Area Unit Conversions ---
+
+export type AreaUnit = 'sqm' | 'acre' | 'hectare' | 'plot';
+
+export const AREA_UNITS: Record<AreaUnit, { label: string; factor: number; shortLabel: string }> = {
+  sqm:     { label: 'Square Meters',  factor: 1,       shortLabel: 'sqm' },
+  acre:    { label: 'Acres',          factor: 4046.86, shortLabel: 'acre(s)' },
+  hectare: { label: 'Hectares',       factor: 10000,   shortLabel: 'ha' },
+  plot:    { label: 'Plots (648 sqm)', factor: 648,    shortLabel: 'plot(s)' },
+};
+
+/** Convert from a given unit to sqm for database storage */
+export function toSqm(value: number, unit: AreaUnit): number {
+  return value * AREA_UNITS[unit].factor;
+}
+
+/** Convert from sqm (database) to a display unit */
+export function fromSqm(sqmValue: number, unit: AreaUnit): number {
+  return sqmValue / AREA_UNITS[unit].factor;
+}
+
+/** Format an area value (stored in sqm) with its unit label */
+export function formatArea(sqmValue: number, unit: AreaUnit = 'sqm'): string {
+  const converted = fromSqm(sqmValue, unit);
+  const formatted = converted % 1 === 0 ? converted.toString() : converted.toFixed(2);
+  return `${formatNumber(parseFloat(formatted))} ${AREA_UNITS[unit].shortLabel}`;
+}
+
+/** Convert price-per-sqm to price-per-unit for display */
+export function pricePerUnit(pricePerSqm: number, unit: AreaUnit): number {
+  return pricePerSqm * AREA_UNITS[unit].factor;
+}
+
+/** Convert price-per-unit (user input) back to price-per-sqm for storage */
+export function toPricePerSqm(priceInUnit: number, unit: AreaUnit): number {
+  return priceInUnit / AREA_UNITS[unit].factor;
+}

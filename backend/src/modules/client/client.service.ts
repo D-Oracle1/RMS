@@ -3,6 +3,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { UserRole, UserStatus, PropertyStatus, SaleStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
+import { DashboardPeriod, getDateRange } from '../../common/utils/date-range.util';
 
 @Injectable()
 export class ClientService {
@@ -14,8 +15,10 @@ export class ClientService {
     search?: string;
     realtorId?: string;
   }) {
-    const { page = 1, limit = 20, search, realtorId } = query;
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
+    const { search, realtorId } = query;
 
     const where: any = {};
 
@@ -166,10 +169,16 @@ export class ClientService {
     return client;
   }
 
-  async getDashboard(userId: string) {
+  async getDashboard(userId: string, period?: DashboardPeriod, month?: number, year?: number) {
     const client = await this.findByUserId(userId);
 
-    const [properties, purchases, pendingOffers] = await Promise.all([
+    const activePeriod: DashboardPeriod = period || 'monthly';
+    const parsedMonth = month !== undefined && !isNaN(Number(month)) ? Number(month) : undefined;
+    const parsedYear = year !== undefined && !isNaN(Number(year)) ? Number(year) : undefined;
+    const { startDate, endDate } = getDateRange(activePeriod, parsedMonth, parsedYear);
+    const dateFilter = { gte: startDate, lte: endDate };
+
+    const [properties, purchases, filteredPurchases, pendingOffers] = await Promise.all([
       this.prisma.property.findMany({
         where: { ownerId: client.id },
         include: {
@@ -183,6 +192,24 @@ export class ClientService {
         where: {
           clientId: client.id,
           status: SaleStatus.COMPLETED,
+        },
+        include: {
+          property: true,
+          realtor: {
+            include: {
+              user: {
+                select: { firstName: true, lastName: true },
+              },
+            },
+          },
+        },
+        orderBy: { saleDate: 'desc' },
+      }),
+      this.prisma.sale.findMany({
+        where: {
+          clientId: client.id,
+          status: SaleStatus.COMPLETED,
+          saleDate: dateFilter,
         },
         include: {
           property: true,
@@ -231,6 +258,11 @@ export class ClientService {
         ? ((totalPropertyValue - totalOriginalValue) / totalOriginalValue) * 100
         : 0;
 
+    const filteredSpent = filteredPurchases.reduce(
+      (sum, p) => sum + Number(p.salePrice),
+      0,
+    );
+
     return {
       profile: client,
       stats: {
@@ -241,9 +273,15 @@ export class ClientService {
         avgAppreciationPercentage,
         pendingOffers,
         listedProperties: properties.filter((p) => p.isListed).length,
+        filteredPurchases: filteredPurchases.length,
+        filteredSpent,
       },
       properties: propertiesWithAppreciation,
       purchases,
+      filteredPurchases,
+      period: activePeriod,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
     };
   }
 
