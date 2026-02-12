@@ -1,9 +1,29 @@
-import { Global, Module, Scope } from '@nestjs/common';
+import { Global, Module, Scope, Logger } from '@nestjs/common';
 import { REQUEST } from '@nestjs/core';
 import { Request } from 'express';
 import { PrismaService } from './prisma.service';
 import { MasterPrismaService } from './master-prisma.service';
 import { TenantPrismaService } from './tenant-prisma.service';
+
+// Cached singleton fallback — reused across all requests without a tenant
+let cachedFallback: PrismaService | null = null;
+let fallbackInitPromise: Promise<PrismaService> | null = null;
+
+async function getFallbackPrisma(): Promise<PrismaService> {
+  if (cachedFallback) return cachedFallback;
+
+  // Prevent multiple concurrent initializations
+  if (!fallbackInitPromise) {
+    fallbackInitPromise = (async () => {
+      const fallback = new PrismaService();
+      await fallback.$connect();
+      cachedFallback = fallback;
+      return fallback;
+    })();
+  }
+
+  return fallbackInitPromise;
+}
 
 @Global()
 @Module({
@@ -26,11 +46,8 @@ import { TenantPrismaService } from './tenant-prisma.service';
 
         if (!companyId) {
           // SUPER_ADMIN on master domain or public route with no tenant
-          // Return a default PrismaService connected to DATABASE_URL (fallback)
-          // This handles cases where no tenant is resolved
-          const fallback = new PrismaService();
-          await fallback.onModuleInit();
-          return fallback;
+          // Return a cached default PrismaService connected to DATABASE_URL
+          return getFallbackPrisma();
         }
 
         // Return the tenant-specific PrismaClient (cast as PrismaService)

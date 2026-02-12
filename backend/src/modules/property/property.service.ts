@@ -1,21 +1,27 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import { CreatePropertyDto } from './dto/create-property.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyStatus, PropertyType, DocumentType } from '@prisma/client';
 
 @Injectable()
 export class PropertyService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async create(createPropertyDto: CreatePropertyDto, userId: string) {
-    return this.prisma.property.create({
+    const property = await this.prisma.property.create({
       data: {
         ...createPropertyDto,
         originalPrice: createPropertyDto.price,
         realtorId: createPropertyDto.realtorId,
       },
     });
+    await this.cacheService.invalidate('properties');
+    return property;
   }
 
   async findAll(query: {
@@ -75,6 +81,11 @@ export class PropertyService {
     const orderBy: any = {};
     orderBy[sortBy] = sortOrder;
 
+    // Check cache
+    const cacheKey = `properties:list:${JSON.stringify({ where, skip, limit, orderBy })}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const [properties, total] = await Promise.all([
       this.prisma.property.findMany({
         where,
@@ -104,7 +115,7 @@ export class PropertyService {
       this.prisma.property.count({ where }),
     ]);
 
-    return {
+    const result = {
       data: properties,
       meta: {
         page,
@@ -113,6 +124,9 @@ export class PropertyService {
         totalPages: Math.ceil(total / limit),
       },
     };
+
+    await this.cacheService.set(cacheKey, result, 300);
+    return result;
   }
 
   async findById(id: string) {
@@ -204,10 +218,12 @@ export class PropertyService {
 
     const { priceChangeReason, ...updateData } = updatePropertyDto;
 
-    return this.prisma.property.update({
+    const updated = await this.prisma.property.update({
       where: { id },
       data: updateData,
     });
+    await this.cacheService.invalidate('properties');
+    return updated;
   }
 
   async delete(id: string) {
@@ -223,6 +239,7 @@ export class PropertyService {
       where: { id },
     });
 
+    await this.cacheService.invalidate('properties');
     return { message: 'Property deleted successfully' };
   }
 

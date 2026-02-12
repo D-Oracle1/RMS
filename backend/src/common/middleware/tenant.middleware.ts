@@ -94,6 +94,11 @@ export class TenantMiddleware implements NestMiddleware {
   }
 
   private isMasterDomain(domain: string): boolean {
+    // Backend's own Vercel/Railway deployment domains are always master
+    if (domain.endsWith('.vercel.app') || domain.endsWith('.railway.app')) {
+      return true;
+    }
+
     const masterDomains = [
       'localhost',
       '127.0.0.1',

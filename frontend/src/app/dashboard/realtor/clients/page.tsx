@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -19,27 +19,51 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { formatCurrency } from '@/lib/utils';
-
-const clients = [
-  { id: 1, name: 'John Doe', email: 'john@email.com', phone: '+1 555-1001', properties: 3, totalValue: 2850000, status: 'ACTIVE', lastContact: '2 days ago' },
-  { id: 2, name: 'Jane Smith', email: 'jane@email.com', phone: '+1 555-1002', properties: 2, totalValue: 1650000, status: 'ACTIVE', lastContact: '1 week ago' },
-  { id: 3, name: 'Robert Johnson', email: 'robert.j@email.com', phone: '+1 555-1003', properties: 5, totalValue: 4200000, status: 'ACTIVE', lastContact: '3 days ago' },
-  { id: 4, name: 'Emily White', email: 'emily.w@email.com', phone: '+1 555-1004', properties: 1, totalValue: 580000, status: 'PROSPECTIVE', lastContact: '5 days ago' },
-  { id: 5, name: 'Michael Brown', email: 'michael.b@email.com', phone: '+1 555-1005', properties: 0, totalValue: 0, status: 'PROSPECTIVE', lastContact: '1 day ago' },
-];
-
-const stats = [
-  { title: 'Total Clients', value: '45', icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  { title: 'Active Clients', value: '38', icon: Users, color: 'text-green-600', bgColor: 'bg-green-100' },
-  { title: 'Prospective', value: '7', icon: Users, color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  { title: 'Portfolio Value', value: '$12.5M', icon: DollarSign, color: 'text-primary', bgColor: 'bg-primary/10' },
-];
+import { api } from '@/lib/api';
 
 export default function RealtorClientsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [clients, setClients] = useState<any[]>([]);
 
-  const filteredClients = clients.filter(client => {
+  const fetchClients = useCallback(async () => {
+    try {
+      const response: any = await api.get('/clients?limit=100');
+      const payload = response.data || response;
+      const records = Array.isArray(payload) ? payload : payload?.data || [];
+      const mapped = records.map((c: any) => ({
+        id: c.id,
+        name: c.user ? `${c.user.firstName} ${c.user.lastName}` : 'Unknown',
+        email: c.user?.email || '',
+        phone: c.user?.phone || '',
+        properties: c._count?.properties || 0,
+        totalValue: 0,
+        status: c.user?.status || 'ACTIVE',
+        lastContact: '',
+      }));
+      setClients(mapped);
+    } catch {
+      // API unavailable, show empty state
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
+
+  const totalClients = clients.length;
+  const activeClients = clients.filter(c => c.status === 'ACTIVE').length;
+  const prospectiveClients = totalClients - activeClients;
+  const portfolioValue = clients.reduce((sum: number, c: any) => sum + (c.totalValue || 0), 0);
+
+  const stats = [
+    { title: 'Total Clients', value: String(totalClients), icon: Users, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    { title: 'Active Clients', value: String(activeClients), icon: Users, color: 'text-green-600', bgColor: 'bg-green-100' },
+    { title: 'Prospective', value: String(prospectiveClients), icon: Users, color: 'text-orange-600', bgColor: 'bg-orange-100' },
+    { title: 'Portfolio Value', value: formatCurrency(portfolioValue), icon: DollarSign, color: 'text-primary', bgColor: 'bg-primary/10' },
+  ];
+
+  const filteredClients = clients.filter((client: any) => {
     const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          client.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'ALL' || client.status === filterStatus;

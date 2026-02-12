@@ -50,6 +50,18 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { CmsModule } from './modules/cms/cms.module';
 import { GalleryModule } from './modules/gallery/gallery.module';
 
+// Audit
+import { AuditModule } from './modules/audit/audit.module';
+
+// Cache
+import { CacheModule } from './common/services/cache.module';
+
+// Device (Push Notifications)
+import { DeviceModule } from './modules/device/device.module';
+
+// Queue (BullMQ)
+import { QueueModule } from './common/services/queue.module';
+
 // Multi-tenancy
 import { CompanyModule } from './modules/company/company.module';
 
@@ -111,6 +123,18 @@ import { CompanyModule } from './modules/company/company.module';
     // CMS & Gallery
     CmsModule,
     GalleryModule,
+
+    // Audit
+    AuditModule,
+
+    // Cache
+    CacheModule,
+
+    // Device (Push Notifications)
+    DeviceModule,
+
+    // Queue (BullMQ)
+    QueueModule,
 
     // Multi-tenancy
     CompanyModule,

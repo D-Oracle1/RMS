@@ -34,17 +34,6 @@ import { api } from '@/lib/api';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
-const taxReports = [
-  { id: 1, realtor: 'Chioma Adeyemi', email: 'chioma.adeyemi@rms.com', tier: 'PLATINUM', grossCommission: 50000000, taxRate: 15, taxAmount: 7500000, netEarnings: 42500000, year: 2026, month: 0, status: 'FILED' },
-  { id: 2, realtor: 'Emeka Okonkwo', email: 'emeka.okonkwo@rms.com', tier: 'GOLD', grossCommission: 39200000, taxRate: 15, taxAmount: 5880000, netEarnings: 33320000, year: 2026, month: 0, status: 'FILED' },
-  { id: 3, realtor: 'Aisha Mohammed', email: 'aisha.mohammed@rms.com', tier: 'GOLD', grossCommission: 28800000, taxRate: 15, taxAmount: 4320000, netEarnings: 24480000, year: 2025, month: 11, status: 'PENDING' },
-  { id: 4, realtor: 'Tunde Bakare', email: 'tunde.bakare@rms.com', tier: 'SILVER', grossCommission: 24400000, taxRate: 15, taxAmount: 3660000, netEarnings: 20740000, year: 2025, month: 10, status: 'FILED' },
-  { id: 5, realtor: 'Ngozi Eze', email: 'ngozi.eze@rms.com', tier: 'SILVER', grossCommission: 21600000, taxRate: 15, taxAmount: 3240000, netEarnings: 18360000, year: 2025, month: 9, status: 'PENDING' },
-  { id: 6, realtor: 'Olumide Adebayo', email: 'olumide.adebayo@rms.com', tier: 'SILVER', grossCommission: 18000000, taxRate: 15, taxAmount: 2700000, netEarnings: 15300000, year: 2025, month: 8, status: 'FILED' },
-  { id: 7, realtor: 'Funke Oladipo', email: 'funke.oladipo@rms.com', tier: 'BRONZE', grossCommission: 15600000, taxRate: 15, taxAmount: 2340000, netEarnings: 13260000, year: 2025, month: 7, status: 'FILED' },
-  { id: 8, realtor: 'Chukwudi Nnamdi', email: 'chukwudi.nnamdi@rms.com', tier: 'BRONZE', grossCommission: 12000000, taxRate: 15, taxAmount: 1800000, netEarnings: 10200000, year: 2025, month: 6, status: 'FILED' },
-];
-
 interface TaxSettings {
   standardRate: number;
   withholdingRate: number;
@@ -67,7 +56,7 @@ export default function TaxPage() {
   const [editingSettings, setEditingSettings] = useState<TaxSettings>(defaultTaxSettings);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [taxRecords, setTaxRecords] = useState(taxReports);
+  const [taxRecords, setTaxRecords] = useState<any[]>([]);
 
   // Fetch tax rates from API on mount
   const fetchTaxRates = useCallback(async () => {
@@ -92,7 +81,7 @@ export default function TaxPage() {
         setTaxRecords(data);
       }
     } catch {
-      // Keep mock data as fallback
+      // API unavailable, show empty state
     }
   }, []);
 

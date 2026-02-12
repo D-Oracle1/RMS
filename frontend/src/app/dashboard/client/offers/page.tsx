@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   FileText,
@@ -20,81 +20,43 @@ import { Input } from '@/components/ui/input';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
-
-const offers = [
-  {
-    id: 1,
-    property: 'Prime Land in Lekki Phase 1',
-    propertyType: 'Land',
-    propertyAddress: '123 Admiralty Way, Lekki Phase 1, Lagos',
-    listingPrice: 285000000,
-    offerAmount: 270000000,
-    seller: 'RMS Properties Ltd',
-    sellerEmail: 'sales@rmsproperties.com.ng',
-    status: 'PENDING',
-    submittedDate: '2024-01-20',
-    expiresDate: '2024-01-27',
-  },
-  {
-    id: 2,
-    property: 'Luxury Duplex in Banana Island',
-    propertyType: 'House',
-    propertyAddress: '456 Ocean Close, Banana Island, Ikoyi, Lagos',
-    listingPrice: 750000000,
-    offerAmount: 720000000,
-    seller: 'Premium Estates',
-    sellerEmail: 'info@premiumestates.ng',
-    status: 'PENDING',
-    submittedDate: '2024-01-18',
-    expiresDate: '2024-01-25',
-  },
-  {
-    id: 3,
-    property: 'Commercial Land in Victoria Island',
-    propertyType: 'Land',
-    propertyAddress: '789 Adeola Odeku, Victoria Island, Lagos',
-    listingPrice: 420000000,
-    offerAmount: 400000000,
-    seller: 'VI Properties',
-    sellerEmail: 'viproperties@gmail.com',
-    status: 'ACCEPTED',
-    submittedDate: '2024-01-10',
-    acceptedDate: '2024-01-12',
-  },
-  {
-    id: 4,
-    property: '3 Bedroom Flat in Ikeja GRA',
-    propertyType: 'House',
-    propertyAddress: '321 Joel Ogunnaike St, Ikeja GRA, Lagos',
-    listingPrice: 65000000,
-    offerAmount: 55000000,
-    seller: 'GRA Homes',
-    sellerEmail: 'grahomes@email.com',
-    status: 'REJECTED',
-    submittedDate: '2024-01-05',
-    rejectedDate: '2024-01-08',
-  },
-  {
-    id: 5,
-    property: 'Residential Land in Ajah',
-    propertyType: 'Land',
-    propertyAddress: '567 Addo Road, Ajah, Lagos',
-    listingPrice: 62000000,
-    offerAmount: 60000000,
-    seller: 'Ajah Developers',
-    sellerEmail: 'ajahdevelopers@email.com',
-    status: 'COUNTERED',
-    submittedDate: '2023-12-20',
-    counterAmount: 61000000,
-  },
-];
 
 export default function ClientOffersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const [offers, setOffers] = useState<any[]>([]);
+
+  const fetchOffers = useCallback(async () => {
+    try {
+      const response: any = await api.get('/offers?limit=50');
+      const payload = response.data || response;
+      const records = Array.isArray(payload) ? payload : payload?.data || [];
+      const mapped = records.map((o: any) => ({
+        id: o.id,
+        property: o.property?.title || 'Property',
+        propertyType: o.property?.type || 'Property',
+        propertyAddress: o.property?.address || '',
+        listingPrice: Number(o.property?.listingPrice || o.property?.price) || 0,
+        offerAmount: Number(o.amount) || 0,
+        seller: '',
+        sellerEmail: '',
+        status: o.status || 'PENDING',
+        submittedDate: o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : '',
+        counterAmount: Number(o.counterAmount) || 0,
+      }));
+      setOffers(mapped);
+    } catch {
+      // API unavailable, show empty state
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOffers();
+  }, [fetchOffers]);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   FileText,
@@ -18,78 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/utils';
-
-const documents = [
-  {
-    id: 1,
-    name: 'Purchase Agreement - Beachfront Villa',
-    type: 'PDF',
-    size: '2.4 MB',
-    property: 'Beachfront Villa',
-    category: 'Contracts',
-    uploadDate: '2024-01-15',
-    status: 'SIGNED',
-  },
-  {
-    id: 2,
-    name: 'Property Deed - Modern Downtown Condo',
-    type: 'PDF',
-    size: '1.8 MB',
-    property: 'Modern Downtown Condo',
-    category: 'Deeds',
-    uploadDate: '2022-03-20',
-    status: 'VERIFIED',
-  },
-  {
-    id: 3,
-    name: 'Home Inspection Report',
-    type: 'PDF',
-    size: '5.2 MB',
-    property: 'Beachfront Villa',
-    category: 'Inspections',
-    uploadDate: '2024-01-10',
-    status: 'COMPLETED',
-  },
-  {
-    id: 4,
-    name: 'Insurance Policy',
-    type: 'PDF',
-    size: '890 KB',
-    property: 'All Properties',
-    category: 'Insurance',
-    uploadDate: '2024-01-01',
-    status: 'ACTIVE',
-  },
-  {
-    id: 5,
-    name: 'Property Photos - Mountain Retreat',
-    type: 'ZIP',
-    size: '45 MB',
-    property: 'Mountain Retreat Cabin',
-    category: 'Media',
-    uploadDate: '2023-01-15',
-    status: 'UPLOADED',
-  },
-  {
-    id: 6,
-    name: 'Tax Assessment 2023',
-    type: 'PDF',
-    size: '340 KB',
-    property: 'All Properties',
-    category: 'Tax',
-    uploadDate: '2023-12-15',
-    status: 'VERIFIED',
-  },
-];
+import { api } from '@/lib/api';
 
 const categories = ['All', 'Contracts', 'Deeds', 'Inspections', 'Insurance', 'Media', 'Tax'];
-
-const stats = [
-  { title: 'Total Documents', value: '24', icon: FileText, color: 'text-blue-600', bgColor: 'bg-blue-100' },
-  { title: 'Contracts', value: '6', icon: File, color: 'text-green-600', bgColor: 'bg-green-100' },
-  { title: 'Pending Review', value: '2', icon: FileText, color: 'text-orange-600', bgColor: 'bg-orange-100' },
-  { title: 'Storage Used', value: '156 MB', icon: Folder, color: 'text-purple-600', bgColor: 'bg-purple-100' },
-];
 
 const getFileIcon = (type: string) => {
   switch (type) {
@@ -103,8 +34,45 @@ const getFileIcon = (type: string) => {
 export default function ClientDocumentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('All');
+  const [documents, setDocuments] = useState<any[]>([]);
 
-  const filteredDocuments = documents.filter(doc => {
+  const fetchDocuments = useCallback(async () => {
+    try {
+      const response: any = await api.get('/documents?limit=50');
+      const payload = response.data || response;
+      const records = Array.isArray(payload) ? payload : payload?.data || [];
+      const mapped = records.map((d: any) => ({
+        id: d.id,
+        name: d.name || d.title || 'Document',
+        type: (d.fileType || d.type || 'PDF').toUpperCase(),
+        size: d.size || '',
+        property: d.property?.title || '',
+        category: d.category || 'General',
+        uploadDate: d.createdAt ? new Date(d.createdAt).toISOString().split('T')[0] : '',
+        status: d.status || 'UPLOADED',
+      }));
+      setDocuments(mapped);
+    } catch {
+      // API unavailable, show empty state
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, [fetchDocuments]);
+
+  const totalDocs = documents.length;
+  const contractCount = documents.filter(d => d.category === 'Contracts').length;
+  const pendingCount = documents.filter(d => d.status === 'PENDING').length;
+
+  const stats = [
+    { title: 'Total Documents', value: String(totalDocs), icon: FileText, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+    { title: 'Contracts', value: String(contractCount), icon: File, color: 'text-green-600', bgColor: 'bg-green-100' },
+    { title: 'Pending Review', value: String(pendingCount), icon: FileText, color: 'text-orange-600', bgColor: 'bg-orange-100' },
+    { title: 'Total Files', value: String(totalDocs), icon: Folder, color: 'text-purple-600', bgColor: 'bg-purple-100' },
+  ];
+
+  const filteredDocuments = documents.filter((doc: any) => {
     const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          doc.property.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === 'All' || doc.category === filterCategory;

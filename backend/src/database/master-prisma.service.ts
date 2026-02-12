@@ -19,13 +19,14 @@ export class MasterPrismaService
   }
 
   async onModuleInit() {
-    if (process.env.VERCEL) {
-      // Lazy connect in serverless — Prisma connects on first query
-      this.logger.log('Serverless mode: master database will connect on first query');
-      return;
+    try {
+      await this.$connect();
+      this.logger.log('Master database connected');
+    } catch (error) {
+      this.logger.error(`Master database connection failed: ${error.message}`);
+      // Don't throw — allow app to start even if master DB is unavailable
+      // Queries will fail at runtime with a clear error instead of crashing boot
     }
-    await this.$connect();
-    this.logger.log('Master database connected');
   }
 
   async onModuleDestroy() {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calculator,
@@ -23,17 +23,9 @@ import { api } from '@/lib/api';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
-const commissions = [
-  { id: 1, sale: 'Prime Land in Lekki Phase 1', property: 'Land', saleAmount: 285000000, rate: 4.0, commission: 11400000, tax: 1710000, net: 9690000, status: 'PAID', date: '2024-01-20' },
-  { id: 2, sale: 'Luxury Duplex in Banana Island', property: 'House', saleAmount: 750000000, rate: 4.0, commission: 30000000, tax: 4500000, net: 25500000, status: 'PAID', date: '2024-01-18' },
-  { id: 3, sale: 'Commercial Land in Victoria Island', property: 'Land', saleAmount: 420000000, rate: 4.0, commission: 16800000, tax: 2520000, net: 14280000, status: 'PENDING', date: '2024-01-15' },
-  { id: 4, sale: '3 Bedroom Flat in Ikeja GRA', property: 'House', saleAmount: 48500000, rate: 4.0, commission: 1940000, tax: 291000, net: 1649000, status: 'PAID', date: '2024-01-12' },
-  { id: 5, sale: 'Residential Land in Ajah', property: 'Land', saleAmount: 62000000, rate: 4.0, commission: 2480000, tax: 372000, net: 2108000, status: 'PROCESSING', date: '2023-12-10' },
-  { id: 6, sale: 'Studio Apartment in Yaba', property: 'House', saleAmount: 38000000, rate: 4.0, commission: 1520000, tax: 228000, net: 1292000, status: 'PAID', date: '2023-11-05' },
-];
-
 export default function RealtorCommissionPage() {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
+  const [commissions, setCommissions] = useState<any[]>([]);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
   const [commissionRates, setCommissionRates] = useState<Record<string, number>>({
@@ -44,7 +36,34 @@ export default function RealtorCommissionPage() {
   });
   const [taxRate, setTaxRate] = useState(15);
 
+  const fetchCommissions = useCallback(async () => {
+    try {
+      const response: any = await api.get('/commissions?limit=50');
+      const payload = response.data || response;
+      const records = Array.isArray(payload) ? payload : payload?.data || [];
+      if (Array.isArray(records) && records.length > 0) {
+        const mapped = records.map((item: any) => ({
+          id: item.id,
+          sale: item.sale?.property?.title || 'Sale',
+          property: item.sale?.property?.type || 'Property',
+          saleAmount: Number(item.sale?.salePrice) || 0,
+          rate: Number(item.rate) * 100 || 0,
+          commission: Number(item.amount) || 0,
+          tax: Number(item.sale?.taxAmount) || 0,
+          net: Number(item.amount) - (Number(item.sale?.taxAmount) || 0),
+          status: item.status || 'PENDING',
+          date: item.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : '',
+        }));
+        setCommissions(mapped);
+      }
+    } catch {
+      // API unavailable, show empty state
+    }
+  }, []);
+
   useEffect(() => {
+    fetchCommissions();
+
     const fetchSettings = async () => {
       try {
         const res = await api.get<any>('/settings/commission-rates');
@@ -55,7 +74,7 @@ export default function RealtorCommissionPage() {
         }
         setCommissionRates(converted);
       } catch {
-        // Keep hardcoded fallback values
+        // API unavailable, keep default rates
       }
 
       try {
@@ -64,12 +83,12 @@ export default function RealtorCommissionPage() {
           setTaxRate(Number(res.data.incomeTax) * 100);
         }
       } catch {
-        // Keep hardcoded fallback value
+        // API unavailable, keep default rate
       }
     };
 
     fetchSettings();
-  }, []);
+  }, [fetchCommissions]);
 
   const filterByTimePeriod = (date: string) => {
     const itemDate = new Date(date);

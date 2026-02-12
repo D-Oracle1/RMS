@@ -2,12 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationType, NotificationPriority } from '@prisma/client';
 import { PusherService } from '../../common/services/pusher.service';
+import { SmsService } from '../../common/services/sms.service';
+import { PushNotificationService } from '../../common/services/push-notification.service';
 
 @Injectable()
 export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pusherService: PusherService,
+    private readonly smsService: SmsService,
+    private readonly pushNotificationService: PushNotificationService,
   ) {}
 
   async create(data: {
@@ -33,6 +37,37 @@ export class NotificationService {
 
     // Send real-time notification via WebSocket
     this.pusherService.sendToUser(data.userId, 'notification:new', notification);
+
+    // Send SMS for URGENT priority notifications
+    if (data.priority === 'URGENT' || data.priority === NotificationPriority.URGENT) {
+      try {
+        const user = await this.prisma.user.findUnique({
+          where: { id: data.userId },
+          select: { phone: true },
+        });
+        if (user?.phone) {
+          this.smsService.sendUrgentNotification(user.phone, data.title, data.message);
+        }
+      } catch {
+        // SMS is best-effort, don't break notification flow
+      }
+    }
+
+    // Send push notification to user's registered devices
+    try {
+      const devices = await this.prisma.userDevice.findMany({
+        where: { userId: data.userId },
+        select: { fcmToken: true },
+      });
+      if (devices.length > 0) {
+        this.pushNotificationService.sendToTokens(
+          devices.map((d: any) => d.fcmToken),
+          { title: data.title, body: data.message, data: { type: String(data.type), link: data.link || '' } },
+        );
+      }
+    } catch {
+      // Push is best-effort
+    }
 
     return notification;
   }

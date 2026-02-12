@@ -8,10 +8,13 @@ import helmet from 'helmet';
 import compression from 'compression';
 import express from 'express';
 
+import { Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { AuditService } from './common/services/audit.service';
 
 /** Shared bootstrap configuration — used by both local dev server and Vercel serverless */
 export async function configureApp(expressInstance?: express.Express) {
@@ -88,9 +91,12 @@ export async function configureApp(expressInstance?: express.Express) {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   // Global interceptors
+  const auditService = app.get(AuditService);
+  const reflector = app.get(Reflector);
   app.useGlobalInterceptors(
     new LoggingInterceptor() as any,
     new TransformInterceptor() as any,
+    new AuditInterceptor(auditService, reflector) as any,
   );
 
   return { app, configService };

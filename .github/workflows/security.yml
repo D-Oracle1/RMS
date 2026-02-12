@@ -1,0 +1,38 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at midnight
+
+jobs:
+  audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend dependencies
+        run: npm ci --ignore-scripts
+        working-directory: ./backend
+
+      - name: Audit backend dependencies
+        run: npm audit --audit-level=high
+        working-directory: ./backend
+
+      - name: Install frontend dependencies
+        run: npm ci --ignore-scripts
+        working-directory: ./frontend
+
+      - name: Audit frontend dependencies
+        run: npm audit --audit-level=high
+        working-directory: ./frontend

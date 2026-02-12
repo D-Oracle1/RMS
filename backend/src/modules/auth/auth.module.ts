@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { CompanyModule } from '../company/company.module';
+import { MailService } from '../../common/services/mail.service';
 
 @Module({
   imports: [
@@ -27,7 +28,7 @@ import { CompanyModule } from '../company/company.module';
     }),
   ],
   controllers: [AuthController, PusherAuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
+  providers: [AuthService, JwtStrategy, LocalStrategy, MailService],
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}

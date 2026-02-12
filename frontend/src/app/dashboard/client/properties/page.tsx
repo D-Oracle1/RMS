@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Home,
@@ -21,79 +21,48 @@ import { Input } from '@/components/ui/input';
 import { formatCurrency, formatPercentage, formatDate } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
 
 type PropertyFilter = 'all' | 'owned' | 'listed';
-
-const properties = [
-  {
-    id: 1,
-    title: 'Commercial Land in Victoria Island',
-    address: '123 Adeola Odeku, Victoria Island, Lagos',
-    type: 'Land',
-    purchasePrice: 350000000,
-    purchaseDate: '2022-03-15',
-    currentValue: 420000000,
-    appreciation: 20,
-    isListed: false,
-    image: null,
-    seller: 'VI Properties Ltd',
-    sellerEmail: 'viproperties@email.com',
-    sqm: 2500,
-  },
-  {
-    id: 2,
-    title: 'Luxury Duplex in Banana Island',
-    address: '456 Ocean Close, Banana Island, Ikoyi, Lagos',
-    type: 'House',
-    purchasePrice: 620000000,
-    purchaseDate: '2021-08-20',
-    currentValue: 750000000,
-    appreciation: 20.8,
-    isListed: true,
-    listingPrice: 800000000,
-    offers: 2,
-    image: null,
-    seller: 'Premium Estates',
-    sellerEmail: 'premium@estates.ng',
-    bedrooms: 5,
-    bathrooms: 6,
-  },
-  {
-    id: 3,
-    title: 'Residential Land in Lekki',
-    address: '789 Admiralty Way, Lekki Phase 1, Lagos',
-    type: 'Land',
-    purchasePrice: 180000000,
-    purchaseDate: '2023-01-10',
-    currentValue: 186000000,
-    appreciation: 3.3,
-    isListed: false,
-    image: null,
-    seller: 'Lekki Land Ltd',
-    sellerEmail: 'lekkiland@email.com',
-    sqm: 1200,
-  },
-  {
-    id: 4,
-    title: '4 Bedroom Terrace in Magodo',
-    address: '321 CMD Road, Magodo Phase 2, Lagos',
-    type: 'House',
-    purchasePrice: 85000000,
-    purchaseDate: '2023-06-15',
-    currentValue: 92000000,
-    appreciation: 8.2,
-    isListed: false,
-    image: null,
-    seller: 'Magodo Homes',
-    sellerEmail: 'magodohomes@email.com',
-    bedrooms: 4,
-    bathrooms: 4,
-  },
-];
 
 export default function ClientPropertiesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [propertyFilter, setPropertyFilter] = useState<PropertyFilter>('all');
+  const [properties, setProperties] = useState<any[]>([]);
+
+  const fetchProperties = useCallback(async () => {
+    try {
+      const response: any = await api.get('/properties?limit=100');
+      const payload = response.data || response;
+      const records = Array.isArray(payload) ? payload : payload?.data || [];
+      const mapped = records.map((p: any) => ({
+        id: p.id,
+        title: p.title || 'Property',
+        address: p.address || `${p.city || ''}, ${p.state || ''}`,
+        type: p.type || 'Property',
+        purchasePrice: Number(p.originalPrice || p.price) || 0,
+        purchaseDate: p.createdAt ? new Date(p.createdAt).toISOString().split('T')[0] : '',
+        currentValue: Number(p.price) || 0,
+        appreciation: Number(p.appreciationPercentage) || 0,
+        isListed: p.isListed || false,
+        listingPrice: Number(p.listingPrice) || 0,
+        offers: 0,
+        image: p.images?.[0] || null,
+        seller: '',
+        sellerEmail: '',
+        sqm: Number(p.area) || 0,
+        bedrooms: p.bedrooms,
+        bathrooms: p.bathrooms,
+      }));
+      setProperties(mapped);
+    } catch {
+      // API unavailable, show empty state
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
 

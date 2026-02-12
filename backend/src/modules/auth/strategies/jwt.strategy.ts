@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { PrismaClient } from '@prisma/client';
 import { MasterPrismaService } from '../../../database/master-prisma.service';
 import { TenantPrismaService } from '../../../database/tenant-prisma.service';
 
@@ -13,6 +14,19 @@ interface JwtPayload {
   isSuperAdmin?: boolean;
   iat?: number;
   exp?: number;
+}
+
+// Cached singleton for fallback DB queries (prevents connection leaks in serverless)
+let cachedFallbackClient: PrismaClient | null = null;
+
+function getFallbackClient(): PrismaClient {
+  if (!cachedFallbackClient) {
+    cachedFallbackClient = new PrismaClient({
+      datasourceUrl: process.env.DATABASE_URL,
+      log: process.env.NODE_ENV === 'production' ? ['warn', 'error'] : ['warn', 'error'],
+    });
+  }
+  return cachedFallbackClient;
 }
 
 @Injectable()
@@ -74,17 +88,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           where: { id: payload.sub },
         });
       } else {
-        // Fallback: try master DB or default DB
+        // Fallback: use cached default DB client
         // This handles legacy tokens or users without companyId
-        const { PrismaClient } = require('@prisma/client');
-        const fallback = new PrismaClient();
-        try {
-          user = await fallback.user.findUnique({
-            where: { id: payload.sub },
-          });
-        } finally {
-          await fallback.$disconnect();
-        }
+        const fallback = getFallbackClient();
+        user = await fallback.user.findUnique({
+          where: { id: payload.sub },
+        });
       }
 
       if (!user) {

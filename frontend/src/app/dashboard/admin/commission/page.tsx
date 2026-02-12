@@ -35,17 +35,6 @@ import { api } from '@/lib/api';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
-const mockCommissions = [
-  { id: 1, realtor: 'Chioma Adeyemi', email: 'chioma.adeyemi@rms.com', tier: 'PLATINUM', sale: 'Prime Land in Lekki Phase 1', saleAmount: 285000000, rate: 5.0, commission: 14250000, status: 'PAID', date: '2026-01-20' },
-  { id: 2, realtor: 'Emeka Okonkwo', email: 'emeka.okonkwo@rms.com', tier: 'GOLD', sale: 'Luxury Duplex in Banana Island', saleAmount: 750000000, rate: 4.0, commission: 30000000, status: 'PAID', date: '2026-01-18' },
-  { id: 3, realtor: 'Chioma Adeyemi', email: 'chioma.adeyemi@rms.com', tier: 'PLATINUM', sale: 'Commercial Land in Victoria Island', saleAmount: 420000000, rate: 5.0, commission: 21000000, status: 'PENDING', date: '2026-01-15' },
-  { id: 4, realtor: 'Aisha Mohammed', email: 'aisha.mohammed@rms.com', tier: 'GOLD', sale: '3 Bedroom Flat in Ikeja GRA', saleAmount: 48500000, rate: 4.0, commission: 1940000, status: 'PAID', date: '2025-12-12' },
-  { id: 5, realtor: 'Tunde Bakare', email: 'tunde.bakare@rms.com', tier: 'SILVER', sale: 'Residential Land in Ajah', saleAmount: 62000000, rate: 3.5, commission: 2170000, status: 'PROCESSING', date: '2025-11-10' },
-  { id: 6, realtor: 'Ngozi Eze', email: 'ngozi.eze@rms.com', tier: 'SILVER', sale: 'Office Space in Ikoyi', saleAmount: 180000000, rate: 3.5, commission: 6300000, status: 'PAID', date: '2025-10-05' },
-  { id: 7, realtor: 'Olumide Adebayo', email: 'olumide.adebayo@rms.com', tier: 'SILVER', sale: 'Land in Epe', saleAmount: 35000000, rate: 3.5, commission: 1225000, status: 'PAID', date: '2025-09-20' },
-  { id: 8, realtor: 'Funke Oladipo', email: 'funke.oladipo@rms.com', tier: 'BRONZE', sale: '2 Bedroom Apartment in Yaba', saleAmount: 28000000, rate: 3.0, commission: 840000, status: 'PAID', date: '2025-08-15' },
-];
-
 const defaultTierRates = [
   { tier: 'PLATINUM', rate: 5.0, realtors: 12, minSales: 40 },
   { tier: 'GOLD', rate: 4.0, realtors: 45, minSales: 25 },
@@ -60,7 +49,7 @@ export default function CommissionPage() {
   const [showRateSettings, setShowRateSettings] = useState(false);
   const [tierRates, setTierRates] = useState(defaultTierRates);
   const [editingRates, setEditingRates] = useState(defaultTierRates);
-  const [commissions, setCommissions] = useState(mockCommissions);
+  const [commissions, setCommissions] = useState<any[]>([]);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
 
@@ -79,7 +68,7 @@ export default function CommissionPage() {
         rate: rates[tier.tier] !== undefined ? rates[tier.tier] * 100 : tier.rate,
       })));
     } catch {
-      // Keep hardcoded defaults on failure
+      // API unavailable, keep default tier rates
     }
   }, []);
 
@@ -111,7 +100,7 @@ export default function CommissionPage() {
         setCommissions(mapped);
       }
     } catch {
-      // Keep mock data as fallback
+      // API unavailable, show empty state
     }
   }, []);
 

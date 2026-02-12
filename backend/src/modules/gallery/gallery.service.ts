@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import { CreateGalleryItemDto } from './dto/create-gallery-item.dto';
 import { UpdateGalleryItemDto } from './dto/update-gallery-item.dto';
 import { GalleryItemType } from '@prisma/client';
@@ -8,7 +9,10 @@ import { existsSync, unlinkSync } from 'fs';
 
 @Injectable()
 export class GalleryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async findAll(query: { type?: GalleryItemType; page?: number; limit?: number }) {
     const { type, page = 1, limit = 50 } = query;
@@ -34,13 +38,20 @@ export class GalleryService {
   }
 
   async findPublished(type?: GalleryItemType) {
+    const cacheKey = `gallery:published:${type || 'all'}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const where: any = { isPublished: true };
     if (type) where.type = type;
 
-    return this.prisma.galleryItem.findMany({
+    const items = await this.prisma.galleryItem.findMany({
       where,
       orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     });
+
+    await this.cacheService.set(cacheKey, items, 300);
+    return items;
   }
 
   async findOne(id: string) {
@@ -55,7 +66,7 @@ export class GalleryService {
     });
     const nextOrder = (maxOrder._max.order ?? -1) + 1;
 
-    return this.prisma.galleryItem.create({
+    const item = await this.prisma.galleryItem.create({
       data: {
         title: dto.title,
         description: dto.description,
@@ -66,14 +77,18 @@ export class GalleryService {
         order: nextOrder,
       },
     });
+    await this.cacheService.invalidate('gallery');
+    return item;
   }
 
   async update(id: string, dto: UpdateGalleryItemDto) {
     await this.findOne(id);
-    return this.prisma.galleryItem.update({
+    const item = await this.prisma.galleryItem.update({
       where: { id },
       data: dto,
     });
+    await this.cacheService.invalidate('gallery');
+    return item;
   }
 
   async remove(id: string) {
@@ -83,7 +98,9 @@ export class GalleryService {
     this.deleteFileFromDisk(item.url);
     if (item.thumbnailUrl) this.deleteFileFromDisk(item.thumbnailUrl);
 
-    return this.prisma.galleryItem.delete({ where: { id } });
+    const deleted = await this.prisma.galleryItem.delete({ where: { id } });
+    await this.cacheService.invalidate('gallery');
+    return deleted;
   }
 
   async reorder(items: { id: string; order: number }[]) {
@@ -94,15 +111,18 @@ export class GalleryService {
       }),
     );
     await this.prisma.$transaction(updates);
+    await this.cacheService.invalidate('gallery');
     return { success: true };
   }
 
   async togglePublish(id: string) {
     const item = await this.findOne(id);
-    return this.prisma.galleryItem.update({
+    const updated = await this.prisma.galleryItem.update({
       where: { id },
       data: { isPublished: !item.isPublished },
     });
+    await this.cacheService.invalidate('gallery');
+    return updated;
   }
 
   private deleteFileFromDisk(urlPath: string) {
