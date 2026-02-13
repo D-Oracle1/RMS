@@ -413,7 +413,7 @@ export default function CommissionPage() {
                           <div className="flex items-center gap-2">
                             <Avatar className="w-8 h-8 shrink-0">
                               <AvatarFallback className="bg-primary text-white text-xs">
-                                {item.realtor.split(' ').map(n => n[0]).join('')}
+                                {item.realtor.split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
