@@ -500,7 +500,7 @@ export default function RankingsPage() {
                       <Avatar className="w-8 h-8">
                         {r.avatar && <AvatarImage src={getImageUrl(r.avatar)} alt={r.name} />}
                         <AvatarFallback className="bg-primary text-white text-xs">
-                          {r.name.split(' ').map(n => n[0]).join('')}
+                          {r.name.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -533,7 +533,7 @@ export default function RankingsPage() {
                       <Avatar className="w-8 h-8">
                         {c.avatar && <AvatarImage src={getImageUrl(c.avatar)} alt={c.name} />}
                         <AvatarFallback className="bg-emerald-600 text-white text-xs">
-                          {c.name.split(' ').map(n => n[0]).join('')}
+                          {c.name.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
@@ -648,7 +648,7 @@ export default function RankingsPage() {
                   <Avatar className="w-16 h-16 border-4 border-white/30">
                     {topRealtor.avatar && <AvatarImage src={getImageUrl(topRealtor.avatar)} alt={topRealtor.name} />}
                     <AvatarFallback className="bg-white/20 text-white text-xl">
-                      {topRealtor.name.split(' ').map(n => n[0]).join('')}
+                      {topRealtor.name.split(' ').map((n: string) => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -726,7 +726,7 @@ export default function RankingsPage() {
                   <Avatar className="w-16 h-16 border-4 border-white/30">
                     {topStaff.avatar && <AvatarImage src={getImageUrl(topStaff.avatar)} alt={topStaff.name} />}
                     <AvatarFallback className="bg-white/20 text-white text-xl">
-                      {topStaff.name.split(' ').map(n => n[0]).join('')}
+                      {topStaff.name.split(' ').map((n: string) => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -822,7 +822,7 @@ export default function RankingsPage() {
                   <Avatar className="w-16 h-16 border-4 border-white/30">
                     {topClient.avatar && <AvatarImage src={getImageUrl(topClient.avatar)} alt={topClient.name} />}
                     <AvatarFallback className="bg-white/20 text-white text-xl">
-                      {topClient.name.split(' ').map(n => n[0]).join('')}
+                      {topClient.name.split(' ').map((n: string) => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -922,7 +922,7 @@ export default function RankingsPage() {
                       <Avatar>
                         {realtor.avatar && <AvatarImage src={getImageUrl(realtor.avatar)} alt={realtor.name} />}
                         <AvatarFallback className="bg-primary text-white">
-                          {realtor.name.split(' ').map(n => n[0]).join('')}
+                          {realtor.name.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -995,7 +995,7 @@ export default function RankingsPage() {
                       <Avatar>
                         {staff.avatar && <AvatarImage src={getImageUrl(staff.avatar)} alt={staff.name} />}
                         <AvatarFallback className="bg-blue-600 text-white">
-                          {staff.name.split(' ').map(n => n[0]).join('')}
+                          {staff.name.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -1083,7 +1083,7 @@ export default function RankingsPage() {
                       <Avatar>
                         {client.avatar && <AvatarImage src={getImageUrl(client.avatar)} alt={client.name} />}
                         <AvatarFallback className="bg-emerald-600 text-white">
-                          {client.name.split(' ').map(n => n[0]).join('')}
+                          {client.name.split(' ').map((n: string) => n[0]).join('')}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">

@@ -68,7 +68,7 @@ export function ActiveCallScreen() {
             <Avatar className="w-32 h-32 mx-auto mb-6">
               {peerInfo.avatar && <AvatarImage src={getImageUrl(peerInfo.avatar)} />}
               <AvatarFallback className="bg-primary text-white text-4xl">
-                {peerInfo.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {peerInfo.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
               </AvatarFallback>
             </Avatar>
             <h2 className="text-2xl font-bold text-white mb-2">{peerInfo.name}</h2>

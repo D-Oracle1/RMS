@@ -152,7 +152,7 @@ export default function RealtorClientsPage() {
                         <div className="flex items-center gap-3">
                           <Avatar>
                             <AvatarFallback className="bg-primary text-white">
-                              {client.name.split(' ').map(n => n[0]).join('')}
+                              {client.name.split(' ').map((n: string) => n[0]).join('')}
                             </AvatarFallback>
                           </Avatar>
                           <span className="font-medium">{client.name}</span>

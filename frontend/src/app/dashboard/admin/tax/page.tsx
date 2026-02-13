@@ -379,7 +379,7 @@ export default function TaxPage() {
                           <div className="flex items-center gap-3">
                             <Avatar className="w-8 h-8 shrink-0">
                               <AvatarFallback className="bg-primary text-white text-xs">
-                                {report.realtor.split(' ').map(n => n[0]).join('')}
+                                {report.realtor.split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">

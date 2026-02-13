@@ -518,7 +518,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar className="w-12 h-12 border-2 border-white/30">
                       <AvatarFallback className="bg-white/20 text-white font-bold">
-                        {highlights.staffOfMonth.name.split(' ').filter(Boolean).map(n => n[0]).join('') || '?'}
+                        {highlights.staffOfMonth.name.split(' ').filter(Boolean).map((n: string) => n[0]).join('') || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -540,7 +540,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar className="w-12 h-12 border-2 border-white/30">
                       <AvatarFallback className="bg-white/20 text-white font-bold">
-                        {highlights.realtorOfMonth.name.split(' ').filter(Boolean).map(n => n[0]).join('') || '?'}
+                        {highlights.realtorOfMonth.name.split(' ').filter(Boolean).map((n: string) => n[0]).join('') || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -562,7 +562,7 @@ export default function AdminDashboard() {
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar className="w-12 h-12 border-2 border-white/30">
                       <AvatarFallback className="bg-white/20 text-white font-bold">
-                        {highlights.clientOfMonth.name.split(' ').filter(Boolean).map(n => n[0]).join('') || '?'}
+                        {highlights.clientOfMonth.name.split(' ').filter(Boolean).map((n: string) => n[0]).join('') || '?'}
                       </AvatarFallback>
                     </Avatar>
                     <div>

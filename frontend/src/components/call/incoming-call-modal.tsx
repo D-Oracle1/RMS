@@ -55,7 +55,7 @@ export function IncomingCallModal() {
             <Avatar className="w-24 h-24 relative z-10">
               {peerInfo.avatar && <AvatarImage src={getImageUrl(peerInfo.avatar)} />}
               <AvatarFallback className="bg-primary text-white text-2xl">
-                {peerInfo.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {peerInfo.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </div>

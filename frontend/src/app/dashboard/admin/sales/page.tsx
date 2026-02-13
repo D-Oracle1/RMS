@@ -585,7 +585,7 @@ export default function SalesPage() {
                         <div className="flex items-center gap-2">
                           <Avatar className="w-7 h-7 shrink-0">
                             <AvatarFallback className="bg-primary text-white text-xs">
-                              {sale.realtor.split(' ').map(n => n[0]).join('')}
+                              {sale.realtor.split(' ').map((n: string) => n[0]).join('')}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
@@ -887,7 +887,7 @@ export default function SalesPage() {
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10">
                       <AvatarFallback className="bg-primary text-white">
-                        {selectedSale.realtor.split(' ').map(n => n[0]).join('')}
+                        {selectedSale.realtor.split(' ').map((n: string) => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                     <div>

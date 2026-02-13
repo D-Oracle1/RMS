@@ -74,7 +74,7 @@ export function CalloutAlertModal() {
                   <AvatarImage src={getImageUrl(pendingCallout.callerAvatar)} />
                 )}
                 <AvatarFallback className="bg-primary text-white text-lg">
-                  {pendingCallout.callerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                  {pendingCallout.callerName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div>
