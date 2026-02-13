@@ -76,7 +76,7 @@ export default function TaxPage() {
   // Fetch tax records from API on mount
   const fetchTaxRecords = useCallback(async () => {
     try {
-      const data = await api.get<typeof taxReports>('/taxes?limit=50');
+      const data = await api.get<typeof taxRecords>('/taxes?limit=50');
       if (Array.isArray(data) && data.length > 0) {
         setTaxRecords(data);
       }
@@ -147,7 +147,7 @@ export default function TaxPage() {
     }
   };
 
-  const generateTaxStatement = (report: typeof taxReports[0]) => {
+  const generateTaxStatement = (report: typeof taxRecords[0]) => {
     const receipt: ReceiptData = {
       type: 'tax',
       receiptNumber: `TAX-${report.year}-${report.id.toString().padStart(6, '0')}`,
