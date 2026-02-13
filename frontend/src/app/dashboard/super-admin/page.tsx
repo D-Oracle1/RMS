@@ -15,13 +15,16 @@ export default function SuperAdminDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [overviewRes, companiesRes] = await Promise.all([
-        api.get<any>('/companies/overview'),
-        api.get<any>('/companies?limit=10'),
-      ]);
-      setStats(overviewRes.data || overviewRes);
-      const companyData = companiesRes.data?.data || companiesRes.data || companiesRes;
-      setCompanies(Array.isArray(companyData) ? companyData : []);
+      const overviewRes = await api.get<any>('/companies/overview').catch(() => null);
+      const companiesRes = await api.get<any>('/companies?limit=10').catch(() => null);
+
+      if (overviewRes) {
+        setStats(overviewRes.data || overviewRes);
+      }
+      if (companiesRes) {
+        const companyData = companiesRes.data?.data || companiesRes.data || companiesRes;
+        setCompanies(Array.isArray(companyData) ? companyData : []);
+      }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
