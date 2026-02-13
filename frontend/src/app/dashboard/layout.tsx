@@ -26,17 +26,19 @@ export default function DashboardLayout({
     const role = user.role?.toLowerCase();
     const path = window.location.pathname;
 
-    const rolePrefix =
-      role === 'super_admin' || role === 'admin'
-        ? '/dashboard/admin'
-        : role === 'realtor'
-          ? '/dashboard/realtor'
-          : role === 'staff'
-            ? '/dashboard/staff'
-            : '/dashboard/client';
+    const rolePrefixes: Record<string, string[]> = {
+      super_admin: ['/dashboard/super-admin', '/dashboard/admin'],
+      admin: ['/dashboard/admin'],
+      realtor: ['/dashboard/realtor'],
+      staff: ['/dashboard/staff'],
+      client: ['/dashboard/client'],
+    };
 
-    if (!path.startsWith(rolePrefix)) {
-      router.replace(rolePrefix);
+    const allowed = rolePrefixes[role || ''] || ['/dashboard/client'];
+    const isAllowed = allowed.some((prefix) => path.startsWith(prefix));
+
+    if (!isAllowed) {
+      router.replace(allowed[0]);
       return;
     }
 
