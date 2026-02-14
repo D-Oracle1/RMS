@@ -34,8 +34,13 @@ export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: Fo
 
   const companyName = branding.companyName || 'RMS Platform';
   const logoUrl = branding.logo ? (branding.logo.startsWith('http') ? branding.logo : getImageUrl(branding.logo)) : '';
-  const description = cmsData?.description || '';
-  const quickLinks = cmsData?.quickLinks || [];
+  const description = cmsData?.description || `${companyName} — your trusted partner in real estate.`;
+  const quickLinks = cmsData?.quickLinks || [
+    { label: 'Home', href: '/' },
+    { label: 'Properties', href: '/properties' },
+    { label: 'About', href: '/about' },
+    { label: 'Contact', href: '/contact' },
+  ];
   const services = cmsData?.services || [];
 
   return (

@@ -21,7 +21,7 @@ import { PublicNavbar } from '@/components/layout/public-navbar';
 import { PublicFooter } from '@/components/layout/public-footer';
 import { getImageUrl } from '@/lib/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 const ICON_MAP: Record<string, any> = {
   Eye, Target, Heart, Gem, Star, Building2, Users, TrendingUp, Shield: Eye,
@@ -42,6 +42,7 @@ export default function AboutPage() {
       .finally(() => setCmsLoading(false));
   }, []);
 
+  const companyName = cms?.branding?.companyName || 'Our Company';
   const about = cms?.about || {};
   const mission = cms?.mission || {};
   const coreValues = cms?.core_values || {};
@@ -82,11 +83,11 @@ export default function AboutPage() {
         <div className="container mx-auto px-4 relative z-10 py-20">
           <div className="max-w-2xl">
             <span className="text-accent font-semibold text-sm uppercase tracking-wider">{about.subtitle || 'About Us'}</span>
-            {about.title && (
-              <h1 className="text-4xl md:text-5xl font-bold text-white mt-3 mb-6">{about.title}</h1>
-            )}
-            {about.content && (
+            <h1 className="text-4xl md:text-5xl font-bold text-white mt-3 mb-6">{about.title || `About ${companyName}`}</h1>
+            {about.content ? (
               <div className="text-lg text-white/80 max-w-xl prose prose-invert" dangerouslySetInnerHTML={{ __html: about.content }} />
+            ) : (
+              <p className="text-lg text-white/80 max-w-xl">Your trusted partner in real estate. We are dedicated to helping you find the perfect property and providing exceptional service every step of the way.</p>
             )}
           </div>
         </div>

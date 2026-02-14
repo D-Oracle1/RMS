@@ -104,6 +104,7 @@ export default function HomePage() {
       .finally(() => setCmsLoading(false));
   }, []);
 
+  const companyName = cms?.branding?.companyName || 'Real Estate Management';
   const hero = cms?.hero || {};
   const agents = cms?.agents || {};
   const features = cms?.features || {};
@@ -112,6 +113,11 @@ export default function HomePage() {
   const stats = cms?.stats || {};
   const cta = cms?.cta || {};
   const contact = cms?.contact || {};
+
+  // Fallback hero content when CMS hero is not populated
+  const heroTitle = hero.title || `Find Your Perfect Property`;
+  const heroTitleAccent = hero.titleAccent || `with ${companyName}`;
+  const heroSubtitle = hero.subtitle || 'Discover premium properties, connect with top realtors, and make your real estate dreams a reality.';
 
   const fetchProperties = useCallback(async (currentPage = 1) => {
     setLoading(true);
@@ -204,22 +210,14 @@ export default function HomePage() {
               </div>
             )}
 
-            {hero.title && (
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
-                {hero.title}
-                {hero.titleAccent && (
-                  <>
-                    <br />
-                    <span className="text-accent">{hero.titleAccent}</span>
-                  </>
-                )}
-              </h1>
-            )}
-            {hero.subtitle && (
-              <p className="text-lg text-white/80 mb-10 max-w-xl">
-                {hero.subtitle}
-              </p>
-            )}
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
+              {heroTitle}
+              <br />
+              <span className="text-accent">{heroTitleAccent}</span>
+            </h1>
+            <p className="text-lg text-white/80 mb-10 max-w-xl">
+              {heroSubtitle}
+            </p>
 
             {/* Search Bar */}
             <div className="bg-white rounded-2xl p-2 shadow-2xl max-w-2xl">
@@ -645,26 +643,24 @@ export default function HomePage() {
       )}
 
       {/* CTA Section */}
-      {(cta.title || cta.subtitle) && (
-        <section className="py-20 px-4 bg-gradient-to-r from-primary via-primary-600 to-primary">
-          <div className="container mx-auto text-center">
-            {cta.title && <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">{cta.title}</h2>}
-            {cta.subtitle && <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">{cta.subtitle}</p>}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/auth/register">
-                <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent text-lg px-8">
-                  {cta.primaryButtonText || 'Get Started'}
-                </Button>
-              </Link>
-              <Link href="/contact">
-                <Button size="lg" variant="outline" className="text-white border-white/40 hover:bg-white/10 text-lg px-8">
-                  {cta.secondaryButtonText || 'Contact Us'}
-                </Button>
-              </Link>
-            </div>
+      <section className="py-20 px-4 bg-gradient-to-r from-primary via-primary-600 to-primary">
+        <div className="container mx-auto text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">{cta.title || `Ready to Get Started with ${companyName}?`}</h2>
+          <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">{cta.subtitle || 'Whether you\'re buying, selling, or managing properties, we are your trusted partner.'}</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/auth/register">
+              <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent text-lg px-8">
+                {cta.primaryButtonText || 'Get Started'}
+              </Button>
+            </Link>
+            <Link href="/contact">
+              <Button size="lg" variant="outline" className="text-white border-white/40 hover:bg-white/10 text-lg px-8">
+                {cta.secondaryButtonText || 'Contact Us'}
+              </Button>
+            </Link>
           </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       {/* Contact Section */}
       {(contact.phone || contact.email || contact.address) && (
