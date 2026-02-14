@@ -19,6 +19,8 @@ const CMS_KEYS = [
   'agents',
   'cta',
   'footer',
+  'faq',
+  'user_features',
 ] as const;
 
 @Injectable()

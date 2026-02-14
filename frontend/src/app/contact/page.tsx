@@ -18,17 +18,9 @@ import { PublicFooter } from '@/components/layout/public-footer';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-const DEFAULTS = {
-  contact: {
-    phone: '+234 800 123 4567',
-    email: 'hello@rmsplatform.com',
-    address: 'Lagos, Nigeria',
-    hours: 'Mon - Fri: 9AM - 6PM',
-  },
-};
-
 export default function ContactPage() {
-  const [cms, setCms] = useState<Record<string, any>>({});
+  const [cms, setCms] = useState<Record<string, any> | null>(null);
+  const [cmsLoading, setCmsLoading] = useState(true);
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -46,10 +38,12 @@ export default function ContactPage() {
         const data = raw?.data || raw;
         if (data && typeof data === 'object') setCms(data);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setCmsLoading(false));
   }, []);
 
-  const contact = { ...DEFAULTS.contact, ...cms.contact };
+  const contact = cms?.contact || {};
+  const faq = cms?.faq || {};
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,9 +61,17 @@ export default function ContactPage() {
 
   const inputClass = "w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all";
 
+  if (cmsLoading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-primary-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-primary-950">
-      <PublicNavbar currentPage="/contact" branding={cms.branding} />
+      <PublicNavbar currentPage="/contact" branding={cms?.branding} />
 
       {/* Hero */}
       <section className="bg-gradient-to-r from-primary via-primary-600 to-primary pt-28 pb-12 px-4">
@@ -94,25 +96,27 @@ export default function ContactPage() {
                 Whether you&apos;re looking to buy, sell, or just have questions about our platform, our team is here to help.
               </p>
 
-              <div className="space-y-6 mb-10">
-                {[
-                  { icon: Phone, label: 'Phone', value: contact.phone, description: 'Call us for immediate assistance' },
-                  { icon: Mail, label: 'Email', value: contact.email, description: 'Send us an email anytime' },
-                  { icon: MapPin, label: 'Office', value: contact.address, description: 'Visit our headquarters' },
-                  { icon: Clock, label: 'Working Hours', value: contact.hours, description: 'Weekend support available' },
-                ].map((item, index) => (
-                  <div key={index} className="flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-primary-900 hover:bg-accent/5 dark:hover:bg-accent/10 transition-colors">
-                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
-                      <item.icon className="w-5 h-5 text-accent" />
+              {(contact.phone || contact.email || contact.address || contact.hours) && (
+                <div className="space-y-6 mb-10">
+                  {[
+                    contact.phone && { icon: Phone, label: 'Phone', value: contact.phone, description: 'Call us for immediate assistance' },
+                    contact.email && { icon: Mail, label: 'Email', value: contact.email, description: 'Send us an email anytime' },
+                    contact.address && { icon: MapPin, label: 'Office', value: contact.address, description: 'Visit our headquarters' },
+                    contact.hours && { icon: Clock, label: 'Working Hours', value: contact.hours, description: 'Weekend support available' },
+                  ].filter(Boolean).map((item: any, index: number) => (
+                    <div key={index} className="flex items-start gap-4 p-4 rounded-xl bg-gray-50 dark:bg-primary-900 hover:bg-accent/5 dark:hover:bg-accent/10 transition-colors">
+                      <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0">
+                        <item.icon className="w-5 h-5 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
+                        <p className="font-semibold text-gray-900 dark:text-white">{item.value}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.description}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">{item.value}</p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{item.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="bg-gray-50 dark:bg-primary-900 rounded-2xl p-8">
@@ -160,46 +164,44 @@ export default function ContactPage() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
-        <div className="container mx-auto max-w-3xl">
-          <div className="text-center mb-12">
-            <span className="text-accent font-semibold text-sm uppercase tracking-wider">FAQ</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-gray-900 dark:text-white">Frequently Asked Questions</h2>
+      {faq.items && faq.items.length > 0 && (
+        <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
+          <div className="container mx-auto max-w-3xl">
+            <div className="text-center mb-12">
+              <span className="text-accent font-semibold text-sm uppercase tracking-wider">FAQ</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-gray-900 dark:text-white">Frequently Asked Questions</h2>
+            </div>
+            <div className="space-y-4">
+              {faq.items.map((item: any, index: number) => (
+                <div key={index} className="bg-white dark:bg-primary-800 rounded-xl p-6 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{item.q}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">{item.a}</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-4">
-            {[
-              { q: 'How do I list a property?', a: 'To list a property, create an account and log in as a realtor. From your dashboard, click "Add Property" and fill in the details including photos, pricing, and location.' },
-              { q: 'What are the fees for using the platform?', a: 'RMS Platform is free for property seekers. Realtors and agencies can choose from our flexible subscription plans. Contact us for detailed pricing.' },
-              { q: 'How long does it take to sell a property?', a: 'The timeline varies depending on the property type, location, and pricing. Our platform provides market insights to help you price competitively and reach buyers faster.' },
-              { q: 'Is my personal information secure?', a: 'Yes, we use industry-standard encryption and security measures to protect all user data. Your privacy is our top priority.' },
-              { q: 'Can I schedule property viewings online?', a: 'Yes! Once you find a property you\'re interested in, you can request a viewing directly through the platform. The agent will confirm a convenient time.' },
-            ].map((faq, index) => (
-              <div key={index} className="bg-white dark:bg-primary-800 rounded-xl p-6 shadow-sm">
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{faq.q}</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA */}
-      <section className="py-16 px-4 bg-gradient-to-r from-primary via-primary-600 to-primary">
-        <div className="container mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">Prefer to Talk?</h2>
-          <p className="text-white/80 max-w-xl mx-auto mb-6">
-            Call us directly at <span className="text-accent font-semibold">{contact.phone}</span> or visit our office
-          </p>
-          <Link href="/properties">
-            <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent">
-              Browse Properties
-              <ArrowRight className="w-5 h-5 ml-2" />
-            </Button>
-          </Link>
-        </div>
-      </section>
+      {contact.phone && (
+        <section className="py-16 px-4 bg-gradient-to-r from-primary via-primary-600 to-primary">
+          <div className="container mx-auto text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">Prefer to Talk?</h2>
+            <p className="text-white/80 max-w-xl mx-auto mb-6">
+              Call us directly at <span className="text-accent font-semibold">{contact.phone}</span> or visit our office
+            </p>
+            <Link href="/properties">
+              <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent">
+                Browse Properties
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </section>
+      )}
 
-      <PublicFooter cmsData={cms.footer} branding={cms.branding} />
+      <PublicFooter cmsData={cms?.footer} branding={cms?.branding} />
     </div>
   );
 }

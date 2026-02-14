@@ -59,80 +59,6 @@ const PRICE_RANGES = [
   { value: '1000+', label: 'Above ₦1B', min: 1000000000, max: undefined },
 ];
 
-const DEFAULTS = {
-  hero: {
-    title: 'Search Properties',
-    titleAccent: 'with Ease',
-    subtitle: "Discover your perfect property with our comprehensive search platform. From luxury homes to commercial spaces, find exactly what you're looking for.",
-    badgeText: 'Trusted by 10,000+ Property Seekers',
-    backgroundImage: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=2075&q=80',
-    stats: [
-      { value: '200+', label: 'Premium Properties' },
-      { value: '50+', label: 'Happy Clients' },
-      { value: '10+', label: 'Years Experience' },
-    ],
-  },
-  agents: {
-    agents: [
-      { name: 'David Chen', role: 'Senior Agent', deals: '156', rating: '5', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop' },
-      { name: 'Sarah Miller', role: 'Property Expert', deals: '142', rating: '5', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop' },
-      { name: 'James Wilson', role: 'Commercial Lead', deals: '128', rating: '5', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop' },
-      { name: 'Emily Brown', role: 'Luxury Specialist', deals: '134', rating: '5', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop' },
-    ],
-  },
-  features: {
-    features: [
-      { title: 'Property Management', description: 'Navigate the housing market with expert guidance and comprehensive property listings.', image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=250&fit=crop' },
-      { title: 'Smart Search', description: 'Our intelligent search helps you find properties that match your exact requirements.', image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=400&h=250&fit=crop' },
-      { title: 'Verified Agents', description: 'Connect with verified sellers and agents for seamless property transactions.', image: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=400&h=250&fit=crop' },
-    ],
-  },
-  platform_features: {
-    features: [
-      { icon: 'Users', title: 'Realtor Management', description: 'Track performance, commissions, and rankings for all your realtors' },
-      { icon: 'Building2', title: 'Property Portfolio', description: 'Manage listings, track appreciation, and handle offers seamlessly' },
-      { icon: 'TrendingUp', title: 'Sales Analytics', description: 'Real-time dashboards with comprehensive sales insights' },
-      { icon: 'Award', title: 'Loyalty System', description: 'Gamified rewards with tier-based benefits and achievements' },
-      { icon: 'BarChart3', title: 'Commission Engine', description: 'Automated commission calculation with tax reporting' },
-      { icon: 'MessageSquare', title: 'Real-time Chat', description: 'Built-in messaging between admins, realtors, and clients' },
-      { icon: 'Shield', title: 'Role-Based Access', description: 'Secure access control for all user types' },
-      { icon: 'Zap', title: 'AI Insights', description: 'Property price prediction and market trend analysis' },
-    ],
-  },
-  about: {
-    title: 'The Most Trusted Real Estate Platform',
-    subtitle: 'About Us',
-    content: "<p>We've been helping people find their dream properties for over a decade. Our platform combines cutting-edge technology with experienced professionals to deliver exceptional results.</p>",
-    image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=1073&q=80',
-    items: [
-      { text: 'Verified property listings with detailed information' },
-      { text: 'Expert agents available 24/7 for assistance' },
-      { text: 'Secure transactions with full transparency' },
-      { text: 'AI-powered property recommendations' },
-    ],
-  },
-  stats: {
-    stats: [
-      { value: '10K+', label: 'Properties Managed' },
-      { value: '₦500B+', label: 'Total Sales Volume' },
-      { value: '2,500+', label: 'Active Realtors' },
-      { value: '99.9%', label: 'Client Satisfaction' },
-    ],
-  },
-  cta: {
-    title: 'Ready to Find Your Dream Property?',
-    subtitle: 'Join thousands of satisfied clients who found their perfect property with RMS Platform',
-    primaryButtonText: 'Start Your Search',
-    secondaryButtonText: 'Contact Us',
-  },
-  contact: {
-    phone: '+234 800 123 4567',
-    email: 'hello@rmsplatform.com',
-    address: 'Lagos, Nigeria',
-    hours: 'Mon - Fri: 9AM - 6PM',
-  },
-};
-
 const ICON_MAP: Record<string, any> = {
   Users, Building2, TrendingUp, Award, BarChart3, MessageSquare, Shield, Zap, Star, Search,
 };
@@ -163,7 +89,8 @@ export default function HomePage() {
   const [totalCount, setTotalCount] = useState(0);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showPriceDropdown, setShowPriceDropdown] = useState(false);
-  const [cms, setCms] = useState<Record<string, any>>({});
+  const [cms, setCms] = useState<Record<string, any> | null>(null);
+  const [cmsLoading, setCmsLoading] = useState(true);
 
   // Fetch CMS content
   useEffect(() => {
@@ -173,17 +100,18 @@ export default function HomePage() {
         const data = raw?.data || raw;
         if (data && typeof data === 'object') setCms(data);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setCmsLoading(false));
   }, []);
 
-  const hero = { ...DEFAULTS.hero, ...cms.hero };
-  const agents = { ...DEFAULTS.agents, ...cms.agents };
-  const features = { ...DEFAULTS.features, ...cms.features };
-  const platformFeatures = { ...DEFAULTS.platform_features, ...cms.platform_features };
-  const about = { ...DEFAULTS.about, ...cms.about };
-  const stats = { ...DEFAULTS.stats, ...cms.stats };
-  const cta = { ...DEFAULTS.cta, ...cms.cta };
-  const contact = { ...DEFAULTS.contact, ...cms.contact };
+  const hero = cms?.hero || {};
+  const agents = cms?.agents || {};
+  const features = cms?.features || {};
+  const platformFeatures = cms?.platform_features || {};
+  const about = cms?.about || {};
+  const stats = cms?.stats || {};
+  const cta = cms?.cta || {};
+  const contact = cms?.contact || {};
 
   const fetchProperties = useCallback(async (currentPage = 1) => {
     setLoading(true);
@@ -233,22 +161,36 @@ export default function HomePage() {
   const selectedTypeLabel = PROPERTY_TYPES.find(t => t.value === propertyType)?.label || 'All Types';
   const selectedPriceLabel = PRICE_RANGES.find(r => r.value === priceRange)?.label || 'Any Price';
 
-  const heroImage = hero.backgroundImage?.startsWith('http') ? hero.backgroundImage : getImageUrl(hero.backgroundImage);
+  const heroImage = hero.backgroundImage
+    ? (hero.backgroundImage.startsWith('http') ? hero.backgroundImage : getImageUrl(hero.backgroundImage))
+    : '';
+
+  if (cmsLoading) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-primary-950 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-primary-950">
-      <PublicNavbar currentPage="/" branding={cms.branding} />
+      <PublicNavbar currentPage="/" branding={cms?.branding} />
 
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center">
         <div className="absolute inset-0">
-          <Image
-            src={heroImage}
-            alt="Modern luxury home"
-            fill
-            className="object-cover"
-            priority
-          />
+          {heroImage ? (
+            <Image
+              src={heroImage}
+              alt="Hero background"
+              fill
+              className="object-cover"
+              priority
+            />
+          ) : (
+            <div className="w-full h-full bg-primary" />
+          )}
           <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/85 to-primary/70" />
           <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
         </div>
@@ -262,18 +204,22 @@ export default function HomePage() {
               </div>
             )}
 
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
-              {hero.title}
-              {hero.titleAccent && (
-                <>
-                  <br />
-                  <span className="text-accent">{hero.titleAccent}</span>
-                </>
-              )}
-            </h1>
-            <p className="text-lg text-white/80 mb-10 max-w-xl">
-              {hero.subtitle}
-            </p>
+            {hero.title && (
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
+                {hero.title}
+                {hero.titleAccent && (
+                  <>
+                    <br />
+                    <span className="text-accent">{hero.titleAccent}</span>
+                  </>
+                )}
+              </h1>
+            )}
+            {hero.subtitle && (
+              <p className="text-lg text-white/80 mb-10 max-w-xl">
+                {hero.subtitle}
+              </p>
+            )}
 
             {/* Search Bar */}
             <div className="bg-white rounded-2xl p-2 shadow-2xl max-w-2xl">
@@ -494,272 +440,294 @@ export default function HomePage() {
       </section>
 
       {/* Featured Agents Section */}
-      <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
-        <div className="container mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
-            <div>
-              <span className="text-accent font-semibold text-sm uppercase tracking-wider">Our Team</span>
-              <h2 className="text-3xl md:text-4xl font-bold mt-2 text-gray-900 dark:text-white">
-                Meet Our Top Realtors
-              </h2>
-            </div>
-            <Link href="/auth/register" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group">
-              View All Agents
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {(agents.agents || []).map((agent: any, index: number) => (
-              <div key={index} className="bg-white dark:bg-primary-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="relative">
-                    <Image
-                      src={agent.image?.startsWith('http') ? agent.image : getImageUrl(agent.image || '')}
-                      alt={agent.name}
-                      width={60}
-                      height={60}
-                      className="rounded-full object-cover"
-                    />
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-accent transition-colors">{agent.name}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{agent.role}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-primary-700">
-                  <div className="flex items-center gap-1">
-                    {[...Array(Number(agent.rating) || 5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-accent text-accent" />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">{agent.deals} deals</span>
-                </div>
+      {agents.agents && agents.agents.length > 0 && (
+        <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
+          <div className="container mx-auto">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">
+              <div>
+                <span className="text-accent font-semibold text-sm uppercase tracking-wider">Our Team</span>
+                <h2 className="text-3xl md:text-4xl font-bold mt-2 text-gray-900 dark:text-white">
+                  Meet Our Top Realtors
+                </h2>
               </div>
-            ))}
+              <Link href="/auth/register" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group">
+                View All Agents
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {agents.agents.map((agent: any, index: number) => (
+                <div key={index} className="bg-white dark:bg-primary-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="relative">
+                      <Image
+                        src={agent.image?.startsWith('http') ? agent.image : getImageUrl(agent.image || '')}
+                        alt={agent.name}
+                        width={60}
+                        height={60}
+                        className="rounded-full object-cover"
+                      />
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full border-2 border-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white group-hover:text-accent transition-colors">{agent.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">{agent.role}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-primary-700">
+                    <div className="flex items-center gap-1">
+                      {[...Array(Number(agent.rating) || 5)].map((_, i) => (
+                        <Star key={i} className="w-4 h-4 fill-accent text-accent" />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{agent.deals} deals</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 bg-white dark:bg-primary-950">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-accent font-semibold text-sm uppercase tracking-wider">Why Choose Us</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-gray-900 dark:text-white">
-              Search Properties with Ease
-            </h2>
-            <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-4">
-              Powerful features designed for modern real estate professionals and property seekers
-            </p>
-            <Link href="/features" className="text-accent hover:text-accent-600 font-medium inline-flex items-center gap-2 group">
-              View All Features
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </Link>
-          </div>
+      {features.features && features.features.length > 0 && (
+        <section id="features" className="py-20 px-4 bg-white dark:bg-primary-950">
+          <div className="container mx-auto">
+            <div className="text-center mb-16">
+              <span className="text-accent font-semibold text-sm uppercase tracking-wider">Why Choose Us</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-gray-900 dark:text-white">
+                Search Properties with Ease
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-4">
+                Powerful features designed for modern real estate professionals and property seekers
+              </p>
+              <Link href="/features" className="text-accent hover:text-accent-600 font-medium inline-flex items-center gap-2 group">
+                View All Features
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {(features.features || []).map((feature: any, index: number) => (
-              <div key={index} className="group bg-white dark:bg-primary-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-primary-800">
-                <div className="relative h-48 overflow-hidden">
-                  <Image
-                    src={feature.image?.startsWith('http') ? feature.image : getImageUrl(feature.image || '')}
-                    alt={feature.title}
-                    fill
-                    className="object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {features.features.map((feature: any, index: number) => (
+                <div key={index} className="group bg-white dark:bg-primary-900 rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-primary-800">
+                  {feature.image && (
+                    <div className="relative h-48 overflow-hidden">
+                      <Image
+                        src={feature.image?.startsWith('http') ? feature.image : getImageUrl(feature.image || '')}
+                        alt={feature.title}
+                        fill
+                        className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    </div>
+                  )}
+                  <div className="p-6">
+                    <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white group-hover:text-accent transition-colors">{feature.title}</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">{feature.description}</p>
+                    <Link href="/properties" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group/link">
+                      Browse Properties
+                      <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
+                    </Link>
+                  </div>
                 </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white group-hover:text-accent transition-colors">{feature.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">{feature.description}</p>
-                  <Link href="/properties" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group/link">
-                    Browse Properties
-                    <ArrowRight className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Platform Features */}
-      <section className="py-20 px-4 bg-primary dark:bg-primary-900">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <span className="text-accent font-semibold text-sm uppercase tracking-wider">Platform Features</span>
-            <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-white">Everything You Need to Succeed</h2>
-            <p className="text-lg text-white/70 max-w-2xl mx-auto">Comprehensive tools for managing your real estate business</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {(platformFeatures.features || []).map((feature: any, index: number) => {
-              const FeatureIcon = ICON_MAP[feature.icon] || Zap;
-              return (
-                <div key={index} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 group">
-                  <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4 group-hover:bg-accent group-hover:scale-110 transition-all">
-                    <FeatureIcon className="w-6 h-6 text-accent group-hover:text-white transition-colors" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2 text-white">{feature.title}</h3>
-                  <p className="text-white/70 text-sm">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-20 px-4 bg-white dark:bg-primary-950">
-        <div className="container mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="relative">
-              <div className="relative h-[500px] rounded-2xl overflow-hidden">
-                <Image
-                  src={about.image?.startsWith('http') ? about.image : getImageUrl(about.image || '')}
-                  alt="Modern building"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-              <div className="absolute -bottom-6 -right-6 bg-accent text-white p-6 rounded-2xl shadow-accent">
-                <div className="text-4xl font-bold">10+</div>
-                <div className="text-white/90">Years of Excellence</div>
-              </div>
+      {platformFeatures.features && platformFeatures.features.length > 0 && (
+        <section className="py-20 px-4 bg-primary dark:bg-primary-900">
+          <div className="container mx-auto">
+            <div className="text-center mb-16">
+              <span className="text-accent font-semibold text-sm uppercase tracking-wider">Platform Features</span>
+              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-white">Everything You Need to Succeed</h2>
+              <p className="text-lg text-white/70 max-w-2xl mx-auto">Comprehensive tools for managing your real estate business</p>
             </div>
-            <div>
-              <span className="text-accent font-semibold text-sm uppercase tracking-wider">{about.subtitle || 'About Us'}</span>
-              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6 text-gray-900 dark:text-white">{about.title}</h2>
-              <div className="text-gray-600 dark:text-gray-400 mb-8 prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: about.content || '' }} />
-              <div className="space-y-4">
-                {(about.items || []).map((item: any, index: number) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-accent flex-shrink-0" />
-                    <span className="text-gray-700 dark:text-gray-300">{item.text}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 flex items-center gap-4">
-                <Link href="/auth/register">
-                  <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent">
-                    Get Started Today
-                    <ArrowRight className="w-5 h-5 ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/about" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group">
-                  Learn More
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Stats Section */}
-      <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
-        <div className="container mx-auto">
-          <div className="bg-white dark:bg-primary-800 rounded-3xl p-8 md:p-12 shadow-xl">
-            <div className="grid md:grid-cols-4 gap-8 text-center">
-              {(stats.stats || []).map((stat: any, index: number) => {
-                const StatIcon = ICON_MAP[stat.icon] || [Building2, TrendingUp, Users, Star][index % 4];
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {platformFeatures.features.map((feature: any, index: number) => {
+                const FeatureIcon = ICON_MAP[feature.icon] || Zap;
                 return (
-                  <div key={index} className="group">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/10 flex items-center justify-center group-hover:bg-accent group-hover:scale-110 transition-all">
-                      <StatIcon className="w-8 h-8 text-accent group-hover:text-white transition-colors" />
+                  <div key={index} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-6 hover:bg-white/15 transition-all duration-300 group">
+                    <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4 group-hover:bg-accent group-hover:scale-110 transition-all">
+                      <FeatureIcon className="w-6 h-6 text-accent group-hover:text-white transition-colors" />
                     </div>
-                    <div className="text-3xl md:text-4xl font-bold text-primary dark:text-white mb-2">{stat.value}</div>
-                    <div className="text-gray-600 dark:text-gray-400">{stat.label}</div>
+                    <h3 className="text-lg font-semibold mb-2 text-white">{feature.title}</h3>
+                    <p className="text-white/70 text-sm">{feature.description}</p>
                   </div>
                 );
               })}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* CTA Section */}
-      <section className="py-20 px-4 bg-gradient-to-r from-primary via-primary-600 to-primary">
-        <div className="container mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">{cta.title}</h2>
-          <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">{cta.subtitle}</p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register">
-              <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent text-lg px-8">
-                {cta.primaryButtonText || 'Start Your Search'}
-              </Button>
-            </Link>
-            <Link href="/contact">
-              <Button size="lg" variant="outline" className="text-white border-white/40 hover:bg-white/10 text-lg px-8">
-                {cta.secondaryButtonText || 'Contact Us'}
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-20 px-4 bg-white dark:bg-primary-950">
-        <div className="container mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12">
-            <div>
-              <span className="text-accent font-semibold text-sm uppercase tracking-wider">Get In Touch</span>
-              <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6 text-gray-900 dark:text-white">Contact Us</h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-8">
-                Have questions? We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as possible.
-              </p>
-              <div className="space-y-6">
-                {[
-                  { icon: Phone, label: 'Phone', value: contact.phone },
-                  { icon: Mail, label: 'Email', value: contact.email },
-                  { icon: MapPin, label: 'Address', value: contact.address },
-                  { icon: Clock, label: 'Working Hours', value: contact.hours },
-                ].map((item, index) => (
-                  <div key={index} className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
-                      <item.icon className="w-5 h-5 text-accent" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
-                      <p className="font-medium text-gray-900 dark:text-white">{item.value}</p>
-                    </div>
+      {/* About Section */}
+      {(about.title || about.content) && (
+        <section id="about" className="py-20 px-4 bg-white dark:bg-primary-950">
+          <div className="container mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 items-center">
+              <div className="relative">
+                <div className="relative h-[500px] rounded-2xl overflow-hidden">
+                  {about.image ? (
+                    <Image
+                      src={about.image?.startsWith('http') ? about.image : getImageUrl(about.image)}
+                      alt="About us"
+                      fill
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20" />
+                  )}
+                </div>
+              </div>
+              <div>
+                <span className="text-accent font-semibold text-sm uppercase tracking-wider">{about.subtitle || 'About Us'}</span>
+                {about.title && (
+                  <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6 text-gray-900 dark:text-white">{about.title}</h2>
+                )}
+                {about.content && (
+                  <div className="text-gray-600 dark:text-gray-400 mb-8 prose prose-sm dark:prose-invert" dangerouslySetInnerHTML={{ __html: about.content }} />
+                )}
+                {about.items && about.items.length > 0 && (
+                  <div className="space-y-4">
+                    {about.items.map((item: any, index: number) => (
+                      <div key={index} className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-accent flex-shrink-0" />
+                        <span className="text-gray-700 dark:text-gray-300">{item.text}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+                <div className="mt-8 flex items-center gap-4">
+                  <Link href="/auth/register">
+                    <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent">
+                      Get Started Today
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
+                  <Link href="/about" className="text-accent hover:text-accent-600 font-medium flex items-center gap-2 group">
+                    Learn More
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
               </div>
             </div>
-            <div className="bg-gray-50 dark:bg-primary-900 rounded-2xl p-8">
-              <form className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
-                    <input type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="John" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
-                    <input type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="Doe" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
-                  <input type="email" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="john@example.com" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Message</label>
-                  <textarea rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all resize-none" placeholder="Your message..." />
-                </div>
-                <Button type="button" className="w-full bg-accent hover:bg-accent-600 text-white shadow-accent py-6">
-                  Send Message
-                  <ArrowRight className="w-5 h-5 ml-2" />
-                </Button>
-              </form>
+          </div>
+        </section>
+      )}
+
+      {/* Stats Section */}
+      {stats.stats && stats.stats.length > 0 && (
+        <section className="py-20 px-4 bg-gray-50 dark:bg-primary-900">
+          <div className="container mx-auto">
+            <div className="bg-white dark:bg-primary-800 rounded-3xl p-8 md:p-12 shadow-xl">
+              <div className="grid md:grid-cols-4 gap-8 text-center">
+                {stats.stats.map((stat: any, index: number) => {
+                  const StatIcon = ICON_MAP[stat.icon] || [Building2, TrendingUp, Users, Star][index % 4];
+                  return (
+                    <div key={index} className="group">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-accent/10 flex items-center justify-center group-hover:bg-accent group-hover:scale-110 transition-all">
+                        <StatIcon className="w-8 h-8 text-accent group-hover:text-white transition-colors" />
+                      </div>
+                      <div className="text-3xl md:text-4xl font-bold text-primary dark:text-white mb-2">{stat.value}</div>
+                      <div className="text-gray-600 dark:text-gray-400">{stat.label}</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      <PublicFooter cmsData={cms.footer} branding={cms.branding} />
+      {/* CTA Section */}
+      {(cta.title || cta.subtitle) && (
+        <section className="py-20 px-4 bg-gradient-to-r from-primary via-primary-600 to-primary">
+          <div className="container mx-auto text-center">
+            {cta.title && <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">{cta.title}</h2>}
+            {cta.subtitle && <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">{cta.subtitle}</p>}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link href="/auth/register">
+                <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent text-lg px-8">
+                  {cta.primaryButtonText || 'Get Started'}
+                </Button>
+              </Link>
+              <Link href="/contact">
+                <Button size="lg" variant="outline" className="text-white border-white/40 hover:bg-white/10 text-lg px-8">
+                  {cta.secondaryButtonText || 'Contact Us'}
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Contact Section */}
+      {(contact.phone || contact.email || contact.address) && (
+        <section id="contact" className="py-20 px-4 bg-white dark:bg-primary-950">
+          <div className="container mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12">
+              <div>
+                <span className="text-accent font-semibold text-sm uppercase tracking-wider">Get In Touch</span>
+                <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-6 text-gray-900 dark:text-white">Contact Us</h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-8">
+                  Have questions? We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as possible.
+                </p>
+                <div className="space-y-6">
+                  {[
+                    contact.phone && { icon: Phone, label: 'Phone', value: contact.phone },
+                    contact.email && { icon: Mail, label: 'Email', value: contact.email },
+                    contact.address && { icon: MapPin, label: 'Address', value: contact.address },
+                    contact.hours && { icon: Clock, label: 'Working Hours', value: contact.hours },
+                  ].filter(Boolean).map((item: any, index: number) => (
+                    <div key={index} className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
+                        <item.icon className="w-5 h-5 text-accent" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{item.label}</p>
+                        <p className="font-medium text-gray-900 dark:text-white">{item.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-gray-50 dark:bg-primary-900 rounded-2xl p-8">
+                <form className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name</label>
+                      <input type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="John" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Last Name</label>
+                      <input type="text" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="Doe" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
+                    <input type="email" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all" placeholder="john@example.com" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Message</label>
+                    <textarea rows={4} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-primary-700 bg-white dark:bg-primary-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-accent focus:border-transparent outline-none transition-all resize-none" placeholder="Your message..." />
+                  </div>
+                  <Button type="button" className="w-full bg-accent hover:bg-accent-600 text-white shadow-accent py-6">
+                    Send Message
+                    <ArrowRight className="w-5 h-5 ml-2" />
+                  </Button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      <PublicFooter cmsData={cms?.footer} branding={cms?.branding} />
     </div>
   );
 }

@@ -9,19 +9,6 @@ import type { BrandingData } from './public-navbar';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-const DEFAULT_FOOTER = {
-  description: 'Your trusted partner in finding the perfect property. We make real estate simple.',
-  quickLinks: [
-    { label: 'Home', href: '/' },
-    { label: 'Properties', href: '/properties' },
-    { label: 'Features', href: '/features' },
-    { label: 'Gallery', href: '/gallery' },
-    { label: 'About Us', href: '/about' },
-    { label: 'Contact', href: '/contact' },
-  ],
-  services: ['Buy Property', 'Sell Property', 'Rent Property', 'Property Management', 'Consultation'],
-};
-
 interface FooterData {
   description?: string;
   quickLinks?: { label: string; href: string }[];
@@ -29,7 +16,6 @@ interface FooterData {
 }
 
 export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: FooterData; branding?: BrandingData }) {
-  const data = { ...DEFAULT_FOOTER, ...cmsData };
   const [branding, setBranding] = useState<BrandingData>(brandingProp || {});
 
   useEffect(() => {
@@ -48,6 +34,9 @@ export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: Fo
 
   const companyName = branding.companyName || 'RMS Platform';
   const logoUrl = branding.logo ? (branding.logo.startsWith('http') ? branding.logo : getImageUrl(branding.logo)) : '';
+  const description = cmsData?.description || '';
+  const quickLinks = cmsData?.quickLinks || [];
+  const services = cmsData?.services || [];
 
   return (
     <footer className="py-12 px-4 bg-primary dark:bg-primary-950 border-t border-primary-600">
@@ -64,32 +53,36 @@ export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: Fo
               )}
               <span className="text-xl font-bold text-white">{companyName}</span>
             </div>
-            <p className="text-white/70 text-sm">{data.description}</p>
+            {description && <p className="text-white/70 text-sm">{description}</p>}
           </div>
-          <div>
-            <h4 className="font-semibold text-white mb-4">Quick Links</h4>
-            <ul className="space-y-2">
-              {data.quickLinks.map((link) => (
-                <li key={link.label}>
-                  <Link href={link.href} className="text-white/70 hover:text-accent transition-colors text-sm">
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold text-white mb-4">Services</h4>
-            <ul className="space-y-2">
-              {data.services.map((service) => (
-                <li key={service}>
-                  <Link href="#" className="text-white/70 hover:text-accent transition-colors text-sm">
-                    {service}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {quickLinks.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-white mb-4">Quick Links</h4>
+              <ul className="space-y-2">
+                {quickLinks.map((link) => (
+                  <li key={link.label}>
+                    <Link href={link.href} className="text-white/70 hover:text-accent transition-colors text-sm">
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {services.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-white mb-4">Services</h4>
+              <ul className="space-y-2">
+                {services.map((service) => (
+                  <li key={service}>
+                    <Link href="#" className="text-white/70 hover:text-accent transition-colors text-sm">
+                      {service}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div>
             <h4 className="font-semibold text-white mb-4">Newsletter</h4>
             <p className="text-white/70 text-sm mb-4">Subscribe to get updates on new properties and offers.</p>
