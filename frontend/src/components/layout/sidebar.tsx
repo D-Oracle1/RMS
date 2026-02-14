@@ -69,6 +69,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'CMS', href: '/dashboard/admin/cms', icon: FileEdit },
     { name: 'Gallery', href: '/dashboard/admin/gallery', icon: ImageIcon },
     { name: 'Audit Logs', href: '/dashboard/admin/audit', icon: FileText },
+    { name: 'Channels', href: '/dashboard/admin/channels', icon: Hash },
     { name: 'Chat', href: '/dashboard/admin/chat', icon: MessageSquare },
     { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
   ],

@@ -21,6 +21,17 @@ import { MessageType } from '@prisma/client';
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
+  @Get('users')
+  @ApiOperation({ summary: 'Search users for chat' })
+  @ApiQuery({ name: 'search', required: true, type: String })
+  @ApiResponse({ status: 200, description: 'List of users matching search' })
+  async searchUsers(
+    @CurrentUser('id') userId: string,
+    @Query('search') search: string,
+  ) {
+    return this.chatService.searchUsers(userId, search);
+  }
+
   @Get('rooms')
   @ApiOperation({ summary: 'Get user chat rooms' })
   @ApiResponse({ status: 200, description: 'List of chat rooms' })

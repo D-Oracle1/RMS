@@ -151,18 +151,11 @@ export default function ChatPage() {
     if (!query.trim()) { setNewChatUsers([]); return; }
     setSearchingUsers(true);
     try {
-      const res = await api.get<any>(`/admin/users?search=${encodeURIComponent(query)}&limit=20`);
+      const res = await api.get<any>(`/chat/users?search=${encodeURIComponent(query)}`);
       const users = res?.data || res || [];
       setNewChatUsers(Array.isArray(users) ? users.filter((u: any) => u.id !== currentUser?.id) : []);
     } catch {
-      try {
-        // Fallback: try staff directory
-        const res = await api.get<any>(`/staff/directory?search=${encodeURIComponent(query)}`);
-        const users = res?.data || res || [];
-        setNewChatUsers(Array.isArray(users) ? users.filter((u: any) => u.id !== currentUser?.id) : []);
-      } catch {
-        setNewChatUsers([]);
-      }
+      setNewChatUsers([]);
     } finally {
       setSearchingUsers(false);
     }

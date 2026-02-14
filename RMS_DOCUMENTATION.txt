@@ -1,0 +1,1082 @@
+================================================================================
+ RMS PLATFORM - COMPREHENSIVE SOFTWARE DOCUMENTATION
+ Realtors Management System - Enterprise PropTech Platform
+ Generated: February 13, 2026
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1.  EXECUTIVE SUMMARY
+2.  ARCHITECTURE OVERVIEW
+3.  TECH STACK
+4.  DATABASE SCHEMA
+5.  BACKEND MODULES (Implemented)
+6.  FRONTEND PAGES & FEATURES (Implemented)
+7.  REAL-TIME FEATURES
+8.  SECURITY & AUTH
+9.  DEPLOYMENT
+10. WHAT NEEDS TO BE IMPLEMENTED / GAPS
+11. MODULE-BY-MODULE STATUS MATRIX
+
+================================================================================
+1. EXECUTIVE SUMMARY
+================================================================================
+
+RMS (Realtors Management System) is an enterprise-grade, multi-tenant PropTech
+platform designed for real estate companies in Nigeria. It provides end-to-end
+management for realtors, clients, properties, sales, commissions, HR, and more.
+
+Key Statistics:
+  - 22+ backend modules
+  - 150+ API endpoints
+  - 73 frontend pages across 6 route groups
+  - 5 user roles (SUPER_ADMIN, ADMIN, REALTOR, CLIENT, STAFF)
+  - Multi-tenant architecture with isolated databases per company
+  - Real-time features via Pusher WebSockets
+  - PWA-enabled with offline support
+  - Deployed on Vercel (frontend + backend serverless)
+
+================================================================================
+2. ARCHITECTURE OVERVIEW
+================================================================================
+
+Multi-Tenant Architecture:
+  - Master Database: Stores company/tenant records and super admin accounts
+  - Tenant Database: Each company gets an isolated PostgreSQL database
+  - MongoDB: Used for real-time chat messages
+  - Redis: Caching layer and job queue (BullMQ)
+
+Request Flow:
+  1. TenantMiddleware -> Resolve company from domain/invite code
+  2. Global Pipes -> Validate DTOs, transform data
+  3. Route Guards -> JWT auth, role check, permission check
+  4. Route Handler -> Business logic
+  5. Interceptors -> Logging, audit, response transformation
+  6. Global Filter -> Error handling
+  7. Response -> Standardized JSON: { success, data, meta?, timestamp }
+
+Monorepo Structure:
+  /backend    - NestJS API (TypeScript)
+  /frontend   - Next.js 16 App Router (React 19, TypeScript)
+  /shared     - Shared types/configs
+  /docker     - Docker Compose files (dev & prod)
+
+================================================================================
+3. TECH STACK
+================================================================================
+
+BACKEND:
+  - Framework: NestJS 10 (TypeScript)
+  - Database: PostgreSQL 16 (via Prisma ORM v5.22)
+  - Chat DB: MongoDB
+  - Cache: Redis 7
+  - Auth: Passport.js + JWT + bcrypt
+  - Queue: BullMQ (email jobs)
+  - Real-time: Pusher
+  - Email: Nodemailer (SMTP)
+  - SMS: Twilio
+  - Push: Firebase Cloud Messaging (FCM)
+  - Storage: AWS S3
+  - AI: OpenAI
+  - API Docs: Swagger/OpenAPI
+
+FRONTEND:
+  - Framework: Next.js 16 (App Router)
+  - UI: React 19, Tailwind CSS, Radix UI primitives
+  - State: React Query (@tanstack/react-query)
+  - Charts: Recharts
+  - Rich Text: TipTap Editor
+  - Animations: Framer Motion
+  - Toasts: Sonner
+  - PDF: jsPDF + html2canvas
+  - Calls: WebRTC + Pusher signaling
+  - PWA: next-pwa with Workbox
+
+================================================================================
+4. DATABASE SCHEMA
+================================================================================
+
+MASTER DATABASE (master.prisma):
+  - Company: id, name, slug, domain, databaseUrl, logo, primaryColor,
+             inviteCode, isActive, plan, maxUsers, createdAt, updatedAt
+  - SuperAdmin: id, email, password, firstName, lastName, phone, avatar
+
+TENANT DATABASE (schema.prisma) - Per Company:
+
+  ENUMS (25):
+    UserRole, UserStatus, PropertyType, PropertyStatus, SaleStatus,
+    CommissionStatus, LoyaltyTier, NotificationType, NotificationPriority,
+    MessageType, DocumentType, TransactionType, TransactionStatus,
+    RankingPeriod, OfferStatus, AwardType, PaymentPlan, PaymentStatus,
+    StaffPosition, EmploymentType, AttendanceStatus, LeaveType, LeaveStatus,
+    ReviewCycle, ReviewStatus, TaskPriority, TaskStatus, ChannelType,
+    PayrollStatus, ContentType, PolicyType, AllowanceType, DeductionType,
+    GalleryItemType
+
+  MODELS (37):
+    Core:
+      User, AdminProfile, RealtorProfile, ClientProfile, StaffProfile
+
+    Real Estate:
+      Property, Sale, Commission, Tax, Payment, Document, PriceHistory,
+      Offer, Transaction
+
+    Loyalty & Rankings:
+      LoyaltyPoints, Ranking, StaffRanking, ClientRanking, MonthlyAward
+
+    Communication:
+      ChatRoom, Message, Notification
+
+    Staff & HR:
+      Department, StaffPermission, Attendance, LeaveRequest,
+      PerformanceReview, PayrollRecord, StaffTask, TaskComment,
+      TeamChannel, ChannelMember, ChannelMessage, Mention,
+      MessageReaction, SharedFile
+
+    HR Policies:
+      HRPolicy, PenaltyRecord, AllowanceConfig, DeductionConfig,
+      SalaryStructure
+
+    CMS & Content:
+      CmsPage, GalleryItem
+
+    Security:
+      AuditLog, RefreshToken, PasswordResetToken, SystemSetting,
+      UserDevice
+
+================================================================================
+5. BACKEND MODULES (IMPLEMENTED)
+================================================================================
+
+----------------------------------------------------------------------
+5.1 AUTH MODULE (src/modules/auth/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  POST /auth/register         - Register user (with role + invite code)
+  POST /auth/login            - Login (dual: super admin + tenant user)
+  POST /auth/refresh          - Refresh JWT token
+  POST /auth/logout           - Logout, invalidate tokens
+  POST /auth/change-password  - Change password (requires current)
+  POST /auth/forgot-password  - Send password reset email
+  POST /auth/reset-password   - Reset password with token
+  GET  /auth/profile          - Get authenticated user profile
+  PATCH /auth/profile         - Update profile (name, phone)
+  POST /pusher/auth           - Authorize Pusher channel subscription
+
+Features:
+  - Dual authentication (SUPER_ADMIN from master DB, users from tenant DB)
+  - Password strength validation (8+ chars, upper, lower, number, special)
+  - bcrypt hashing (12 rounds)
+  - JWT access tokens (7 day expiry)
+  - UUID refresh tokens (30 day expiry, stored in DB)
+  - SHA256 hashed password reset tokens (1 hour expiry)
+  - Invite code registration (first user becomes ADMIN)
+  - Role-based profile creation on register
+
+----------------------------------------------------------------------
+5.2 USERS MODULE (src/modules/users/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET    /users        - List users (paginated, filtered)
+  GET    /users/stats  - User counts by role
+  GET    /users/:id    - Get user details
+  PUT    /users/:id    - Update user
+  PUT    /users/:id/status - Update status (ACTIVE/INACTIVE/SUSPENDED)
+  DELETE /users/:id    - Delete user (SUPER_ADMIN only)
+
+----------------------------------------------------------------------
+5.3 PROPERTY MODULE (src/modules/property/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  POST   /properties            - Create property (REALTOR/ADMIN)
+  GET    /properties            - List with advanced filters
+  GET    /properties/listed     - Public property listings (no auth)
+  GET    /properties/listed/:id - Public property detail (no auth)
+  GET    /properties/stats      - Property statistics (ADMIN)
+  GET    /properties/:id        - Property detail (auth required)
+  PUT    /properties/:id        - Update property
+  DELETE /properties/:id        - Delete property (ADMIN)
+  POST   /properties/:id/offers    - Submit offer (CLIENT)
+  POST   /properties/:id/documents - Add document (REALTOR/ADMIN)
+
+Query Filters:
+  page, limit, search, type, status, city, minPrice, maxPrice,
+  minBedrooms, isListed, realtorId, sortBy, sortOrder
+
+Property Types: RESIDENTIAL, COMMERCIAL, INDUSTRIAL, LAND, MIXED_USE,
+                APARTMENT, CONDO, TOWNHOUSE, VILLA
+
+----------------------------------------------------------------------
+5.4 SALE MODULE (src/modules/sale/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  POST  /sales                 - Record new sale (REALTOR)
+  GET   /sales                 - List sales with filters
+  GET   /sales/stats           - Sales statistics (ADMIN)
+  POST  /sales/:id/payments    - Record payment
+  GET   /sales/:id/payments    - Payment history
+  GET   /sales/:id             - Sale details
+  PATCH /sales/:id/status      - Update status (ADMIN)
+  PATCH /sales/:id/approve     - Approve pending sale (ADMIN)
+  PATCH /sales/:id/reject      - Reject pending sale (ADMIN)
+
+Features:
+  - Automatic commission calculation based on loyalty tier
+  - Automatic tax calculation
+  - Payment plan support (full or installment)
+  - Loyalty points awarded per sale
+  - Overdue payment detection service
+
+----------------------------------------------------------------------
+5.5 REALTOR MODULE (src/modules/realtor/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET /realtors              - List realtors (ADMIN)
+  GET /realtors/dashboard    - Personal dashboard (REALTOR)
+  GET /realtors/leaderboard  - Public leaderboard
+  GET /realtors/:id          - Realtor details (public)
+  GET /realtors/:id/clients  - Realtor's clients
+  GET /realtors/:id/properties - Realtor's properties
+  PUT /realtors/:id          - Update profile
+
+Dashboard Metrics:
+  - Sales count, revenue, commission (filtered by period)
+  - Tax paid, net earnings
+  - Chart data by period (daily/weekly/monthly/yearly)
+  - Loyalty tier, points, rank, achievements
+
+----------------------------------------------------------------------
+5.6 CLIENT MODULE (src/modules/client/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET  /clients                              - List clients
+  GET  /clients/dashboard                    - Personal dashboard
+  GET  /clients/:id                          - Client details
+  GET  /clients/:id/properties               - Client's properties
+  POST /clients/:id/properties/:pid/list     - List a property
+  POST /clients/:id/properties/:pid/unlist   - Unlist a property
+  GET  /clients/:id/offers                   - Offers on properties
+  POST /clients/:id/offers/:oid/respond      - Accept/reject/counter
+
+----------------------------------------------------------------------
+5.7 COMMISSION MODULE (src/modules/commission/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET  /commissions           - List commissions (ADMIN)
+  GET  /commissions/stats     - Commission statistics
+  GET  /commissions/calculate - Calculate for value + tier
+  GET  /commissions/:id       - Commission details
+  POST /commissions/:id/pay   - Mark as paid (ADMIN)
+
+Commission Rates by Loyalty Tier:
+  BRONZE   (0-4,999 pts):    3%
+  SILVER   (5,000-14,999):   3.5%
+  GOLD     (15,000-49,999):  4%
+  PLATINUM (50,000+):        5%
+
+----------------------------------------------------------------------
+5.8 TAX MODULE (src/modules/tax/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Features:
+  - Default tax rate: 15%
+  - Tax calculations per sale
+  - Tax tracking and reporting
+  - Quarterly/yearly tax summaries
+
+----------------------------------------------------------------------
+5.9 LOYALTY MODULE (src/modules/loyalty/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Features:
+  - Points per sale: 100 (configurable)
+  - Tier progression: BRONZE -> SILVER -> GOLD -> PLATINUM
+  - Tier benefits: higher commission rates, badges, recognition
+  - Leaderboard generation
+  - Points history tracking
+
+----------------------------------------------------------------------
+5.10 RANKING MODULE (src/modules/ranking/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Services:
+  - RankingService - Realtor rankings by sales
+  - StaffRankingService - Staff performance rankings
+  - ClientRankingService - Client loyalty rankings
+
+Periods: WEEKLY, MONTHLY, QUARTERLY, YEARLY, ALL_TIME
+
+----------------------------------------------------------------------
+5.11 STAFF MODULE (src/modules/staff/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  POST   /staff                    - Create staff (ADMIN)
+  GET    /staff                    - List staff
+  GET    /staff/dashboard          - Personal dashboard (STAFF)
+  GET    /staff/:id                - Get staff details
+  PUT    /staff/:id                - Update staff
+  DELETE /staff/:id                - Deactivate staff
+  GET    /staff/:id/direct-reports - Direct reports
+  GET    /staff/:id/team           - Full hierarchy
+  PUT    /staff/:id/manager        - Assign manager
+  GET    /staff/:id/permissions    - Get permissions
+  POST   /staff/:id/permissions    - Assign permission
+  DELETE /staff/:id/permissions/:pid - Remove permission
+
+Permission Model:
+  Resources: sales, properties, clients, staff, reports
+  Actions: create, read, update, delete, manage (wildcard)
+
+----------------------------------------------------------------------
+5.12 HR MODULE (src/modules/hr/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Sub-modules (6):
+  1. Attendance Service  - Clock in/out, tracking, reporting
+  2. Leave Service       - Request/approve/reject, balance tracking
+  3. Performance Service - Reviews, ratings, feedback
+  4. Payroll Service     - Salary calculation, payslips
+  5. Policy Service      - HR policies, penalty system
+  6. Salary Config       - Grade setup, allowances, deductions
+
+----------------------------------------------------------------------
+5.13 DEPARTMENT MODULE (src/modules/department/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Features:
+  - CRUD for departments
+  - Department hierarchy (parent/child)
+  - Department head assignment
+  - Staff assignment to departments
+
+----------------------------------------------------------------------
+5.14 TASKS MODULE (src/modules/tasks/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Features:
+  - Task CRUD
+  - Assignment to staff
+  - Priority levels: LOW, MEDIUM, HIGH, URGENT
+  - Status: TODO, IN_PROGRESS, IN_REVIEW, COMPLETED, BLOCKED
+  - Due date tracking
+  - Task comments
+  - Email notification on assignment
+
+----------------------------------------------------------------------
+5.15 NOTIFICATION MODULE (src/modules/notification/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET    /notifications            - Get user notifications
+  GET    /notifications/unread-count - Unread count
+  POST   /notifications/:id/read   - Mark as read
+  POST   /notifications/read-all   - Mark all as read
+  DELETE /notifications/:id        - Delete notification
+  GET    /notifications/callout/staff - Get active staff
+  POST   /notifications/callout    - Send callout
+  POST   /notifications/callout/:id/respond - Respond to callout
+
+Notification Types (20):
+  SALE, COMMISSION, PROPERTY, RANKING, LOYALTY, SYSTEM, CHAT,
+  PRICE_CHANGE, LISTING, OFFER, AWARD, LEAVE_REQUEST, LEAVE_APPROVED,
+  LEAVE_REJECTED, TASK_ASSIGNED, TASK_COMPLETED, REVIEW_SCHEDULED,
+  REVIEW_COMPLETED, MENTION, CHANNEL_INVITE, PAYROLL_PROCESSED,
+  CALLOUT, CALLOUT_RESPONSE
+
+----------------------------------------------------------------------
+5.16 CHAT MODULE (src/modules/chat/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET    /chat/rooms              - Get user's chat rooms
+  POST   /chat/rooms              - Create room (DIRECT or GROUP)
+  GET    /chat/rooms/:id          - Room details
+  GET    /chat/rooms/:id/messages - Message history (paginated)
+  POST   /chat/rooms/:id/messages - Send message
+  POST   /chat/rooms/:id/read    - Mark room as read
+  POST   /chat/rooms/:id/participants   - Add participants
+  DELETE /chat/rooms/:id/participants/:pid - Remove participant
+  DELETE /chat/rooms/:id          - Delete room
+
+Message Types: TEXT, IMAGE, FILE, PROPERTY, SYSTEM
+Database: MongoDB (separate from PostgreSQL)
+
+----------------------------------------------------------------------
+5.17 CMS MODULE (src/modules/cms/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Public Endpoints (no auth):
+  GET /cms/public            - All public content
+  GET /cms/public/:key       - Get section by key
+  GET /cms/public/pages      - Published pages
+  GET /cms/public/pages/:slug - Page by slug
+
+Admin Endpoints:
+  GET    /cms/sections       - All sections
+  GET    /cms/sections/:key  - Get section
+  PUT    /cms/sections/:key  - Create/update section
+  GET    /cms/pages          - All pages
+  POST   /cms/pages          - Create page
+  PUT    /cms/pages/:id      - Update page
+  DELETE /cms/pages/:id      - Delete page
+  PATCH  /cms/pages/:id/publish   - Publish page
+  PATCH  /cms/pages/:id/unpublish - Unpublish page
+
+Content Types: PAGE, BLOG_POST, ANNOUNCEMENT, FAQ
+
+----------------------------------------------------------------------
+5.18 GALLERY MODULE (src/modules/gallery/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Public:
+  GET /gallery/public - Published gallery items
+
+Admin:
+  GET    /gallery                  - All items
+  POST   /gallery                  - Create item
+  PUT    /gallery/reorder          - Bulk reorder
+  PUT    /gallery/:id              - Update item
+  PATCH  /gallery/:id/toggle-publish - Toggle publish
+  DELETE /gallery/:id              - Delete item
+
+----------------------------------------------------------------------
+5.19 UPLOAD MODULE (src/modules/upload/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  POST   /upload/avatar          - Upload avatar (5MB, images)
+  DELETE /upload/avatar          - Delete avatar
+  POST   /upload/property-images - Upload property images (10 files, 10MB each)
+  POST   /upload/gallery-images  - Upload gallery images (20 files, 10MB each)
+  POST   /upload/gallery-videos  - Upload gallery videos (5 files, 100MB each)
+  POST   /upload/cms-images      - Upload CMS images (5 files, 10MB each)
+
+Storage: AWS S3
+
+----------------------------------------------------------------------
+5.20 ADMIN MODULE (src/modules/admin/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET /admin/dashboard    - Dashboard stats by period
+  GET /admin/realtors     - Realtor monitoring with filters
+  GET /admin/realtors/:id - Realtor drill-down
+  GET /admin/sales-feed   - Recent sales
+  GET /admin/analytics    - Performance analytics
+
+----------------------------------------------------------------------
+5.21 ANALYTICS MODULE (src/modules/analytics/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET /analytics/sales         - Sales analytics
+  GET /analytics/properties    - Property analytics
+  GET /analytics/realtors      - Realtor analytics
+  GET /analytics/commissions   - Commission analytics
+  GET /analytics/market-trends - Market trends
+
+----------------------------------------------------------------------
+5.22 COMPANY MODULE (src/modules/company/) - Multi-Tenant
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Public:
+  GET /companies/resolve - Resolve company from domain or invite code
+
+SUPER_ADMIN only:
+  GET   /companies           - List all companies (paginated)
+  GET   /companies/overview  - Aggregated stats across all companies
+  GET   /companies/:id       - Company details with stats
+  POST  /companies           - Create company (provisions dedicated DB)
+  PUT   /companies/:id       - Update company
+  PATCH /companies/:id/toggle-active  - Toggle active status
+  POST  /companies/:id/regenerate-invite - New invite code
+
+----------------------------------------------------------------------
+5.23 CRON MODULE (src/modules/cron/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+HTTP-triggered (for Vercel serverless):
+  POST /cron/rankings/daily    - Update daily rankings
+  POST /cron/rankings/monthly  - Update monthly rankings
+  POST /cron/rankings/yearly   - Update yearly rankings
+  POST /cron/overdue-payments  - Check overdue payments
+
+Guard: CronSecretGuard (validates x-cron-secret header)
+
+----------------------------------------------------------------------
+5.24 AUDIT MODULE (src/modules/audit/)
+----------------------------------------------------------------------
+Status: FULLY IMPLEMENTED
+
+Endpoints:
+  GET /audit - Query audit logs (ADMIN/SUPER_ADMIN)
+
+Query: userId, entity, action, startDate, endDate, page, limit
+
+----------------------------------------------------------------------
+5.25 OTHER MODULES
+----------------------------------------------------------------------
+Award Module   - Achievement/award system           - IMPLEMENTED
+AI Module      - OpenAI integration                 - IMPLEMENTED
+Call Module    - WebRTC call management              - IMPLEMENTED
+Device Module  - Push notification device tokens     - IMPLEMENTED
+Settings Module - System-wide settings              - IMPLEMENTED
+Health Module  - Health check endpoint               - IMPLEMENTED
+
+----------------------------------------------------------------------
+5.26 COMMON INFRASTRUCTURE
+----------------------------------------------------------------------
+
+Decorators (6):
+  @Public()         - Bypass JWT authentication
+  @Roles(...)       - Require specific roles
+  @CurrentUser()    - Inject authenticated user
+  @Permissions(...) - Require staff permissions
+  @NoAudit()        - Skip audit logging
+  @ApiPaginatedResponse() - Swagger pagination docs
+
+Guards (4):
+  JwtAuthGuard         - JWT validation, respects @Public()
+  RolesGuard           - Role-based access, SUPER_ADMIN bypasses all
+  StaffPermissionGuard - Permission-based access for staff
+  CronSecretGuard      - Validates x-cron-secret header
+
+Interceptors (3):
+  LoggingInterceptor    - Log HTTP requests with duration
+  TransformInterceptor  - Standardize { success, data, timestamp }
+  AuditInterceptor      - Log write operations with field redaction
+
+Services (11):
+  AuditService             - Fire-and-forget audit logging
+  CacheService             - Redis caching with graceful fallback
+  MailService              - Email delivery with 11 templates
+  PushNotificationService  - Firebase push notifications
+  SmsService               - Twilio SMS delivery
+  PusherService            - WebSocket events
+  QueueService             - BullMQ email job queue
+
+Email Templates (11):
+  Password Reset, Welcome, Email Verification,
+  Sale Confirmation (Realtor), Sale Confirmation (Client),
+  Commission Paid, Payment Reminder,
+  Leave Approved, Leave Rejected,
+  Task Assigned, Performance Review
+
+================================================================================
+6. FRONTEND PAGES & FEATURES (IMPLEMENTED)
+================================================================================
+
+----------------------------------------------------------------------
+6.1 PUBLIC PAGES (7 pages)
+----------------------------------------------------------------------
+
+/                  - Homepage (hero, properties, agents, features, CTA)
+/about             - Company story (CMS-driven)
+/features          - Platform features (CMS-driven)
+/contact           - Contact form + info card
+/gallery           - Photo/video gallery with lightbox
+/properties        - Property listing with search & filters
+/properties/[id]   - Property detail with image carousel
+/~offline          - PWA offline fallback
+
+Data: All use real API except contact form (placeholder, no backend submit)
+
+----------------------------------------------------------------------
+6.2 AUTH PAGES (4 pages)
+----------------------------------------------------------------------
+
+/auth/login           - Email/password login with demo credentials
+/auth/register        - 3-step registration (account, personal, role)
+/auth/forgot-password - Password recovery email
+/auth/reset-password  - Reset password with token
+
+Features:
+  - Dual auth (super admin + tenant user)
+  - OAuth buttons (Google, Facebook) - UI present
+  - Nigerian-specific: phone format, NIN, 37 states
+  - Role selection: CLIENT or REALTOR
+  - Password strength requirements
+  - Session storage (tab-isolated)
+
+----------------------------------------------------------------------
+6.3 ADMIN DASHBOARD (25 pages)
+----------------------------------------------------------------------
+
+/dashboard/admin                     - Overview (revenue, sales, charts)
+/dashboard/admin/realtors            - Realtor CRUD + monitoring
+/dashboard/admin/clients             - Client CRUD
+/dashboard/admin/properties          - Property CRUD + image upload
+/dashboard/admin/sales               - Sales tracking, approve/reject
+/dashboard/admin/commission          - Commission distribution + payouts
+/dashboard/admin/tax                 - Tax reports + export
+/dashboard/admin/rankings            - Leaderboard (realtors, staff, clients)
+/dashboard/admin/analytics           - Advanced charts + analytics
+/dashboard/admin/staff               - Employee management
+/dashboard/admin/departments         - Department CRUD
+/dashboard/admin/hr                  - HR dashboard overview
+/dashboard/admin/hr/attendance       - Clock in/out tracking
+/dashboard/admin/hr/leave            - Leave approve/reject
+/dashboard/admin/hr/payroll          - Payroll processing
+/dashboard/admin/hr/performance      - Performance reviews
+/dashboard/admin/hr/policies         - HR policy management
+/dashboard/admin/hr/salary-config    - Salary structure config
+/dashboard/admin/hr/tasks            - HR task management
+/dashboard/admin/cms                 - Content management (hero, about, etc.)
+/dashboard/admin/gallery             - Media upload + management
+/dashboard/admin/audit               - Audit log viewer + export
+/dashboard/admin/chat                - Real-time messaging
+/dashboard/admin/notifications       - Notification management
+/dashboard/admin/settings            - Profile + system settings
+
+Data: ALL pages use real API integration.
+
+----------------------------------------------------------------------
+6.4 REALTOR DASHBOARD (10 pages)
+----------------------------------------------------------------------
+
+/dashboard/realtor                - Personal stats, tier, charts
+/dashboard/realtor/sales          - My sales history
+/dashboard/realtor/properties     - My listings (CRUD)
+/dashboard/realtor/clients        - My clients
+/dashboard/realtor/commission     - Commission tracking
+/dashboard/realtor/loyalty        - Points, tier, achievements
+/dashboard/realtor/chat           - Messaging
+/dashboard/realtor/notifications  - Personal notifications
+/dashboard/realtor/settings       - Profile settings
+
+Data: ALL pages use real API integration.
+
+----------------------------------------------------------------------
+6.5 CLIENT DASHBOARD (8 pages)
+----------------------------------------------------------------------
+
+/dashboard/client                - Portfolio summary, appreciation
+/dashboard/client/properties     - Owned properties
+/dashboard/client/offers         - Purchase offers (accept/reject/counter)
+/dashboard/client/documents      - Property documents
+/dashboard/client/chat           - Chat with realtor
+/dashboard/client/notifications  - Personal notifications
+/dashboard/client/settings       - Profile settings
+
+Data: ALL pages use real API integration.
+
+----------------------------------------------------------------------
+6.6 STAFF DASHBOARD (12 pages)
+----------------------------------------------------------------------
+
+/dashboard/staff                - Clock in/out, task summary
+/dashboard/staff/tasks          - Task management (Kanban-style)
+/dashboard/staff/attendance     - Attendance history
+/dashboard/staff/leave          - Leave requests + balance
+/dashboard/staff/team           - Team members + org chart
+/dashboard/staff/channels       - Department channels
+/dashboard/staff/files          - Shared file storage
+/dashboard/staff/reviews        - Performance reviews
+/dashboard/staff/payslips       - Salary + payslip download
+/dashboard/staff/chat           - Team messaging
+/dashboard/staff/notifications  - Personal notifications
+
+Data: ALL pages use real API integration.
+
+----------------------------------------------------------------------
+6.7 SUPER-ADMIN DASHBOARD (4 pages)
+----------------------------------------------------------------------
+
+/dashboard/super-admin              - Platform overview stats
+/dashboard/super-admin/companies    - Company CRUD + activate/deactivate
+/dashboard/super-admin/analytics    - Cross-company analytics
+/dashboard/super-admin/settings     - Platform-wide settings
+
+Data: ALL pages use real API integration.
+
+----------------------------------------------------------------------
+6.8 SHARED COMPONENTS
+----------------------------------------------------------------------
+
+Layout:
+  Sidebar      - Role-based nav, collapsible, mobile drawer
+  Header       - Breadcrumb, search, theme toggle, notification bell, profile
+  PublicNavbar  - Public site navigation
+  PublicFooter  - Footer with CMS content
+
+Feature Components:
+  ChatPage           - Full chat interface (rooms + messages)
+  IncomingCallModal  - WebRTC incoming call UI
+  ActiveCallScreen   - WebRTC active call with controls
+  CalloutAlertModal  - Emergency callout notification
+  CalloutButton      - Admin emergency broadcast button
+  AwardBanner        - Monthly award celebration
+  CelebrationModal   - Award details with confetti
+  Receipt/ReceiptModal - Sales receipt with PDF export
+  SaleApprovalModal  - High-priority sale approval
+  GalleryLightbox    - Fullscreen image/video viewer
+  AreaUnitSelect     - Area unit conversion (sqm, acre, hectare, plot)
+  RichTextEditor     - TipTap-based HTML editor
+
+UI Library (17 components, Radix UI + Tailwind):
+  Avatar, Badge, Button, Card, Dialog, DropdownMenu, Input, Label,
+  Progress, ScrollArea, Select, Switch, Table, Tabs, Textarea, Sonner
+
+----------------------------------------------------------------------
+6.9 CONTEXTS (Real-time State)
+----------------------------------------------------------------------
+
+PusherContext:
+  - WebSocket connection management
+  - Channel subscriptions (user, role, presence)
+  - Online user tracking
+  - Auto-reconnect
+
+NotificationContext:
+  - Push notification management
+  - Unread count tracking
+  - Sale approval modals (high-priority)
+  - Callout alerts with audio
+  - Mark read / delete
+
+ChatContext:
+  - Chat room management
+  - Message history + pagination
+  - Typing indicators
+  - Real-time message delivery
+
+CallContext:
+  - WebRTC audio/video calls
+  - Call initiation, accept, reject, end
+  - Mute/unmute, camera toggle
+  - Call duration timer
+  - ICE candidate negotiation via Pusher
+
+================================================================================
+7. REAL-TIME FEATURES
+================================================================================
+
+Pusher WebSocket Channels:
+  private-user-{userId}      - Personal events (notifications, calls, chat)
+  private-role-{role}        - Role-based broadcasts
+  presence-online            - Online user tracking
+  presence-chat-{roomId}     - Chat room presence
+  private-dashboard-{type}   - Dashboard metric updates
+  private-property-{id}      - Property change events
+  public-broadcast           - System-wide messages
+
+Audio Notifications:
+  - Regular: 2-tone chime (880Hz + 1174.66Hz)
+  - Callout: Urgent alarm pattern (5 tones)
+  - Response: Confirmation melody (3 ascending tones)
+  - Implemented via Web Audio API
+
+WebRTC Calls:
+  - Audio and video calls between users
+  - ICE servers: Google STUN servers
+  - Signaling via Pusher events
+  - Media controls: mute, camera toggle
+  - Call duration tracking
+
+================================================================================
+8. SECURITY & AUTH
+================================================================================
+
+Authentication:
+  - JWT Bearer tokens (7-day access, 30-day refresh)
+  - bcrypt password hashing (12 rounds)
+  - Session storage (tab-isolated)
+  - Refresh token rotation
+  - Password reset via email (SHA256 tokens, 1hr expiry)
+
+Authorization:
+  - 5 roles: SUPER_ADMIN, ADMIN, REALTOR, CLIENT, STAFF
+  - SUPER_ADMIN bypasses all role checks
+  - Permission-based access for STAFF (resource + action matrix)
+  - Route guards on every protected endpoint
+
+Security Features:
+  - Helmet.js (security headers)
+  - CORS whitelist (localhost + Vercel previews)
+  - Rate limiting (100 req/60s, configurable)
+  - Input validation (class-validator, whitelist mode)
+  - Audit logging (all write operations)
+  - Sensitive field redaction in audit logs
+  - Encryption key for sensitive data
+
+================================================================================
+9. DEPLOYMENT
+================================================================================
+
+Current Deployment:
+  Frontend: Vercel (Next.js serverless)
+  Backend: Vercel (NestJS serverless via Express adapter)
+  Database: Supabase PostgreSQL
+  Cache: Redis (external)
+  Chat DB: MongoDB Atlas
+
+Also Configured (alternative):
+  Docker: docker-compose.yml (prod) + docker-compose.dev.yml
+  Railway: railway.json + nixpacks.toml
+  Render: render.yaml (backend + frontend services)
+
+CI/CD:
+  GitHub Actions:
+    - ci.yml: Lint + test on push/PR to main/develop
+    - security.yml: Dependency audit (weekly + on push)
+
+Environment Variables (60+):
+  Database: DATABASE_URL, MASTER_DATABASE_URL, DIRECT_URL, MONGODB_URI
+  Cache: REDIS_HOST, REDIS_PORT, REDIS_URL
+  Auth: JWT_SECRET, JWT_EXPIRES_IN, JWT_REFRESH_SECRET, ENCRYPTION_KEY
+  Email: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM
+  SMS: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+  Push: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
+  Storage: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET, AWS_REGION
+  AI: OPENAI_API_KEY
+  Loyalty: POINTS_PER_SALE, BRONZE/SILVER/GOLD/PLATINUM_THRESHOLD
+  Commission: DEFAULT/BRONZE/SILVER/GOLD/PLATINUM_COMMISSION_RATE
+  Tax: DEFAULT_TAX_RATE
+  Frontend: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_PUSHER_KEY, NEXT_PUBLIC_PUSHER_CLUSTER
+
+================================================================================
+10. WHAT NEEDS TO BE IMPLEMENTED / GAPS
+================================================================================
+
+----------------------------------------------------------------------
+10.1 BACKEND GAPS
+----------------------------------------------------------------------
+
+1. PRISMA MIGRATIONS
+   Status: NO MIGRATION FILES
+   Issue: Database was created via db push, not migrate.
+   Impact: Cannot use `prisma migrate deploy` for schema changes.
+   Action: Run `prisma migrate dev --name init` to baseline, then
+           use migrations going forward for production schema changes.
+
+2. CRON JOB SCHEDULING
+   Status: HTTP-triggered only (manual or external scheduler)
+   Issue: No automatic scheduling configured. Endpoints exist but
+          need an external cron service (Vercel Cron, Railway Cron,
+          or cron-job.org) to trigger them.
+   Action: Configure Vercel Cron or external service to call:
+     POST /cron/rankings/daily    (daily at midnight)
+     POST /cron/rankings/monthly  (1st of each month)
+     POST /cron/rankings/yearly   (Jan 1st)
+     POST /cron/overdue-payments  (daily)
+
+3. CONTACT FORM ENDPOINT
+   Status: NOT IMPLEMENTED
+   Issue: Frontend contact form has no backend endpoint.
+   Action: Create POST /contact endpoint or integrate with email service.
+
+4. GOOGLE/FACEBOOK OAUTH
+   Status: PARTIALLY IMPLEMENTED
+   Issue: Frontend has OAuth buttons, backend has Pusher auth,
+          but full OAuth flow (Google/Facebook strategy) not confirmed.
+   Action: Implement Passport Google/Facebook strategies if needed.
+
+5. TWO-FACTOR AUTHENTICATION (2FA)
+   Status: NOT IMPLEMENTED
+   Issue: Frontend settings page references 2FA toggle but no
+          backend implementation found.
+   Action: Implement TOTP-based 2FA (e.g., speakeasy/otplib).
+
+6. EMAIL VERIFICATION FLOW
+   Status: PARTIALLY IMPLEMENTED
+   Issue: User has `emailVerified` field and email template exists,
+          but verification endpoint/flow may be incomplete.
+   Action: Verify GET /auth/verify-email?token=xxx works end-to-end.
+
+7. EXPORT ENDPOINTS
+   Status: PARTIALLY IMPLEMENTED
+   Issue: Frontend references CSV/PDF export for tax, audit, payroll,
+          but dedicated export endpoints may need completion.
+   Action: Verify export endpoints return proper file downloads.
+
+8. AI FEATURES
+   Status: MODULE EXISTS, USAGE UNCLEAR
+   Issue: AI module with OpenAI integration exists but specific
+          features (property descriptions, insights) not documented.
+   Action: Document and expand AI-powered features.
+
+9. TEST COVERAGE
+   Status: MINIMAL
+   Issue: Limited unit/integration tests found.
+   Action: Add tests for critical paths: auth, sales, commission
+           calculation, payment processing.
+
+----------------------------------------------------------------------
+10.2 FRONTEND GAPS
+----------------------------------------------------------------------
+
+1. CONTACT FORM SUBMISSION
+   Status: PLACEHOLDER (shows success toast, no actual API call)
+   Action: Connect to backend contact endpoint once created.
+
+2. GOOGLE/FACEBOOK OAUTH
+   Status: UI BUTTONS PRESENT, NOT FUNCTIONAL
+   Issue: Buttons exist on login page but no OAuth redirect flow.
+   Action: Implement OAuth redirect to backend OAuth endpoints.
+
+3. PASSWORD RESET PAGES
+   Status: PAGES EXIST, NEED VERIFICATION
+   Issue: forgot-password and reset-password pages exist but
+          full end-to-end flow needs verification.
+   Action: Test complete flow: request -> email -> reset.
+
+4. TERMS & PRIVACY PAGES
+   Status: NOT IMPLEMENTED
+   Issue: Registration links to /terms and /privacy but pages
+          don't exist.
+   Action: Create pages or link to CMS-managed content.
+
+5. NOTIFICATION PREFERENCES
+   Status: UI REFERENCES BUT NO BACKEND
+   Issue: Settings pages mention notification preferences but
+          no backend endpoint for preferences storage.
+   Action: Add notification preference CRUD to settings module.
+
+6. THEME/BRANDING PER TENANT
+   Status: PARTIALLY IMPLEMENTED
+   Issue: CMS has branding editor (logo, colors) but theme
+          isn't fully applied dynamically across all pages.
+   Action: Apply company primaryColor as CSS custom property.
+
+7. SEARCH FUNCTIONALITY IN HEADER
+   Status: UI PRESENT, NOT CONNECTED
+   Issue: Header search bar exists but no global search endpoint.
+   Action: Implement global search across properties, users, sales.
+
+8. OFFLINE PWA FUNCTIONALITY
+   Status: BASIC
+   Issue: Service worker registered, offline page exists, but
+          no meaningful offline data caching strategy.
+   Action: Implement Workbox runtime caching for key API responses.
+
+----------------------------------------------------------------------
+10.3 INFRASTRUCTURE GAPS
+----------------------------------------------------------------------
+
+1. AUTOMATED TESTING PIPELINE
+   Status: CI runs lint + basic test, but test coverage is minimal.
+   Action: Write comprehensive test suites, add coverage thresholds.
+
+2. DATABASE BACKUP STRATEGY
+   Status: NOT IMPLEMENTED
+   Issue: Frontend settings reference backup/restore but no
+          backend implementation.
+   Action: Implement automated backups via Supabase or pg_dump.
+
+3. MONITORING & ALERTING
+   Status: NOT IMPLEMENTED
+   Issue: No APM, error tracking, or uptime monitoring.
+   Action: Add Sentry for error tracking, UptimeRobot for uptime.
+
+4. RATE LIMITING PER ENDPOINT
+   Status: GLOBAL ONLY
+   Issue: Same rate limit for all endpoints. Login/register
+          should have stricter limits.
+   Action: Add per-endpoint rate limiting.
+
+5. CDN FOR STATIC ASSETS
+   Status: NOT CONFIGURED
+   Issue: Images served directly from S3/backend.
+   Action: Configure CloudFront or Vercel Image Optimization.
+
+6. LOGGING & LOG AGGREGATION
+   Status: CONSOLE LOGGING ONLY
+   Issue: No centralized log aggregation service.
+   Action: Add structured logging with a service like Datadog/Logtail.
+
+================================================================================
+11. MODULE-BY-MODULE STATUS MATRIX
+================================================================================
+
+Module                    Backend    Frontend   Real API   Status
+========================  =========  =========  =========  =================
+Auth (Login/Register)     DONE       DONE       YES        PRODUCTION READY
+Auth (Password Reset)     DONE       DONE       YES        NEEDS TESTING
+Auth (OAuth Google/FB)    PARTIAL    UI ONLY    PARTIAL    NEEDS WORK
+Auth (2FA)                MISSING    UI ONLY    NO         NOT STARTED
+User Management           DONE       DONE       YES        PRODUCTION READY
+Property CRUD             DONE       DONE       YES        PRODUCTION READY
+Property Listings         DONE       DONE       YES        PRODUCTION READY
+Sales Management          DONE       DONE       YES        PRODUCTION READY
+Commission System         DONE       DONE       YES        PRODUCTION READY
+Tax Reporting             DONE       DONE       YES        PRODUCTION READY
+Loyalty Program           DONE       DONE       YES        PRODUCTION READY
+Rankings/Leaderboard      DONE       DONE       YES        PRODUCTION READY
+Staff Management          DONE       DONE       YES        PRODUCTION READY
+HR - Attendance           DONE       DONE       YES        PRODUCTION READY
+HR - Leave                DONE       DONE       YES        PRODUCTION READY
+HR - Payroll              DONE       DONE       YES        PRODUCTION READY
+HR - Performance          DONE       DONE       YES        PRODUCTION READY
+HR - Policies             DONE       DONE       YES        PRODUCTION READY
+HR - Salary Config        DONE       DONE       YES        PRODUCTION READY
+HR - Tasks                DONE       DONE       YES        PRODUCTION READY
+Department Mgmt           DONE       DONE       YES        PRODUCTION READY
+Notifications             DONE       DONE       YES        PRODUCTION READY
+Chat (Real-time)          DONE       DONE       YES        PRODUCTION READY
+Calls (WebRTC)            DONE       DONE       YES        PRODUCTION READY
+Callout System            DONE       DONE       YES        PRODUCTION READY
+CMS (Content Mgmt)        DONE       DONE       YES        PRODUCTION READY
+Gallery                   DONE       DONE       YES        PRODUCTION READY
+File Upload               DONE       DONE       YES        PRODUCTION READY
+Awards System             DONE       DONE       YES        PRODUCTION READY
+Admin Dashboard           DONE       DONE       YES        PRODUCTION READY
+Admin Analytics           DONE       DONE       YES        PRODUCTION READY
+Realtor Dashboard         DONE       DONE       YES        PRODUCTION READY
+Client Dashboard          DONE       DONE       YES        PRODUCTION READY
+Staff Dashboard           DONE       DONE       YES        PRODUCTION READY
+Super-Admin Dashboard     DONE       DONE       YES        PRODUCTION READY
+Multi-Tenant (Companies)  DONE       DONE       YES        PRODUCTION READY
+Audit Logging             DONE       DONE       YES        PRODUCTION READY
+Cron Jobs                 DONE       N/A        YES        NEEDS SCHEDULER
+Contact Form              MISSING    UI ONLY    NO         NOT STARTED
+Terms/Privacy Pages       N/A        MISSING    N/A        NOT STARTED
+Global Search             MISSING    UI ONLY    NO         NOT STARTED
+DB Migrations             MISSING    N/A        N/A        NEEDS BASELINE
+Automated Tests           MINIMAL    MINIMAL    N/A        NEEDS WORK
+Monitoring                MISSING    MISSING    N/A        NOT STARTED
+DB Backups                MISSING    UI ONLY    NO         NOT STARTED
+
+================================================================================
+LEGEND:
+  DONE           = Fully implemented and functional
+  PARTIAL        = Some implementation, needs completion
+  MISSING        = Not implemented at all
+  UI ONLY        = Frontend UI exists but no backend support
+  NEEDS TESTING  = Implemented but not fully verified
+  NEEDS WORK     = Requires significant additional development
+  NEEDS BASELINE = Needs initial setup/configuration
+  NOT STARTED    = No work done yet
+================================================================================
+
+END OF DOCUMENTATION

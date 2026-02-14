@@ -27,6 +27,7 @@ import { TaxModule } from './modules/tax/tax.module';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module';
 import { RankingModule } from './modules/ranking/ranking.module';
 import { ChatModule } from './modules/chat/chat.module';
+import { ChannelsModule } from './modules/channels/channels.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AiModule } from './modules/ai/ai.module';
@@ -105,6 +106,7 @@ import { CompanyModule } from './modules/company/company.module';
     LoyaltyModule,
     RankingModule,
     ChatModule,
+    ChannelsModule,
     NotificationModule,
     AnalyticsModule,
     AiModule,

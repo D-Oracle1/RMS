@@ -239,6 +239,35 @@ export class ChatService {
     return { success: true };
   }
 
+  async searchUsers(currentUserId: string, search: string) {
+    if (!search || search.trim().length < 2) {
+      return [];
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { not: currentUserId },
+        isActive: true,
+        OR: [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        avatar: true,
+      },
+      take: 20,
+    });
+
+    return users;
+  }
+
   async deleteRoom(roomId: string, userId: string) {
     const room = await this.getRoom(roomId, userId);
 
