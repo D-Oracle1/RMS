@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   Phone,
   Mail,
+  MapPin,
   Clock,
   BedDouble,
   Bath,
