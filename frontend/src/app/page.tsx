@@ -349,7 +349,7 @@ export default function HomePage() {
                         <div className="relative h-52 overflow-hidden">
                           {property.images && property.images.length > 0 ? (
                             <Image
-                              src={property.images[0]}
+                              src={property.images[0].startsWith('http') ? property.images[0] : getImageUrl(property.images[0])}
                               alt={property.title}
                               fill
                               className="object-cover group-hover:scale-110 transition-transform duration-500"
