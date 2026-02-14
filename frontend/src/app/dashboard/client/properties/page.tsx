@@ -270,17 +270,6 @@ export default function ClientPropertiesPage() {
                       </div>
                     </div>
 
-                    {/* Property-specific info */}
-                    {property.type === 'Land' && property.sqm && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        Size: {property.sqm.toLocaleString()} sqm | Price per plot: {formatCurrency(property.purchasePrice / property.sqm)}
-                      </div>
-                    )}
-                    {property.type === 'House' && property.bedrooms && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        {property.bedrooms} Bedrooms | {property.bathrooms} Bathrooms
-                      </div>
-                    )}
 
                     {property.isListed && (
                       <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/10 rounded-lg">

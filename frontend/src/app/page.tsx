@@ -14,9 +14,7 @@ import {
   Award,
   Zap,
   Search,
-  MapPin,
   Home,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Star,
@@ -36,28 +34,6 @@ import { PublicFooter } from '@/components/layout/public-footer';
 import { getImageUrl } from '@/lib/api';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
-
-const PROPERTY_TYPES = [
-  { value: '', label: 'All Types' },
-  { value: 'RESIDENTIAL', label: 'Residential' },
-  { value: 'COMMERCIAL', label: 'Commercial' },
-  { value: 'LAND', label: 'Land' },
-  { value: 'APARTMENT', label: 'Apartment' },
-  { value: 'VILLA', label: 'Villa' },
-  { value: 'CONDO', label: 'Condo' },
-  { value: 'TOWNHOUSE', label: 'Townhouse' },
-  { value: 'INDUSTRIAL', label: 'Industrial' },
-  { value: 'MIXED_USE', label: 'Mixed Use' },
-];
-
-const PRICE_RANGES = [
-  { value: '', label: 'Any Price', min: undefined, max: undefined },
-  { value: '0-50', label: 'Under ₦50M', min: 0, max: 50000000 },
-  { value: '50-100', label: '₦50M - ₦100M', min: 50000000, max: 100000000 },
-  { value: '100-500', label: '₦100M - ₦500M', min: 100000000, max: 500000000 },
-  { value: '500-1000', label: '₦500M - ₦1B', min: 500000000, max: 1000000000 },
-  { value: '1000+', label: 'Above ₦1B', min: 1000000000, max: undefined },
-];
 
 const ICON_MAP: Record<string, any> = {
   Users, Building2, TrendingUp, Award, BarChart3, MessageSquare, Shield, Zap, Star, Search,
@@ -79,16 +55,11 @@ function getTypeIcon(type: string) {
 }
 
 export default function HomePage() {
-  const [searchLocation, setSearchLocation] = useState('');
-  const [propertyType, setPropertyType] = useState('');
-  const [priceRange, setPriceRange] = useState('');
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
-  const [showPriceDropdown, setShowPriceDropdown] = useState(false);
   const [cms, setCms] = useState<Record<string, any> | null>(null);
   const [cmsLoading, setCmsLoading] = useState(true);
 
@@ -125,11 +96,6 @@ export default function HomePage() {
       const params = new URLSearchParams();
       params.append('page', String(currentPage));
       params.append('limit', '12');
-      if (searchLocation) params.append('search', searchLocation);
-      if (propertyType) params.append('type', propertyType);
-      const range = PRICE_RANGES.find(r => r.value === priceRange);
-      if (range?.min !== undefined) params.append('minPrice', String(range.min));
-      if (range?.max !== undefined) params.append('maxPrice', String(range.max));
 
       const res = await fetch(`${API_BASE_URL}/api/v1/properties/listed?${params.toString()}`);
       if (res.ok) {
@@ -146,26 +112,17 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
-  }, [searchLocation, propertyType, priceRange]);
+  }, []);
 
   useEffect(() => {
     fetchProperties(1);
   }, [fetchProperties]);
-
-  const handleSearch = () => {
-    setPage(1);
-    fetchProperties(1);
-    document.getElementById('properties')?.scrollIntoView({ behavior: 'smooth' });
-  };
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
     fetchProperties(newPage);
     document.getElementById('properties')?.scrollIntoView({ behavior: 'smooth' });
   };
-
-  const selectedTypeLabel = PROPERTY_TYPES.find(t => t.value === propertyType)?.label || 'All Types';
-  const selectedPriceLabel = PRICE_RANGES.find(r => r.value === priceRange)?.label || 'Any Price';
 
   const heroImage = hero.backgroundImage
     ? (hero.backgroundImage.startsWith('http') ? hero.backgroundImage : getImageUrl(hero.backgroundImage))
@@ -184,127 +141,65 @@ export default function HomePage() {
       <PublicNavbar currentPage="/" branding={cms?.branding} />
 
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center">
-        <div className="absolute inset-0">
-          {heroImage ? (
-            <Image
-              src={heroImage}
-              alt="Hero background"
-              fill
-              className="object-cover"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full bg-primary" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/85 to-primary/70" />
-          <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
-        </div>
-
-        <div className="container mx-auto px-4 relative z-10 pt-20">
-          <div className="max-w-3xl">
-            {hero.badgeText && (
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/40 text-accent text-sm font-medium mb-6">
-                <Star className="w-4 h-4 fill-accent" />
-                <span>{hero.badgeText}</span>
-              </div>
+      <Link href="/auth/register" className="block">
+        <section className="relative min-h-[90vh] flex items-center cursor-pointer group">
+          <div className="absolute inset-0">
+            {heroImage ? (
+              <Image
+                src={heroImage}
+                alt="Hero background"
+                fill
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-primary" />
             )}
-
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
-              {heroTitle}
-              <br />
-              <span className="text-accent">{heroTitleAccent}</span>
-            </h1>
-            <p className="text-lg text-white/80 mb-10 max-w-xl">
-              {heroSubtitle}
-            </p>
-
-            {/* Search Bar */}
-            <div className="bg-white rounded-2xl p-2 shadow-2xl max-w-2xl">
-              <div className="flex flex-col md:flex-row gap-2">
-                <div className="flex-1 flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-gray-200">
-                  <MapPin className="w-5 h-5 text-accent" />
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 font-medium">Location</p>
-                    <input
-                      type="text"
-                      placeholder="Enter city or area"
-                      value={searchLocation}
-                      onChange={(e) => setSearchLocation(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      className="w-full text-sm text-gray-800 bg-transparent outline-none placeholder:text-gray-400"
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 flex items-center gap-3 px-4 py-3 border-b md:border-b-0 md:border-r border-gray-200 relative">
-                  <Home className="w-5 h-5 text-accent" />
-                  <div className="flex-1 cursor-pointer" onClick={() => { setShowTypeDropdown(!showTypeDropdown); setShowPriceDropdown(false); }}>
-                    <p className="text-xs text-gray-500 font-medium">Property Type</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-800">{selectedTypeLabel}</span>
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </div>
-                  </div>
-                  {showTypeDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50 max-h-60 overflow-y-auto">
-                      {PROPERTY_TYPES.map((t) => (
-                        <button
-                          key={t.value}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-accent/10 transition-colors ${propertyType === t.value ? 'text-accent font-medium bg-accent/5' : 'text-gray-700'}`}
-                          onClick={() => { setPropertyType(t.value); setShowTypeDropdown(false); }}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 flex items-center gap-3 px-4 py-3 relative">
-                  <BarChart3 className="w-5 h-5 text-accent" />
-                  <div className="flex-1 cursor-pointer" onClick={() => { setShowPriceDropdown(!showPriceDropdown); setShowTypeDropdown(false); }}>
-                    <p className="text-xs text-gray-500 font-medium">Price Range</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-800">{selectedPriceLabel}</span>
-                      <ChevronDown className="w-4 h-4 text-gray-400" />
-                    </div>
-                  </div>
-                  {showPriceDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
-                      {PRICE_RANGES.map((r) => (
-                        <button
-                          key={r.value}
-                          className={`w-full text-left px-4 py-2.5 text-sm hover:bg-accent/10 transition-colors ${priceRange === r.value ? 'text-accent font-medium bg-accent/5' : 'text-gray-700'}`}
-                          onClick={() => { setPriceRange(r.value); setShowPriceDropdown(false); }}
-                        >
-                          {r.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <Button onClick={handleSearch} className="bg-accent hover:bg-accent-600 text-white px-6 py-6 rounded-xl">
-                  <Search className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Stats */}
-            {hero.stats && hero.stats.length > 0 && (
-              <div className="flex flex-wrap gap-8 md:gap-12 mt-12">
-                {hero.stats.map((stat: any, i: number) => (
-                  <div key={i} className="flex items-center gap-8 md:gap-12">
-                    {i > 0 && <div className="w-px h-12 bg-white/30 hidden md:block -ml-8 md:-ml-12" />}
-                    <div>
-                      <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
-                      <div className="text-white/70 text-sm">{stat.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/85 to-primary/70" />
+            <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
           </div>
-        </div>
-      </section>
+
+          <div className="container mx-auto px-4 relative z-10 pt-20">
+            <div className="max-w-3xl">
+              {hero.badgeText && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/40 text-accent text-sm font-medium mb-6">
+                  <Star className="w-4 h-4 fill-accent" />
+                  <span>{hero.badgeText}</span>
+                </div>
+              )}
+
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
+                {heroTitle}
+                <br />
+                <span className="text-accent">{heroTitleAccent}</span>
+              </h1>
+              <p className="text-lg text-white/80 mb-10 max-w-xl">
+                {heroSubtitle}
+              </p>
+
+              <div className="inline-flex items-center gap-3 bg-accent hover:bg-accent-600 text-white px-8 py-4 rounded-2xl text-lg font-semibold shadow-2xl transition-all group-hover:scale-105">
+                Get Started
+                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </div>
+
+              {/* Stats */}
+              {hero.stats && hero.stats.length > 0 && (
+                <div className="flex flex-wrap gap-8 md:gap-12 mt-12">
+                  {hero.stats.map((stat: any, i: number) => (
+                    <div key={i} className="flex items-center gap-8 md:gap-12">
+                      {i > 0 && <div className="w-px h-12 bg-white/30 hidden md:block -ml-8 md:-ml-12" />}
+                      <div>
+                        <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
+                        <div className="text-white/70 text-sm">{stat.label}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      </Link>
 
       {/* Browse Properties Section */}
       <section id="properties" className="py-20 px-4 bg-white dark:bg-primary-950">

@@ -35,6 +35,7 @@ import {
   FolderOpen,
   FileEdit,
   ImageIcon,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -42,7 +43,7 @@ import { getImageUrl } from '@/lib/api';
 import { getUser, clearAuth } from '@/lib/auth-storage';
 
 interface SidebarProps {
-  role: 'admin' | 'realtor' | 'client' | 'staff' | 'super-admin';
+  role: 'admin' | 'realtor' | 'client' | 'staff' | 'super-admin' | 'general-overseer';
   isOpen?: boolean;
   onClose?: () => void;
 }
@@ -52,6 +53,20 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Dashboard', href: '/dashboard/super-admin', icon: LayoutDashboard },
     { name: 'Companies', href: '/dashboard/super-admin/companies', icon: Building },
     { name: 'Analytics', href: '/dashboard/super-admin/analytics', icon: BarChart3 },
+  ],
+  'general-overseer': [
+    { name: 'Dashboard', href: '/dashboard/general-overseer', icon: LayoutDashboard },
+    { name: 'Users', href: '/dashboard/general-overseer/users', icon: Users },
+    { name: 'Realtors', href: '/dashboard/general-overseer/realtors', icon: Users },
+    { name: 'Clients', href: '/dashboard/general-overseer/clients', icon: Briefcase },
+    { name: 'Properties', href: '/dashboard/general-overseer/properties', icon: Home },
+    { name: 'Staff', href: '/dashboard/general-overseer/staff', icon: UserCog },
+    { name: 'Leave Approvals', href: '/dashboard/general-overseer/leave', icon: CalendarDays },
+    { name: 'HR', href: '/dashboard/general-overseer/hr', icon: ClipboardList },
+    { name: 'Analytics', href: '/dashboard/general-overseer/analytics', icon: BarChart3 },
+    { name: 'Audit Logs', href: '/dashboard/general-overseer/audit', icon: FileText },
+    { name: 'Chat', href: '/dashboard/general-overseer/chat', icon: MessageSquare },
+    { name: 'Notifications', href: '/dashboard/general-overseer/notifications', icon: Bell },
   ],
   admin: [
     { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
@@ -71,6 +86,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Audit Logs', href: '/dashboard/admin/audit', icon: FileText },
     { name: 'Channels', href: '/dashboard/admin/channels', icon: Hash },
     { name: 'Chat', href: '/dashboard/admin/chat', icon: MessageSquare },
+    { name: 'Newsletter', href: '/dashboard/admin/newsletter', icon: Mail },
     { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
   ],
   realtor: [

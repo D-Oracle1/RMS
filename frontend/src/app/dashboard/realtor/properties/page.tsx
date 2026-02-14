@@ -460,15 +460,6 @@ export default function RealtorPropertiesPage() {
                             </Badge>
                           </div>
                         )}
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-3">
-                          {property.type !== 'LAND' && (
-                            <>
-                              <span className="flex items-center gap-1"><Bed className="w-4 h-4" /> {property.bedrooms || 0} beds</span>
-                              <span className="flex items-center gap-1"><Bath className="w-4 h-4" /> {property.bathrooms || 0} baths</span>
-                            </>
-                          )}
-                          <span className="flex items-center gap-1"><Square className="w-4 h-4" /> {formatArea(property.area || 0)}</span>
-                        </div>
                         <div className="flex gap-2">
                           {isAvailable && (
                             <Button

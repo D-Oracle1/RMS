@@ -514,7 +514,7 @@ export class AuthService {
           userId: user.id,
         },
       });
-    } else if (user.role === UserRole.ADMIN) {
+    } else if (user.role === UserRole.ADMIN || user.role === UserRole.GENERAL_OVERSEER) {
       await prismaClient.adminProfile.create({
         data: {
           userId: user.id,

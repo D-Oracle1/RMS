@@ -80,6 +80,18 @@ export class UsersController {
     return this.usersService.updateStatus(id, status);
   }
 
+  @Put(':id/role')
+  @Roles('SUPER_ADMIN', 'GENERAL_OVERSEER', 'ADMIN')
+  @ApiOperation({ summary: 'Update user role (promote/demote)' })
+  @ApiResponse({ status: 200, description: 'User role updated' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async updateRole(
+    @Param('id') id: string,
+    @Body('role') role: UserRole,
+  ) {
+    return this.usersService.updateRole(id, role);
+  }
+
   @Delete(':id')
   @Roles('SUPER_ADMIN')
   @ApiOperation({ summary: 'Delete user' })

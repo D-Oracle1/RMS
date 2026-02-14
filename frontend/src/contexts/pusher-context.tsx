@@ -21,8 +21,8 @@ const PusherContext = createContext<PusherContextValue>({
 export function PusherProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
-  const pusherRef = useRef<Pusher | null>(null);
-  const userChannelRef = useRef<Channel | null>(null);
+  const [pusherInstance, setPusherInstance] = useState<Pusher | null>(null);
+  const [userChannel, setUserChannel] = useState<Channel | null>(null);
   const presenceChannelRef = useRef<PresenceChannel | null>(null);
   const mountedRef = useRef(true);
 
@@ -31,7 +31,7 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
     const user = getUser();
     if (!token || token === 'demo-token' || !user) return;
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
     const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY || '', {
       cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || 'us2',
@@ -44,7 +44,7 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    pusherRef.current = pusher;
+    setPusherInstance(pusher);
 
     pusher.connection.bind('connected', () => {
       if (mountedRef.current) setIsConnected(true);
@@ -59,8 +59,8 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Subscribe to personal channel for notifications, calls, etc.
-    const userChannel = pusher.subscribe(`private-user-${user.id}`);
-    userChannelRef.current = userChannel;
+    const channel = pusher.subscribe(`private-user-${user.id}`);
+    setUserChannel(channel);
 
     // Subscribe to role-based channel
     if (user.role) {
@@ -90,11 +90,11 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
   };
 
   const cleanupPusher = () => {
-    if (pusherRef.current) {
-      pusherRef.current.disconnect();
-      pusherRef.current = null;
-    }
-    userChannelRef.current = null;
+    setPusherInstance((prev) => {
+      if (prev) prev.disconnect();
+      return null;
+    });
+    setUserChannel(null);
     presenceChannelRef.current = null;
   };
 
@@ -122,10 +122,10 @@ export function PusherProvider({ children }: { children: React.ReactNode }) {
   return (
     <PusherContext.Provider
       value={{
-        pusher: pusherRef.current,
+        pusher: pusherInstance,
         isConnected,
         onlineUsers,
-        userChannel: userChannelRef.current,
+        userChannel,
       }}
     >
       {children}

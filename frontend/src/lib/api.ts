@@ -1,6 +1,6 @@
 import { getToken } from './auth-storage';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 /** Resolve a backend-relative image path (e.g. /uploads/properties/x.jpg) to a full URL */
 export function getImageUrl(path: string): string {

@@ -27,8 +27,8 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Access denied');
     }
 
-    // SUPER_ADMIN bypasses all role checks
-    if (user.role === 'SUPER_ADMIN') {
+    // SUPER_ADMIN and GENERAL_OVERSEER bypass all role checks
+    if (user.role === 'SUPER_ADMIN' || user.role === 'GENERAL_OVERSEER') {
       return true;
     }
 

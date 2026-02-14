@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AwardBanner } from '@/components/award-banner';
 import {
@@ -9,6 +10,7 @@ import {
   FileText,
   DollarSign,
   ArrowUpRight,
+  ArrowRight,
   Building2,
   User,
   Phone,
@@ -72,6 +74,7 @@ function getLast12Months() {
 }
 
 export default function ClientDashboard() {
+  const router = useRouter();
   const [period, setPeriod] = useState<Period>('MONTHLY');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -190,9 +193,53 @@ export default function ClientDashboard() {
     toast.info('Counter offer form will be available soon.');
   };
 
+  const handleBecomeRealtor = async () => {
+    try {
+      // Create or find a chat room with an admin and send the request
+      const res: any = await api.post('/chat/rooms', {
+        name: 'Realtor Upgrade Request',
+        type: 'DIRECT',
+        isAdminRequest: true,
+      });
+      const room = res?.data || res;
+      if (room?.id) {
+        await api.post(`/chat/rooms/${room.id}/messages`, {
+          content: 'Hello, I would like to become a Realtor. Please review my profile and upgrade my account. Thank you!',
+          type: 'TEXT',
+        });
+        toast.success('Request sent! An admin will review your request.');
+        router.push('/dashboard/client/chat');
+      }
+    } catch {
+      // Fallback: just navigate to chat
+      toast.info('Please message an admin in the chat to request a role upgrade.');
+      router.push('/dashboard/client/chat');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <AwardBanner />
+
+      {/* Become a Realtor Card */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="bg-gradient-to-r from-primary to-primary-600 text-white shadow-lg border-0 cursor-pointer hover:shadow-xl transition-shadow" onClick={handleBecomeRealtor}>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Building2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Become a Realtor</h3>
+                  <p className="text-sm text-white/80">Want to sell or manage properties? Chat with an admin to upgrade your account.</p>
+                </div>
+              </div>
+              <ArrowRight className="w-6 h-6 text-white/70" />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Client of the Month Celebration Card */}
       {clientOfMonth && (

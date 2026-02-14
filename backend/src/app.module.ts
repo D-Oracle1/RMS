@@ -51,6 +51,12 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { CmsModule } from './modules/cms/cms.module';
 import { GalleryModule } from './modules/gallery/gallery.module';
 
+// Newsletter
+import { NewsletterModule } from './modules/newsletter/newsletter.module';
+
+// Communication (AI Campaigns, Email Marketing, Notifications)
+import { CommunicationModule } from './modules/communication/communication.module';
+
 // Audit
 import { AuditModule } from './modules/audit/audit.module';
 
@@ -125,6 +131,12 @@ import { CompanyModule } from './modules/company/company.module';
     // CMS & Gallery
     CmsModule,
     GalleryModule,
+
+    // Newsletter
+    NewsletterModule,
+
+    // Communication (AI Campaigns, Email Marketing, Notifications)
+    CommunicationModule,
 
     // Audit
     AuditModule,

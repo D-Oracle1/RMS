@@ -37,16 +37,6 @@ export default function RegisterPage() {
     address: '',
     city: '',
     state: '',
-    // Step 3 - Role Specific
-    role: 'CLIENT',
-    // Realtor specific
-    licenseNumber: '',
-    agency: '',
-    yearsOfExperience: '',
-    specializations: [] as string[],
-    // Client specific
-    preferredPropertyType: '',
-    budget: '',
     // Terms
     agreeToTerms: false,
   });
@@ -89,17 +79,17 @@ export default function RegisterPage() {
   const handleNext = () => {
     if (step === 1 && validateStep1()) {
       setStep(2);
-    } else if (step === 2 && validateStep2()) {
-      setStep(3);
     }
   };
 
   const handleBack = () => {
-    setStep(step - 1);
+    setStep(1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateStep2()) return;
 
     if (!formData.agreeToTerms) {
       toast.error('Please agree to the terms and conditions');
@@ -109,7 +99,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/auth/register`, {
+      const response = await fetch(`${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim()}/api/v1/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,19 +110,12 @@ export default function RegisterPage() {
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone,
-          role: formData.role,
           dateOfBirth: formData.dateOfBirth,
           gender: formData.gender,
           nin: formData.nin || undefined,
           address: formData.address,
           city: formData.city,
           state: formData.state,
-          licenseNumber: formData.role === 'REALTOR' ? formData.licenseNumber : undefined,
-          agency: formData.role === 'REALTOR' ? formData.agency : undefined,
-          yearsOfExperience: formData.role === 'REALTOR' ? parseInt(formData.yearsOfExperience) : undefined,
-          specializations: formData.role === 'REALTOR' ? formData.specializations : undefined,
-          preferredPropertyType: formData.role === 'CLIENT' ? formData.preferredPropertyType : undefined,
-          budget: formData.role === 'CLIENT' ? formData.budget : undefined,
         }),
       });
 
@@ -151,17 +134,7 @@ export default function RegisterPage() {
   };
 
   const handleSocialLogin = (provider: 'google' | 'facebook') => {
-    // Redirect to backend OAuth endpoint
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/v1/auth/${provider}`;
-  };
-
-  const toggleSpecialization = (spec: string) => {
-    setFormData(prev => ({
-      ...prev,
-      specializations: prev.specializations.includes(spec)
-        ? prev.specializations.filter(s => s !== spec)
-        : [...prev.specializations, spec]
-    }));
+    window.location.href = `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim()}/api/v1/auth/${provider}`;
   };
 
   return (
@@ -176,7 +149,7 @@ export default function RegisterPage() {
 
           {/* Progress Steps */}
           <div className="flex items-center justify-center gap-2 mt-4">
-            {[1, 2, 3].map((s) => (
+            {[1, 2].map((s) => (
               <div key={s} className="flex items-center">
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
@@ -185,16 +158,15 @@ export default function RegisterPage() {
                 >
                   {s}
                 </div>
-                {s < 3 && (
+                {s < 2 && (
                   <div className={`w-12 h-1 mx-1 ${step > s ? 'bg-primary' : 'bg-gray-200'}`} />
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-xs text-muted-foreground mt-2 px-4">
+          <div className="flex justify-between text-xs text-muted-foreground mt-2 px-8">
             <span>Account</span>
             <span>Personal</span>
-            <span>Role</span>
           </div>
         </CardHeader>
         <CardContent>
@@ -411,124 +383,6 @@ export default function RegisterPage() {
                     {errors.state && <p className="text-xs text-red-500">{errors.state}</p>}
                   </div>
                 </div>
-              </>
-            )}
-
-            {/* Step 3 - Role Specific */}
-            {step === 3 && (
-              <>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">I am a *</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { value: 'CLIENT', label: 'Property Buyer/Investor', desc: 'Looking to buy or invest in properties' },
-                      { value: 'REALTOR', label: 'Realtor/Agent', desc: 'Selling or managing properties' },
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, role: option.value })}
-                        className={`p-4 rounded-lg border-2 text-left transition-colors ${
-                          formData.role === option.value
-                            ? 'border-primary bg-primary/5'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <p className="font-medium">{option.label}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{option.desc}</p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Realtor Specific Fields */}
-                {formData.role === 'REALTOR' && (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">License Number</label>
-                      <Input
-                        placeholder="LIC-12345678"
-                        value={formData.licenseNumber}
-                        onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Agency/Company</label>
-                        <Input
-                          placeholder="Century 21"
-                          value={formData.agency}
-                          onChange={(e) => setFormData({ ...formData, agency: e.target.value })}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Years of Experience</label>
-                        <Input
-                          type="number"
-                          placeholder="5"
-                          min="0"
-                          value={formData.yearsOfExperience}
-                          onChange={(e) => setFormData({ ...formData, yearsOfExperience: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Specializations</label>
-                      <div className="flex flex-wrap gap-2">
-                        {['Land', 'Residential', 'Commercial', 'Luxury', 'Rental'].map((spec) => (
-                          <button
-                            key={spec}
-                            type="button"
-                            onClick={() => toggleSpecialization(spec)}
-                            className={`px-3 py-1 rounded-full text-sm border transition-colors ${
-                              formData.specializations.includes(spec)
-                                ? 'bg-primary text-white border-primary'
-                                : 'border-gray-300 hover:border-primary'
-                            }`}
-                          >
-                            {spec}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Client Specific Fields */}
-                {formData.role === 'CLIENT' && (
-                  <>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Preferred Property Type</label>
-                      <select
-                        value={formData.preferredPropertyType}
-                        onChange={(e) => setFormData({ ...formData, preferredPropertyType: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-md"
-                      >
-                        <option value="">Select property type</option>
-                        <option value="land">Land</option>
-                        <option value="residential">Residential</option>
-                        <option value="commercial">Commercial</option>
-                        <option value="luxury">Luxury</option>
-                        <option value="any">Any</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Budget Range</label>
-                      <select
-                        value={formData.budget}
-                        onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-md"
-                      >
-                        <option value="">Select budget range</option>
-                        <option value="under-10m">Under ₦10 Million</option>
-                        <option value="10m-50m">₦10 - 50 Million</option>
-                        <option value="50m-100m">₦50 - 100 Million</option>
-                        <option value="100m-500m">₦100 - 500 Million</option>
-                        <option value="above-500m">Above ₦500 Million</option>
-                      </select>
-                    </div>
-                  </>
-                )}
 
                 {/* Terms and Conditions */}
                 <div className="flex items-start gap-2">
@@ -561,7 +415,7 @@ export default function RegisterPage() {
                   Back
                 </Button>
               )}
-              {step < 3 ? (
+              {step < 2 ? (
                 <Button type="button" onClick={handleNext} className="flex-1">
                   Next
                   <ChevronRight className="w-4 h-4 ml-2" />

@@ -214,8 +214,12 @@ export default function PropertiesPage() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.address || !formData.price) {
-      setError('Please fill in required fields (Title, Address, Price)');
+    const isLandType = formData.type === 'LAND';
+    const hasPricing = isLandType ? !!formData.pricePerSqm : !!formData.price;
+    if (!formData.title || !formData.address || !hasPricing) {
+      setError(isLandType
+        ? 'Please fill in required fields (Title, Address, Price per Plot)'
+        : 'Please fill in required fields (Title, Address, Price)');
       return;
     }
 

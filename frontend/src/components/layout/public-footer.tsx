@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { Building2, ArrowRight } from 'lucide-react';
+import { Building2, ArrowRight, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { getImageUrl } from '@/lib/api';
+import { toast } from 'sonner';
 import type { BrandingData } from './public-navbar';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
@@ -17,6 +18,34 @@ interface FooterData {
 
 export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: FooterData; branding?: BrandingData }) {
   const [branding, setBranding] = useState<BrandingData>(brandingProp || {});
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [subscribing, setSubscribing] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = async () => {
+    if (!newsletterEmail || !newsletterEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    setSubscribing(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newsletterEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Subscription failed');
+      toast.success(data.message || 'Subscribed successfully!');
+      setNewsletterEmail('');
+      setSubscribed(true);
+      setTimeout(() => setSubscribed(false), 3000);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to subscribe. Please try again.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
 
   useEffect(() => {
     if (brandingProp) {
@@ -91,16 +120,22 @@ export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: Fo
           <div>
             <h4 className="font-semibold text-white mb-4">Newsletter</h4>
             <p className="text-white/70 text-sm mb-4">Subscribe to get updates on new properties and offers.</p>
-            <div className="flex gap-2">
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleSubscribe(); }}
+              className="flex gap-2"
+            >
               <input
                 type="email"
                 placeholder="Your email"
-                className="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 text-sm focus:ring-2 focus:ring-accent focus:border-transparent outline-none"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                disabled={subscribing}
+                className="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 text-sm focus:ring-2 focus:ring-accent focus:border-transparent outline-none disabled:opacity-50"
               />
-              <Button className="bg-accent hover:bg-accent-600 text-white">
-                <ArrowRight className="w-4 h-4" />
+              <Button type="submit" disabled={subscribing} className="bg-accent hover:bg-accent-600 text-white">
+                {subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : subscribed ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               </Button>
-            </div>
+            </form>
           </div>
         </div>
         <div className="pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">

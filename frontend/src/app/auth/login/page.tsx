@@ -72,6 +72,8 @@ export default function LoginPage() {
       // Route based on role
       if (user?.isSuperAdmin || role === 'super_admin') {
         router.push('/dashboard/super-admin');
+      } else if (role === 'general_overseer') {
+        router.push('/dashboard/general-overseer');
       } else if (role === 'admin') {
         router.push('/dashboard/admin');
       } else if (role === 'realtor') {

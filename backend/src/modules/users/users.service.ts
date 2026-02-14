@@ -171,6 +171,64 @@ export class UsersService {
     return { message: 'User deleted successfully' };
   }
 
+  async updateRole(id: string, newRole: UserRole) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { realtorProfile: true, clientProfile: true, adminProfile: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === newRole) {
+      throw new BadRequestException('User already has this role');
+    }
+
+    // Prevent changing SUPER_ADMIN or GENERAL_OVERSEER roles
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.GENERAL_OVERSEER) {
+      throw new BadRequestException('Cannot change the role of this user');
+    }
+
+    // Create role-specific profile if needed
+    if (newRole === UserRole.REALTOR && !user.realtorProfile) {
+      const { v4: uuidv4 } = await import('uuid');
+      await this.prisma.realtorProfile.create({
+        data: {
+          userId: user.id,
+          licenseNumber: `LIC-${uuidv4().substring(0, 8).toUpperCase()}`,
+          specializations: [],
+        },
+      });
+    } else if (newRole === UserRole.CLIENT && !user.clientProfile) {
+      await this.prisma.clientProfile.create({
+        data: { userId: user.id },
+      });
+    } else if ((newRole === UserRole.ADMIN || newRole === UserRole.GENERAL_OVERSEER) && !user.adminProfile) {
+      await this.prisma.adminProfile.create({
+        data: {
+          userId: user.id,
+          permissions: ['all'],
+        },
+      });
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data: { role: newRole },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    return updatedUser;
+  }
+
   async getStats() {
     const excludeSuperAdmin = { role: { not: UserRole.SUPER_ADMIN } };
     const [totalUsers, activeUsers, realtors, clients, admins] = await Promise.all([

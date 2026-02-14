@@ -364,4 +364,19 @@ export class MailService {
     `);
     await this.send(to, 'Performance Review Scheduled', html);
   }
+
+  // ============ Newsletter Emails ============
+
+  async sendNewsletterEmail(to: string, subject: string, content: string, unsubscribeUrl: string): Promise<void> {
+    const html = this.baseTemplate(`
+      ${content}
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0 15px;" />
+      <p style="color: #999; font-size: 11px; text-align: center;">
+        You received this email because you subscribed to our newsletter.
+        <br />
+        <a href="${unsubscribeUrl}" style="color: #999; text-decoration: underline;">Unsubscribe</a>
+      </p>
+    `);
+    await this.send(to, subject, html);
+  }
 }

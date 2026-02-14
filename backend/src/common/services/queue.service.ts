@@ -13,7 +13,8 @@ export type EmailJobType =
   | 'leave_approved'
   | 'leave_rejected'
   | 'task_assigned'
-  | 'performance_review';
+  | 'performance_review'
+  | 'newsletter';
 
 export interface EmailJob {
   type: EmailJobType;
@@ -130,6 +131,9 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
         break;
       case 'performance_review':
         await this.mailService.sendPerformanceReviewEmail(to, payload);
+        break;
+      case 'newsletter':
+        await this.mailService.sendNewsletterEmail(to, payload.subject, payload.content, payload.unsubscribeUrl);
         break;
       default:
         this.logger.warn(`Unknown email job type: ${type}`);

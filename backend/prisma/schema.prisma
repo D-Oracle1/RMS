@@ -19,6 +19,7 @@ datasource db {
 
 enum UserRole {
   SUPER_ADMIN
+  GENERAL_OVERSEER
   ADMIN
   REALTOR
   CLIENT
@@ -1617,4 +1618,205 @@ model CmsPage {
   @@index([type])
   @@index([isPublished])
   @@map("cms_pages")
+}
+
+// ===========================================
+// NEWSLETTER (legacy — kept for backward compat)
+// ===========================================
+
+model NewsletterSubscriber {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  name             String?
+  isActive         Boolean   @default(true)
+  unsubscribeToken String    @unique @default(uuid())
+  subscribedAt     DateTime  @default(now())
+  unsubscribedAt   DateTime?
+
+  @@index([email])
+  @@index([isActive])
+  @@map("newsletter_subscribers")
+}
+
+// ===========================================
+// AI COMMUNICATION & ENGAGEMENT ENGINE
+// ===========================================
+
+enum CampaignType {
+  NEWSLETTER
+  BIRTHDAY
+  PROPERTY_ALERT
+  CUSTOM
+}
+
+enum AudienceType {
+  ALL
+  CLIENT
+  REALTOR
+  INVESTOR
+  STAFF
+}
+
+enum ScheduleType {
+  IMMEDIATE
+  SCHEDULED
+  RECURRING
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum CampaignTone {
+  PROFESSIONAL
+  FRIENDLY
+  LUXURY
+  CORPORATE
+}
+
+enum CampaignLogStatus {
+  PENDING
+  SENT
+  FAILED
+  OPENED
+  CLICKED
+}
+
+enum SubscriberRole {
+  CLIENT
+  REALTOR
+  INVESTOR
+}
+
+model EmailSubscriber {
+  id           String         @id @default(uuid())
+  tenantId     String?
+  email        String
+  fullName     String?
+  dateOfBirth  DateTime?      @db.Date
+  role         SubscriberRole @default(CLIENT)
+  isSubscribed Boolean        @default(true)
+
+  // Frequency throttle tracking
+  lastEmailAt  DateTime?
+  emailCount7d Int            @default(0)
+
+  // Unsubscribe token
+  unsubscribeToken String     @unique @default(uuid())
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  campaignLogs CampaignLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([email])
+  @@index([role])
+  @@index([isSubscribed])
+  @@index([dateOfBirth])
+  @@map("email_subscribers")
+}
+
+model Campaign {
+  id             String         @id @default(uuid())
+  tenantId       String?
+  title          String
+  campaignType   CampaignType
+  audienceType   AudienceType   @default(ALL)
+  scheduleType   ScheduleType   @default(IMMEDIATE)
+  scheduledAt    DateTime?
+  recurrenceRule String?        // Cron expression for recurring
+  status         CampaignStatus @default(DRAFT)
+  tone           CampaignTone   @default(PROFESSIONAL)
+
+  // AI-generated content (cached after generation)
+  subject        String?
+  htmlContent    String?
+  promptUsed     String?
+
+  // Metadata
+  createdBy      String         // User ID
+  completedAt    DateTime?
+
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  logs           CampaignLog[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([campaignType])
+  @@index([scheduleType])
+  @@index([scheduledAt])
+  @@map("campaigns")
+}
+
+model CampaignLog {
+  id           String           @id @default(uuid())
+  campaignId   String
+  campaign     Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  subscriberId String
+  subscriber   EmailSubscriber  @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  email        String
+  status       CampaignLogStatus @default(PENDING)
+
+  sentAt       DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  errorMessage String?
+
+  // Idempotency key
+  idempotencyKey String?        @unique
+
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([campaignId])
+  @@index([subscriberId])
+  @@index([status])
+  @@index([email])
+  @@map("campaign_logs")
+}
+
+model AIContentTemplate {
+  id             String       @id @default(uuid())
+  tenantId       String?
+  templateName   String
+  promptTemplate String       @db.Text
+  tone           CampaignTone @default(PROFESSIONAL)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([tenantId, templateName])
+  @@index([tenantId])
+  @@map("ai_content_templates")
+}
+
+model PopupNotification {
+  id          String       @id @default(uuid())
+  tenantId    String?
+  title       String
+  message     String
+  targetRole  AudienceType @default(ALL)
+  isActive    Boolean      @default(true)
+  expiresAt   DateTime?
+
+  // Tracking
+  dismissedBy String[]     @default([]) // User IDs
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([tenantId])
+  @@index([isActive])
+  @@index([targetRole])
+  @@index([expiresAt])
+  @@map("popup_notifications")
 }
