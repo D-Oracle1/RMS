@@ -22,7 +22,7 @@ import {
   Home,
 } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 function formatPrice(price: number): string {
   if (price >= 1000000000) return `₦${(price / 1000000000).toFixed(2)}B`;

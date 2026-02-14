@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { getImageUrl } from '@/lib/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import { getImageUrl } from '@/lib/api';
 import type { BrandingData } from './public-navbar';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 interface FooterData {
   description?: string;

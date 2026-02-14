@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { PublicNavbar } from '@/components/layout/public-navbar';
 import { PublicFooter } from '@/components/layout/public-footer';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 export default function ContactPage() {
   const [cms, setCms] = useState<Record<string, any> | null>(null);

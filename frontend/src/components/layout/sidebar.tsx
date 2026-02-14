@@ -106,7 +106,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
   ],
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();

@@ -8,7 +8,7 @@ import { PublicFooter } from '@/components/layout/public-footer';
 import { GalleryLightbox } from '@/components/gallery-lightbox';
 import { getImageUrl } from '@/lib/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 type GalleryItemType = 'PHOTO' | 'VIDEO';
 
