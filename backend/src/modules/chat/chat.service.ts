@@ -247,7 +247,7 @@ export class ChatService {
     const users = await this.prisma.user.findMany({
       where: {
         id: { not: currentUserId },
-        isActive: true,
+        status: 'ACTIVE',
         OR: [
           { firstName: { contains: search, mode: 'insensitive' } },
           { lastName: { contains: search, mode: 'insensitive' } },
