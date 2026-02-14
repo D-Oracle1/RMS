@@ -81,7 +81,7 @@ export const AREA_UNITS: Record<AreaUnit, { label: string; factor: number; short
   sqm:     { label: 'Square Meters',  factor: 1,       shortLabel: 'sqm' },
   acre:    { label: 'Acres',          factor: 4046.86, shortLabel: 'acre(s)' },
   hectare: { label: 'Hectares',       factor: 10000,   shortLabel: 'ha' },
-  plot:    { label: 'Plots (648 sqm)', factor: 648,    shortLabel: 'plot(s)' },
+  plot:    { label: 'Plots (465 sqm)', factor: 465,    shortLabel: 'plot(s)' },
 };
 
 /** Convert from a given unit to sqm for database storage */

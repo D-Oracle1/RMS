@@ -456,7 +456,7 @@ export default function RealtorPropertiesPage() {
                         {property.type === 'LAND' && Number(property.pricePerSqm) > 0 && (
                           <div className="flex flex-wrap gap-2 mb-2">
                             <Badge className="bg-green-100 text-green-700">
-                              {formatCurrency(Number(property.pricePerSqm))}/sqm
+                              {formatCurrency(Number(property.pricePerSqm))}/plot
                             </Badge>
                           </div>
                         )}
@@ -523,7 +523,7 @@ export default function RealtorPropertiesPage() {
                 </div>
                 {isLandProperty && Number(selectedProperty?.pricePerSqm) > 0 && (
                   <div>
-                    <p className="text-muted-foreground">Price/sqm</p>
+                    <p className="text-muted-foreground">Price/plot</p>
                     <p className="font-medium">{formatCurrency(Number(selectedProperty?.pricePerSqm))}</p>
                   </div>
                 )}
@@ -677,7 +677,7 @@ export default function RealtorPropertiesPage() {
                 </div>
                 {isLandProperty ? (
                   <div className="space-y-2">
-                    <Label>Price per sqm (₦)</Label>
+                    <Label>Price per Plot (₦)</Label>
                     <Input
                       type="number"
                       value={saleForm.pricePerSqm}

@@ -224,7 +224,7 @@ export default function PropertyDetailPage() {
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   {property.pricePerSqm && (
                     <div className="bg-accent/5 border border-accent/20 rounded-xl p-4">
-                      <div className="text-sm text-gray-500">Price per sqm</div>
+                      <div className="text-sm text-gray-500">Price per plot</div>
                       <div className="text-lg font-bold text-accent">{formatPrice(Number(property.pricePerSqm))}</div>
                     </div>
                   )}
@@ -272,7 +272,7 @@ export default function PropertyDetailPage() {
               </div>
               {property.pricePerSqm && (
                 <div className="text-sm text-gray-500 mb-6">
-                  {formatPrice(Number(property.pricePerSqm))} / sqm
+                  {formatPrice(Number(property.pricePerSqm))} / plot
                 </div>
               )}
 

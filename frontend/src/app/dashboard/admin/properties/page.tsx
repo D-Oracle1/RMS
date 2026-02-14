@@ -235,16 +235,16 @@ export default function PropertiesPage() {
 
       const areaInUserUnit = parseFloat(formData.sqft) || 0;
       const areaInSqm = toSqm(areaInUserUnit, areaUnit);
-      const actualPricePerSqm = parseFloat(formData.pricePerSqm) || 0;
+      const pricePerPlot = parseFloat(formData.pricePerSqm) || 0;
       let totalPrice = parseFloat(formData.price) || 0;
-
-      if (formData.type === 'LAND' && actualPricePerSqm > 0 && areaInSqm > 0) {
-        totalPrice = actualPricePerSqm * areaInSqm;
-      }
 
       const numberOfPlots = areaUnit === 'plot'
         ? Math.round(areaInUserUnit)
         : (parseInt(formData.numberOfPlots) || 1);
+
+      if (formData.type === 'LAND' && pricePerPlot > 0 && numberOfPlots > 0) {
+        totalPrice = pricePerPlot * numberOfPlots;
+      }
 
       const propertyData = {
         title: formData.title,
@@ -253,7 +253,7 @@ export default function PropertiesPage() {
         state: formData.state,
         country: 'Nigeria',
         price: totalPrice,
-        pricePerSqm: formData.type === 'LAND' ? actualPricePerSqm : undefined,
+        pricePerSqm: formData.type === 'LAND' ? pricePerPlot : undefined,
         numberOfPlots: formData.type === 'LAND' ? numberOfPlots : undefined,
         type: formData.type,
         status: 'AVAILABLE',
@@ -330,16 +330,16 @@ export default function PropertiesPage() {
 
       const areaInUserUnit = parseFloat(editFormData.sqft) || 0;
       const areaInSqm = toSqm(areaInUserUnit, editAreaUnit);
-      const actualPricePerSqm = parseFloat(editFormData.pricePerSqm) || 0;
+      const pricePerPlot = parseFloat(editFormData.pricePerSqm) || 0;
       let totalPrice = parseFloat(editFormData.price) || 0;
-
-      if (isLand && actualPricePerSqm > 0 && areaInSqm > 0) {
-        totalPrice = actualPricePerSqm * areaInSqm;
-      }
 
       const numberOfPlots = editAreaUnit === 'plot'
         ? Math.round(areaInUserUnit)
         : (parseInt(editFormData.numberOfPlots) || 1);
+
+      if (isLand && pricePerPlot > 0 && numberOfPlots > 0) {
+        totalPrice = pricePerPlot * numberOfPlots;
+      }
 
       const updateData: any = {
         title: editFormData.title,
@@ -356,7 +356,7 @@ export default function PropertiesPage() {
       };
 
       if (isLand) {
-        updateData.pricePerSqm = actualPricePerSqm;
+        updateData.pricePerSqm = pricePerPlot;
         updateData.numberOfPlots = numberOfPlots;
       }
 
@@ -506,7 +506,7 @@ export default function PropertiesPage() {
                 onChange={(e) => setData(prev => ({ ...prev, price: e.target.value }))}
               />
             </div>
-          ) : currentAreaUnit !== 'plot' ? (
+          ) : (
             <div className="space-y-2">
               <label className="text-sm font-medium">Number of Plots</label>
               <Input
@@ -516,16 +516,6 @@ export default function PropertiesPage() {
                 onChange={(e) => setData(prev => ({ ...prev, numberOfPlots: e.target.value }))}
               />
             </div>
-          ) : (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Price (₦) *</label>
-              <Input
-                type="number"
-                placeholder="e.g., 50000000"
-                value={data.price}
-                onChange={(e) => setData(prev => ({ ...prev, price: e.target.value }))}
-              />
-            </div>
           )}
         </div>
 
@@ -533,10 +523,10 @@ export default function PropertiesPage() {
         {isLand && (
           <div className="grid grid-cols-2 gap-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-green-700 dark:text-green-400">Price per sqm (₦) *</label>
+              <label className="text-sm font-medium text-green-700 dark:text-green-400">Price per Plot (₦) *</label>
               <Input
                 type="number"
-                placeholder="e.g., 150000"
+                placeholder="e.g., 5000000"
                 value={data.pricePerSqm}
                 onChange={(e) => setData(prev => ({ ...prev, pricePerSqm: e.target.value }))}
                 className="border-green-300"
@@ -546,10 +536,10 @@ export default function PropertiesPage() {
               <label className="text-sm font-medium text-green-700 dark:text-green-400">Total Value (₦)</label>
               <div className="px-3 py-2 bg-white dark:bg-gray-800 border rounded-md text-lg font-bold text-green-600">
                 {formatCurrency(
-                  (parseFloat(data.pricePerSqm) || 0) * (parseFloat(data.sqft) || 0)
+                  (parseFloat(data.pricePerSqm) || 0) * (currentAreaUnit === 'plot' ? (parseFloat(data.sqft) || 0) : ((parseFloat(data.sqft) || 0) / 465))
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">Auto-calculated from price/{unitLabel} x size</p>
+              <p className="text-xs text-muted-foreground">Auto-calculated from price/plot × number of plots</p>
             </div>
           </div>
         )}
@@ -790,9 +780,9 @@ export default function PropertiesPage() {
                         <MapPin className="w-3 h-3" /> {property.address}{property.city ? `, ${property.city}` : ''}{property.state ? `, ${property.state}` : ''}
                       </p>
                       <p className="text-2xl font-bold text-primary mb-1">{formatCurrency(Number(property.price))}</p>
-                      {property.type === 'LAND' && property.area > 0 && Number(property.pricePerSqm) > 0 && (
+                      {property.type === 'LAND' && Number(property.pricePerSqm) > 0 && (
                         <p className="text-sm text-green-600 mb-2">
-                          {formatCurrency(Number(property.pricePerSqm))}/sqm
+                          {formatCurrency(Number(property.pricePerSqm))}/plot
                         </p>
                       )}
                       {property.type !== 'LAND' ? (

@@ -116,7 +116,7 @@ export default function ClientPropertiesPage() {
       total: property.purchasePrice,
       status: 'paid',
       notes: property.type === 'Land' && property.sqm
-        ? `Size: ${property.sqm.toLocaleString()} sqm | Price per sqm: ${formatCurrency(property.purchasePrice / property.sqm)}`
+        ? `Size: ${property.sqm.toLocaleString()} sqm | Price per plot: ${formatCurrency(property.purchasePrice / property.sqm)}`
         : property.bedrooms
         ? `${property.bedrooms} Bedrooms, ${property.bathrooms} Bathrooms`
         : undefined,
@@ -273,7 +273,7 @@ export default function ClientPropertiesPage() {
                     {/* Property-specific info */}
                     {property.type === 'Land' && property.sqm && (
                       <div className="mt-2 text-sm text-muted-foreground">
-                        Size: {property.sqm.toLocaleString()} sqm | Price per sqm: {formatCurrency(property.purchasePrice / property.sqm)}
+                        Size: {property.sqm.toLocaleString()} sqm | Price per plot: {formatCurrency(property.purchasePrice / property.sqm)}
                       </div>
                     )}
                     {property.type === 'House' && property.bedrooms && (

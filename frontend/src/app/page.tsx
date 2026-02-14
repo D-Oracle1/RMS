@@ -368,7 +368,7 @@ export default function HomePage() {
                             </div>
                             {property.pricePerSqm && (
                               <div className="text-xs text-white/80">
-                                {formatPrice(Number(property.pricePerSqm))}/sqm
+                                {formatPrice(Number(property.pricePerSqm))}/plot
                               </div>
                             )}
                           </div>

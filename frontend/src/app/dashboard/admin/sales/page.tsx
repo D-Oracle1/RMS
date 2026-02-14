@@ -802,7 +802,7 @@ export default function SalesPage() {
                           <p className="text-xl font-bold">{formatArea(selectedSale.sqmSold)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Price/sqm</p>
+                          <p className="text-xs text-muted-foreground">Price/plot</p>
                           <p className="text-xl font-bold">{formatCurrency(selectedSale.pricePerSqm)}</p>
                         </div>
                       </>
