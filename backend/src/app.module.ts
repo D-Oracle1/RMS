@@ -42,6 +42,7 @@ import { StaffModule } from './modules/staff/staff.module';
 import { DepartmentModule } from './modules/department/department.module';
 import { HrModule } from './modules/hr/hr.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { SharedFilesModule } from './modules/shared-files/shared-files.module';
 
 // Awards
 import { AwardModule } from './modules/award/award.module';
@@ -123,6 +124,7 @@ import { CompanyModule } from './modules/company/company.module';
     DepartmentModule,
     HrModule,
     TasksModule,
+    SharedFilesModule,
 
     // Awards
     AwardModule,

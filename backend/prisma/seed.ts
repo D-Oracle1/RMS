@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, UserStatus } from '@prisma/client';
+import { PrismaClient, UserRole, UserStatus, StaffPosition, EmploymentType } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -56,6 +56,57 @@ async function main() {
 
   console.log('Admin created:', admin.email);
 
+  // Create Department for staff
+  const department = await prisma.department.upsert({
+    where: { code: 'OPS' },
+    update: {},
+    create: {
+      name: 'Operations',
+      code: 'OPS',
+      description: 'General operations department',
+    },
+  });
+
+  console.log('Department created:', department.name);
+
+  // Create Staff Member
+  const existingStaff = await prisma.user.findUnique({
+    where: { email: 'staff@rms.com' },
+  });
+
+  if (!existingStaff) {
+    const staffUser = await prisma.user.create({
+      data: {
+        email: 'staff@rms.com',
+        password: hashedPassword,
+        firstName: 'John',
+        lastName: 'Staff',
+        phone: '+1234567892',
+        role: UserRole.STAFF,
+        status: UserStatus.ACTIVE,
+        emailVerified: true,
+        staffProfile: {
+          create: {
+            employeeId: 'EMP-001',
+            position: StaffPosition.SENIOR,
+            title: 'Senior Operations Officer',
+            employmentType: EmploymentType.FULL_TIME,
+            hireDate: new Date('2024-01-15'),
+            departmentId: department.id,
+            baseSalary: 500000,
+            currency: 'NGN',
+            annualLeaveBalance: 20,
+            sickLeaveBalance: 10,
+          },
+        },
+      },
+    });
+
+    console.log('Staff created:', staffUser.email);
+  } else {
+    console.log('Staff already exists:', existingStaff.email);
+  }
+
   // Create system settings (commission rates and tax)
   const settings = [
     { key: 'commission_bronze', value: { rate: 0.03 } },
@@ -82,6 +133,7 @@ async function main() {
   console.log('Accounts:');
   console.log('  Super Admin: superadmin@rms.com / Admin123!');
   console.log('  Admin:       admin@rms.com / Admin123!');
+  console.log('  Staff:       staff@rms.com / Admin123!');
 }
 
 main()

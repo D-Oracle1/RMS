@@ -141,10 +141,14 @@ export default function StaffDashboard() {
 
     const fetchTasks = async () => {
       try {
-        const res: any = await api.get('/tasks?status=TODO,IN_PROGRESS,IN_REVIEW&limit=5');
-        setTasks((res.data || res)?.data || res.data || []);
+        const res: any = await api.get('/tasks/my');
+        const allTasks = res?.data || res;
+        // Filter to active tasks and limit to 5 for the dashboard
+        const activeTasks = (Array.isArray(allTasks) ? allTasks : [])
+          .filter((t: any) => ['TODO', 'IN_PROGRESS', 'IN_REVIEW'].includes(t.status))
+          .slice(0, 5);
+        setTasks(activeTasks);
       } catch {
-        // Tasks endpoint may not exist, use empty array
         setTasks([]);
       }
     };
@@ -170,7 +174,7 @@ export default function StaffDashboard() {
 
   const handleStartTask = async (taskId: string) => {
     try {
-      await api.patch(`/tasks/${taskId}`, { status: 'IN_PROGRESS' });
+      await api.put(`/tasks/${taskId}/status`, { status: 'IN_PROGRESS' });
       setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'IN_PROGRESS' } : t));
       toast.success('Task started!');
     } catch {
@@ -180,7 +184,7 @@ export default function StaffDashboard() {
 
   const handleSubmitForReview = async (taskId: string) => {
     try {
-      await api.patch(`/tasks/${taskId}`, { status: 'IN_REVIEW' });
+      await api.put(`/tasks/${taskId}/status`, { status: 'IN_REVIEW' });
       setTasks(tasks.map(t => t.id === taskId ? { ...t, status: 'IN_REVIEW' } : t));
       toast.success('Task submitted for review!');
     } catch {
