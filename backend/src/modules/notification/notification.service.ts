@@ -294,7 +294,7 @@ export class NotificationService {
     return users;
   }
 
-  async sendCallout(callerId: string, targetUserId: string, message?: string) {
+  async sendCallout(callerId: string, targetUserId: string, message?: string, link?: string) {
     // Get caller info
     const caller = await this.prisma.user.findUnique({
       where: { id: callerId },
@@ -331,6 +331,7 @@ export class NotificationService {
         callerPosition: caller.staffProfile?.title,
         callerDepartment: caller.staffProfile?.department?.name,
         customMessage: message,
+        link,
       },
     });
 
@@ -343,6 +344,7 @@ export class NotificationService {
       callerPosition: caller.staffProfile?.title,
       callerDepartment: caller.staffProfile?.department?.name,
       message: message,
+      link,
       timestamp: new Date().toISOString(),
     });
 
