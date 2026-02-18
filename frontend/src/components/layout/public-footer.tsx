@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { Building2, ArrowRight, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getImageUrl } from '@/lib/api';
 import { toast } from 'sonner';
-import type { BrandingData } from './public-navbar';
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
@@ -16,8 +16,8 @@ interface FooterData {
   services?: string[];
 }
 
-export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: FooterData; branding?: BrandingData }) {
-  const [branding, setBranding] = useState<BrandingData>(brandingProp || {});
+export function PublicFooter({ cmsData }: { cmsData?: FooterData }) {
+  const branding = useBranding();
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribing, setSubscribing] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -47,21 +47,7 @@ export function PublicFooter({ cmsData, branding: brandingProp }: { cmsData?: Fo
     }
   };
 
-  useEffect(() => {
-    if (brandingProp) {
-      setBranding(brandingProp);
-      return;
-    }
-    fetch(`${API_BASE_URL}/api/v1/cms/public/branding`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((raw) => {
-        const d = raw?.data || raw;
-        if (d && typeof d === 'object') setBranding(d);
-      })
-      .catch(() => {});
-  }, [brandingProp]);
-
-  const companyName = branding.companyName || 'RMS Platform';
+  const companyName = getCompanyName(branding);
   const logoUrl = branding.logo ? (branding.logo.startsWith('http') ? branding.logo : getImageUrl(branding.logo)) : '';
   const description = cmsData?.description || `${companyName} — your trusted partner in real estate.`;
   const quickLinks = cmsData?.quickLinks || [

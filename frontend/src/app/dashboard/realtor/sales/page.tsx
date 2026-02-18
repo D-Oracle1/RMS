@@ -35,6 +35,7 @@ import { formatCurrency, formatDate, formatArea } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
@@ -90,6 +91,8 @@ const getStatusIcon = (status: string) => {
 };
 
 export default function RealtorSalesPage() {
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
@@ -190,8 +193,8 @@ export default function RealtorSalesPage() {
       type: 'sale',
       date: sale.date,
       seller: {
-        name: 'RMS Platform',
-        address: 'Lagos, Nigeria',
+        name: companyName,
+        address: branding.address || '',
       },
       buyer: {
         name: sale.buyer,
@@ -619,6 +622,7 @@ export default function RealtorSalesPage() {
         open={receiptModalOpen}
         onClose={() => setReceiptModalOpen(false)}
         data={selectedReceipt}
+        branding={branding}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Building2, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -10,29 +10,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { setAuth, clearAuth } from '@/lib/auth-storage';
 import { getImageUrl } from '@/lib/api';
-
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 export default function LoginPage() {
   const router = useRouter();
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [branding, setBranding] = useState<{ companyName?: string; shortName?: string; logo?: string } | null>(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false,
   });
-
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/v1/cms/public/branding`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((raw) => {
-        const data = raw?.data !== undefined ? raw.data : raw;
-        if (data && typeof data === 'object') setBranding(data);
-      })
-      .catch(() => {});
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,10 +89,10 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          {branding?.logo ? (
+          {branding.logo ? (
             <img
               src={branding.logo.startsWith('http') ? branding.logo : getImageUrl(branding.logo)}
-              alt={branding.companyName || 'Logo'}
+              alt={companyName}
               className="mx-auto h-12 w-auto object-contain mb-4"
             />
           ) : (
@@ -111,7 +101,7 @@ export default function LoginPage() {
             </div>
           )}
           <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your {branding?.companyName || 'RMS Platform'} account</CardDescription>
+          <CardDescription>Sign in to your {companyName} account</CardDescription>
         </CardHeader>
         <CardContent>
           {/* Social Login Buttons */}

@@ -32,6 +32,7 @@ import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
@@ -43,6 +44,8 @@ const defaultTierRates = [
 ];
 
 export default function CommissionPage() {
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
@@ -214,10 +217,10 @@ export default function CommissionPage() {
       receiptNumber: `COM-${commission.id.toString().padStart(6, '0')}`,
       date: formatDate(commission.date),
       seller: {
-        name: 'RMS Platform',
-        email: 'payments@rms.com',
-        phone: '+234 800 123 4567',
-        address: 'Victoria Island, Lagos, Nigeria',
+        name: companyName,
+        email: branding.supportEmail || '',
+        phone: branding.supportPhone || '',
+        address: branding.address || '',
       },
       buyer: {
         name: commission.realtor,
@@ -514,6 +517,7 @@ export default function CommissionPage() {
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
         data={receiptData}
+        branding={branding}
       />
     </div>
   );

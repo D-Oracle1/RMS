@@ -20,10 +20,13 @@ import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
 export default function RealtorCommissionPage() {
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
   const [commissions, setCommissions] = useState<any[]>([]);
   const [receiptModalOpen, setReceiptModalOpen] = useState(false);
@@ -164,10 +167,10 @@ export default function RealtorCommissionPage() {
       type: 'commission',
       date: item.date,
       seller: {
-        name: 'RMS Nigeria Ltd',
-        email: 'finance@rms.com.ng',
-        phone: '+234 1 234 5678',
-        address: 'Victoria Island, Lagos',
+        name: companyName,
+        email: branding.supportEmail || '',
+        phone: branding.supportPhone || '',
+        address: branding.address || '',
       },
       buyer: {
         name: 'Realtor Name', // Would come from auth context
@@ -399,6 +402,7 @@ export default function RealtorCommissionPage() {
         open={receiptModalOpen}
         onClose={() => setReceiptModalOpen(false)}
         data={selectedReceipt}
+        branding={branding}
       />
     </div>
   );

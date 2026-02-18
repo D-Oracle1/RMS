@@ -33,7 +33,6 @@ export default function GalleryPage() {
   const [filter, setFilter] = useState<'ALL' | GalleryItemType>('ALL');
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [footerData, setFooterData] = useState<any>(undefined);
-  const [branding, setBranding] = useState<any>(undefined);
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -64,7 +63,6 @@ export default function GalleryPage() {
         const data = raw?.data || raw;
         if (data && typeof data === 'object') {
           if (data.footer) setFooterData(data.footer);
-          if (data.branding) setBranding(data.branding);
         }
       })
       .catch(() => {});
@@ -72,7 +70,7 @@ export default function GalleryPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-primary-950">
-      <PublicNavbar currentPage="/gallery" branding={branding} />
+      <PublicNavbar currentPage="/gallery" />
 
       {/* Hero */}
       <section className="bg-gradient-to-r from-primary via-primary-600 to-primary pt-28 pb-12 px-4">
@@ -170,7 +168,7 @@ export default function GalleryPage() {
         />
       )}
 
-      <PublicFooter cmsData={footerData} branding={branding} />
+      <PublicFooter cmsData={footerData} />
     </div>
   );
 }

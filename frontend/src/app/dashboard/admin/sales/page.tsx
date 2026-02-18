@@ -41,6 +41,7 @@ import { formatCurrency, formatDate, getTierBgClass, formatArea } from '@/lib/ut
 import { api } from '@/lib/api';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
@@ -75,6 +76,8 @@ interface Sale {
 const sales: Sale[] = [];
 
 export default function SalesPage() {
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
@@ -280,8 +283,8 @@ export default function SalesPage() {
       receiptNumber: `SALE-${sale.id.toString().padStart(6, '0')}`,
       date: sale.date,
       seller: {
-        name: 'RMS Platform',
-        address: 'Lagos, Nigeria',
+        name: companyName,
+        address: branding.address || '',
       },
       buyer: {
         name: sale.buyer,
@@ -1056,6 +1059,7 @@ export default function SalesPage() {
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
         data={receiptData}
+        branding={branding}
       />
     </div>
   );

@@ -232,11 +232,27 @@ export default function CmsPage() {
               <Input value={sectionData.favicon || ''} onChange={(e) => updateField('favicon', e.target.value)} placeholder="/favicon.ico" />
             </div>
             <div className="border-t pt-4 mt-4">
-              <h3 className="font-semibold text-sm mb-3">Support & Communication</h3>
-              <div>
-                <label className="text-sm font-medium mb-1 block">WhatsApp Number</label>
-                <Input value={sectionData.whatsappNumber || ''} onChange={(e) => updateField('whatsappNumber', e.target.value)} placeholder="+234XXXXXXXXXX" />
-                <p className="text-xs text-muted-foreground mt-1">International format with country code. Shows on the support chat widget.</p>
+              <h3 className="font-semibold text-sm mb-3">Contact & Communication</h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Support Email</label>
+                    <Input value={sectionData.supportEmail || ''} onChange={(e) => updateField('supportEmail', e.target.value)} placeholder="support@company.com" />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium mb-1 block">Support Phone</label>
+                    <Input value={sectionData.supportPhone || ''} onChange={(e) => updateField('supportPhone', e.target.value)} placeholder="+234XXXXXXXXXX" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Company Address</label>
+                  <Input value={sectionData.address || ''} onChange={(e) => updateField('address', e.target.value)} placeholder="Lagos, Nigeria" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">WhatsApp Number</label>
+                  <Input value={sectionData.whatsappNumber || ''} onChange={(e) => updateField('whatsappNumber', e.target.value)} placeholder="+234XXXXXXXXXX" />
+                  <p className="text-xs text-muted-foreground mt-1">International format with country code. Shows on the support chat widget.</p>
+                </div>
               </div>
             </div>
           </div>

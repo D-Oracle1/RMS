@@ -139,7 +139,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-primary-950">
-      <PublicNavbar currentPage="/" branding={cms?.branding} />
+      <PublicNavbar currentPage="/" />
 
       {/* Hero Section */}
       <Link href="/auth/register" className="block">
@@ -619,7 +619,7 @@ export default function HomePage() {
         </section>
       )}
 
-      <PublicFooter cmsData={cms?.footer} branding={cms?.branding} />
+      <PublicFooter cmsData={cms?.footer} />
     </div>
   );
 }

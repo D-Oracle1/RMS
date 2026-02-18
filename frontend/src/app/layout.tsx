@@ -4,6 +4,7 @@ import '@/styles/globals.css';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/sonner';
 import { SupportChatWidget } from '@/components/support/support-chat-widget';
+import { BrandingTitle } from '@/components/branding-title';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -73,6 +74,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <Providers>
+          <BrandingTitle />
           {children}
           <Toaster position="top-right" richColors closeButton />
           <SupportChatWidget />

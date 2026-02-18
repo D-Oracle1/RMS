@@ -62,10 +62,17 @@ export interface ReceiptData {
 interface ReceiptProps {
   data: ReceiptData;
   className?: string;
+  branding?: {
+    companyName?: string;
+    supportEmail?: string;
+    supportPhone?: string;
+    address?: string;
+  };
 }
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
-  ({ data, className = '' }, ref) => {
+  ({ data, className = '', branding }, ref) => {
+    const brandName = branding?.companyName || 'RMS Platform';
     const getStatusColor = (status: string) => {
       switch (status) {
         case 'paid':
@@ -108,7 +115,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               <Building2 className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">RMS Platform</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{brandName}</h1>
               <p className="text-sm text-gray-500">Realtors Management System</p>
             </div>
           </div>
@@ -271,7 +278,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         {/* Footer */}
         <div className="mt-8 pt-6 border-t text-center text-sm text-gray-500">
           <p>Thank you for your business!</p>
-          <p className="mt-2">RMS Platform | Lagos, Nigeria | support@rms.com.ng | +234 800 123 4567</p>
+          <p className="mt-2">{brandName}{branding?.address ? ` | ${branding.address}` : ''}{branding?.supportEmail ? ` | ${branding.supportEmail}` : ''}{branding?.supportPhone ? ` | ${branding.supportPhone}` : ''}</p>
         </div>
       </div>
     );

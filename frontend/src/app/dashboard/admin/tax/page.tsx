@@ -31,6 +31,7 @@ import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
@@ -49,6 +50,8 @@ const defaultTaxSettings: TaxSettings = {
 };
 
 export default function TaxPage() {
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const [searchTerm, setSearchTerm] = useState('');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
   const [showTaxSettings, setShowTaxSettings] = useState(false);
@@ -153,10 +156,10 @@ export default function TaxPage() {
       receiptNumber: `TAX-${report.year}-${report.id.toString().padStart(6, '0')}`,
       date: `${report.year}-${(report.month + 1).toString().padStart(2, '0')}-01`,
       seller: {
-        name: 'RMS Platform - Tax Division',
-        email: 'tax@rms.com',
-        phone: '+234 800 123 4567',
-        address: 'Victoria Island, Lagos, Nigeria',
+        name: companyName + ' - Tax Division',
+        email: branding.supportEmail || '',
+        phone: branding.supportPhone || '',
+        address: branding.address || '',
       },
       buyer: {
         name: report.realtor,
@@ -498,6 +501,7 @@ export default function TaxPage() {
         open={showReceipt}
         onClose={() => setShowReceipt(false)}
         data={receiptData}
+        branding={branding}
       />
     </div>
   );

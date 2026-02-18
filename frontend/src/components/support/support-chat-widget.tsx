@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { getToken, getUser } from '@/lib/auth-storage';
 import { api } from '@/lib/api';
-
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
+import { useBranding } from '@/hooks/use-branding';
 
 const WHATSAPP_SVG = (
   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -27,8 +26,8 @@ interface Message {
 
 export function SupportChatWidget() {
   const pathname = usePathname();
+  const branding = useBranding();
   const [isOpen, setIsOpen] = useState(false);
-  const [whatsappNumber, setWhatsappNumber] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -38,6 +37,8 @@ export function SupportChatWidget() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const whatsappNumber = branding.whatsappNumber || '';
 
   // Check auth state
   useEffect(() => {
@@ -51,26 +52,6 @@ export function SupportChatWidget() {
 
     window.addEventListener('storage', checkAuth);
     return () => window.removeEventListener('storage', checkAuth);
-  }, []);
-
-  // Fetch WhatsApp number from CMS branding
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/v1/cms/public/branding`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`Branding fetch failed: ${r.status}`);
-        return r.json();
-      })
-      .then((raw) => {
-        // TransformInterceptor wraps response as { success, data, timestamp }
-        const data = raw?.data !== undefined ? raw.data : raw;
-        console.log('[SupportWidget] Branding data:', data);
-        if (data?.whatsappNumber) {
-          setWhatsappNumber(data.whatsappNumber);
-        }
-      })
-      .catch((err) => {
-        console.warn('[SupportWidget] Failed to fetch branding:', err);
-      });
   }, []);
 
   const scrollToBottom = useCallback(() => {

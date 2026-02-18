@@ -42,6 +42,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getImageUrl } from '@/lib/api';
 import { getUser, clearAuth } from '@/lib/auth-storage';
+import { useBranding, getShortName } from '@/hooks/use-branding';
 
 interface SidebarProps {
   role: 'admin' | 'realtor' | 'client' | 'staff' | 'super-admin' | 'general-overseer';
@@ -124,25 +125,12 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
   ],
 };
 
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
-
 export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const navigation = navigationConfig[role];
-
-  // Branding from CMS
-  const [branding, setBranding] = useState<{ companyName?: string; shortName?: string; logo?: string }>({});
-  useEffect(() => {
-    fetch(`${API_BASE_URL}/api/v1/cms/public/branding`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((raw) => {
-        const data = raw?.data || raw;
-        if (data && typeof data === 'object') setBranding(data);
-      })
-      .catch(() => {});
-  }, []);
+  const branding = useBranding();
 
   // Get logged-in user from localStorage
   const [currentUser, setCurrentUser] = useState<{ firstName: string; lastName: string; role: string; avatar?: string } | null>(null);
@@ -199,7 +187,7 @@ export function Sidebar({ role, isOpen = false, onClose }: SidebarProps) {
                 </div>
               )}
               {!collapsed && (
-                <span className="text-lg font-bold text-white">{branding.shortName || 'RMS'}</span>
+                <span className="text-lg font-bold text-white">{getShortName(branding)}</span>
               )}
             </Link>
             {/* Close button on mobile */}

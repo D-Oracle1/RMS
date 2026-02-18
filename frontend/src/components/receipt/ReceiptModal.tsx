@@ -18,9 +18,15 @@ interface ReceiptModalProps {
   open: boolean;
   onClose: () => void;
   data: ReceiptData | null;
+  branding?: {
+    companyName?: string;
+    supportEmail?: string;
+    supportPhone?: string;
+    address?: string;
+  };
 }
 
-export function ReceiptModal({ open, onClose, data }: ReceiptModalProps) {
+export function ReceiptModal({ open, onClose, data, branding }: ReceiptModalProps) {
   const [sending, setSending] = useState(false);
   const [showEmailInput, setShowEmailInput] = useState(false);
   const [email, setEmail] = useState('');
@@ -195,7 +201,7 @@ export function ReceiptModal({ open, onClose, data }: ReceiptModalProps) {
 
         {/* Receipt Content */}
         <div className="border rounded-lg overflow-hidden">
-          <Receipt ref={receiptRef} data={data} />
+          <Receipt ref={receiptRef} data={data} branding={branding} />
         </div>
       </DialogContent>
     </Dialog>

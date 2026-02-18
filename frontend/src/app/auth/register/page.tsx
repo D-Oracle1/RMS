@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 const nigerianStates = [
   'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue', 'Borno',
@@ -20,6 +21,8 @@ const nigerianStates = [
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const roleParam = searchParams.get('role');
   const refCode = searchParams.get('ref');
   const isRealtorSignup = roleParam?.toLowerCase() === 'realtor';
@@ -152,7 +155,7 @@ export default function RegisterPage() {
           </div>
           <CardTitle className="text-2xl">Create an account</CardTitle>
           <CardDescription>
-            {isRealtorSignup ? 'Register as a Realtor on RMS Platform' : 'Join RMS Platform today'}
+            {isRealtorSignup ? `Register as a Realtor on ${companyName}` : `Join ${companyName} today`}
           </CardDescription>
 
           {isRealtorSignup && (

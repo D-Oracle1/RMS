@@ -22,6 +22,8 @@ import {
   Home,
 } from 'lucide-react';
 
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
+
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
 
 function formatPrice(price: number): string {
@@ -32,6 +34,8 @@ function formatPrice(price: number): string {
 
 export default function PropertyDetailPage() {
   const params = useParams();
+  const branding = useBranding();
+  const companyName = getCompanyName(branding);
   const [property, setProperty] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,7 +83,7 @@ export default function PropertyDetailPage() {
   const images = property.images || [];
   const realtorName = property.realtor
     ? `${property.realtor.user.firstName} ${property.realtor.user.lastName}`
-    : 'RMS Agent';
+    : `${companyName} Agent`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -90,7 +94,7 @@ export default function PropertyDetailPage() {
             <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
               <Building2 className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold">RMS Platform</span>
+            <span className="text-xl font-bold">{companyName}</span>
           </Link>
           <div className="flex items-center gap-3">
             <Link href="/auth/login">
@@ -325,10 +329,10 @@ export default function PropertyDetailPage() {
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
               <Building2 className="w-5 h-5 text-white" />
             </div>
-            <span className="text-lg font-bold text-white">RMS Platform</span>
+            <span className="text-lg font-bold text-white">{companyName}</span>
           </div>
           <p className="text-sm text-white/70">
-            &copy; {new Date().getFullYear()} RMS Platform. All rights reserved.
+            &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
           </p>
         </div>
       </footer>

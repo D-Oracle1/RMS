@@ -62,7 +62,7 @@ export default function AboutPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-primary-950">
-      <PublicNavbar currentPage="/about" branding={cms?.branding} />
+      <PublicNavbar currentPage="/about" />
 
       {/* Hero */}
       <section className="relative pt-16 min-h-[60vh] flex items-center">
@@ -258,7 +258,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      <PublicFooter cmsData={cms?.footer} branding={cms?.branding} />
+      <PublicFooter cmsData={cms?.footer} />
     </div>
   );
 }

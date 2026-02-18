@@ -71,7 +71,7 @@ export default function ContactPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-primary-950">
-      <PublicNavbar currentPage="/contact" branding={cms?.branding} />
+      <PublicNavbar currentPage="/contact" />
 
       {/* Hero */}
       <section className="bg-gradient-to-r from-primary via-primary-600 to-primary pt-28 pb-12 px-4">
@@ -201,7 +201,7 @@ export default function ContactPage() {
         </section>
       )}
 
-      <PublicFooter cmsData={cms?.footer} branding={cms?.branding} />
+      <PublicFooter cmsData={cms?.footer} />
     </div>
   );
 }

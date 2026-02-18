@@ -69,7 +69,7 @@ export default function FeaturesPage() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-primary-950">
-      <PublicNavbar currentPage="/features" branding={cms?.branding} />
+      <PublicNavbar currentPage="/features" />
 
       {/* Hero */}
       <section className="bg-gradient-to-r from-primary via-primary-600 to-primary pt-28 pb-16 px-4">
@@ -239,7 +239,7 @@ export default function FeaturesPage() {
         </div>
       </section>
 
-      <PublicFooter cmsData={cms?.footer} branding={cms?.branding} />
+      <PublicFooter cmsData={cms?.footer} />
     </div>
   );
 }

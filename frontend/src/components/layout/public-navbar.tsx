@@ -3,11 +3,10 @@
 import Link from 'next/link';
 import { Building2, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { getImageUrl } from '@/lib/api';
-
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
+import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 const NAV_LINKS = [
   { href: '/', label: 'Home' },
@@ -18,37 +17,15 @@ const NAV_LINKS = [
   { href: '/contact', label: 'Contact' },
 ];
 
-export interface BrandingData {
-  companyName?: string;
-  shortName?: string;
-  logo?: string;
-}
-
 interface PublicNavbarProps {
   currentPage?: string;
-  branding?: BrandingData;
 }
 
-export function PublicNavbar({ currentPage, branding: brandingProp }: PublicNavbarProps) {
+export function PublicNavbar({ currentPage }: PublicNavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [branding, setBranding] = useState<BrandingData>(brandingProp || {});
+  const branding = useBranding();
 
-  // Fetch branding if not passed as prop
-  useEffect(() => {
-    if (brandingProp) {
-      setBranding(brandingProp);
-      return;
-    }
-    fetch(`${API_BASE_URL}/api/v1/cms/public/branding`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((raw) => {
-        const data = raw?.data || raw;
-        if (data && typeof data === 'object') setBranding(data);
-      })
-      .catch(() => {});
-  }, [brandingProp]);
-
-  const companyName = branding.companyName || 'RMS Platform';
+  const companyName = getCompanyName(branding);
   const logoUrl = branding.logo ? (branding.logo.startsWith('http') ? branding.logo : getImageUrl(branding.logo)) : '';
 
   return (
