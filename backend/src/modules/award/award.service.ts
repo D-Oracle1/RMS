@@ -294,28 +294,6 @@ export class AwardService {
       },
     });
 
-    // If no current month award, get most recent published one
-    if (!award) {
-      award = await this.prisma.monthlyAward.findFirst({
-        where: {
-          type: 'REALTOR_OF_MONTH',
-          isPublished: true,
-        },
-        orderBy: [{ year: 'desc' }, { month: 'desc' }],
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
-              email: true,
-            },
-          },
-        },
-      });
-    }
-
     return award;
   }
 
@@ -340,27 +318,6 @@ export class AwardService {
         },
       },
     });
-
-    if (!award) {
-      award = await this.prisma.monthlyAward.findFirst({
-        where: {
-          type,
-          isPublished: true,
-        },
-        orderBy: [{ year: 'desc' }, { month: 'desc' }],
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
-              email: true,
-            },
-          },
-        },
-      });
-    }
 
     return award;
   }

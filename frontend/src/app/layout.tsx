@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import '@/styles/globals.css';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/sonner';
+import { SupportChatWidget } from '@/components/support/support-chat-widget';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -74,6 +75,7 @@ export default function RootLayout({
         <Providers>
           {children}
           <Toaster position="top-right" richColors closeButton />
+          <SupportChatWidget />
         </Providers>
       </body>
     </html>

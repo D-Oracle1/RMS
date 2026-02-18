@@ -112,6 +112,15 @@ export class AuthController {
     );
   }
 
+  @Get('my-referrals')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get users referred by the current user' })
+  @ApiResponse({ status: 200, description: 'Referrals retrieved successfully' })
+  async getMyReferrals(@CurrentUser('id') userId: string) {
+    return this.authService.getMyReferrals(userId);
+  }
+
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

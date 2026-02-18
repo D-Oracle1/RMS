@@ -21,6 +21,10 @@ import {
   Loader2,
   Pause,
   Crown,
+  Copy,
+  Check,
+  Users2,
+  Link,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -97,13 +101,24 @@ export default function StaffDashboard() {
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [userName, setUserName] = useState('');
   const [staffOfMonth, setStaffOfMonth] = useState<any>(null);
+  const [referralCode, setReferralCode] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const user = getUser();
     if (user) {
       setUserName(`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Staff');
+      if (user.referralCode) setReferralCode(user.referralCode);
     }
   }, []);
+
+  const handleCopyReferral = () => {
+    const link = `${window.location.origin}/auth/register?ref=${referralCode}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    toast.success('Referral link copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const fetchStaffOfMonth = async () => {
@@ -448,6 +463,41 @@ export default function StaffDashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* Referral Link Card */}
+      {referralCode && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Card className="shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#0b5c46]/10 flex items-center justify-center">
+                    <Link className="w-5 h-5 text-[#0b5c46]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Your Referral Link</p>
+                    <p className="text-xs text-muted-foreground break-all">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/auth/register?ref=${referralCode}` : referralCode}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={handleCopyReferral} className="gap-1.5">
+                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    {copied ? 'Copied' : 'Copy'}
+                  </Button>
+                  <Button size="sm" className="bg-[#0b5c46] hover:bg-[#094a38] text-white gap-1.5" asChild>
+                    <a href="/dashboard/staff/referrals">
+                      <Users2 className="w-4 h-4" />
+                      View Leads
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Row 3: Tasks Table */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>

@@ -36,6 +36,7 @@ import {
   FileEdit,
   ImageIcon,
   Mail,
+  Headphones,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -86,6 +87,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Audit Logs', href: '/dashboard/admin/audit', icon: FileText },
     { name: 'Channels', href: '/dashboard/admin/channels', icon: Hash },
     { name: 'Chat', href: '/dashboard/admin/chat', icon: MessageSquare },
+    { name: 'Support Chats', href: '/dashboard/admin/support', icon: Headphones },
     { name: 'Newsletter', href: '/dashboard/admin/newsletter', icon: Mail },
     { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
   ],

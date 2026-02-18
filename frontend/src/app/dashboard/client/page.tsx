@@ -10,7 +10,6 @@ import {
   FileText,
   DollarSign,
   ArrowUpRight,
-  ArrowRight,
   Building2,
   User,
   Phone,
@@ -23,6 +22,10 @@ import {
   XCircle,
   Loader2,
   Crown,
+  Copy,
+  Check,
+  Users2,
+  Link,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -82,13 +85,24 @@ export default function ClientDashboard() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('');
   const [clientOfMonth, setClientOfMonth] = useState<any>(null);
+  const [referralCode, setReferralCode] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const user = getUser();
     if (user) {
       setUserName(`${user.firstName} ${user.lastName}`);
+      if (user.referralCode) setReferralCode(user.referralCode);
     }
   }, []);
+
+  const handleCopyReferral = () => {
+    const link = `${window.location.origin}/auth/register?ref=${referralCode}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    toast.success('Referral link copied!');
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   useEffect(() => {
     const fetchClientOfMonth = async () => {
@@ -193,53 +207,10 @@ export default function ClientDashboard() {
     toast.info('Counter offer form will be available soon.');
   };
 
-  const handleBecomeRealtor = async () => {
-    try {
-      // Create or find a chat room with an admin and send the request
-      const res: any = await api.post('/chat/rooms', {
-        name: 'Realtor Upgrade Request',
-        type: 'DIRECT',
-        isAdminRequest: true,
-      });
-      const room = res?.data || res;
-      if (room?.id) {
-        await api.post(`/chat/rooms/${room.id}/messages`, {
-          content: 'Hello, I would like to become a Realtor. Please review my profile and upgrade my account. Thank you!',
-          type: 'TEXT',
-        });
-        toast.success('Request sent! An admin will review your request.');
-        router.push('/dashboard/client/chat');
-      }
-    } catch {
-      // Fallback: just navigate to chat
-      toast.info('Please message an admin in the chat to request a role upgrade.');
-      router.push('/dashboard/client/chat');
-    }
-  };
 
   return (
     <div className="space-y-6">
       <AwardBanner />
-
-      {/* Become a Realtor Card */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-        <Card className="bg-gradient-to-r from-primary to-primary-600 text-white shadow-lg border-0 cursor-pointer hover:shadow-xl transition-shadow" onClick={handleBecomeRealtor}>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                  <Building2 className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-bold">Become a Realtor</h3>
-                  <p className="text-sm text-white/80">Want to sell or manage properties? Chat with an admin to upgrade your account.</p>
-                </div>
-              </div>
-              <ArrowRight className="w-6 h-6 text-white/70" />
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
 
       {/* Client of the Month Celebration Card */}
       {clientOfMonth && (
@@ -493,6 +464,41 @@ export default function ClientDashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* Referral Link Card */}
+      {referralCode && (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+          <Card className="shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#0b5c46]/10 flex items-center justify-center">
+                    <Link className="w-5 h-5 text-[#0b5c46]" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">Your Referral Link</p>
+                    <p className="text-xs text-muted-foreground break-all">
+                      {typeof window !== 'undefined' ? `${window.location.origin}/auth/register?ref=${referralCode}` : referralCode}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={handleCopyReferral} className="gap-1.5">
+                    {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                    {copied ? 'Copied' : 'Copy'}
+                  </Button>
+                  <Button size="sm" className="bg-[#0b5c46] hover:bg-[#094a38] text-white gap-1.5" asChild>
+                    <a href="/dashboard/client/referrals">
+                      <Users2 className="w-4 h-4" />
+                      View Leads
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Row 3: Properties + Recent Purchases */}
       <div className="grid gap-6 lg:grid-cols-5">

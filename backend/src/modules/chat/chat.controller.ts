@@ -11,6 +11,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { MessageType } from '@prisma/client';
 
@@ -22,14 +24,39 @@ export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Get('users')
-  @ApiOperation({ summary: 'Search users for chat' })
+  @ApiOperation({ summary: 'Search users for chat (role-scoped)' })
   @ApiQuery({ name: 'search', required: true, type: String })
-  @ApiResponse({ status: 200, description: 'List of users matching search' })
+  @ApiResponse({ status: 200, description: 'List of users matching search within role scope' })
   async searchUsers(
-    @CurrentUser('id') userId: string,
+    @CurrentUser() user: { id: string; role: string },
     @Query('search') search: string,
   ) {
-    return this.chatService.searchUsers(userId, search);
+    return this.chatService.searchUsers(user.id, user.role, search);
+  }
+
+  @Get('contacts')
+  @ApiOperation({ summary: 'Get available chat contacts (role-scoped)' })
+  @ApiResponse({ status: 200, description: 'List of contacts grouped by role' })
+  async getContacts(
+    @CurrentUser() user: { id: string; role: string },
+  ) {
+    return this.chatService.getContacts(user.id, user.role);
+  }
+
+  @Post('support/start')
+  @ApiOperation({ summary: 'Start or get existing support chat' })
+  @ApiResponse({ status: 201, description: 'Support chat room returned' })
+  async startSupportChat(@CurrentUser('id') userId: string) {
+    return this.chatService.startSupportChat(userId);
+  }
+
+  @Get('support/rooms')
+  @UseGuards(RolesGuard)
+  @Roles('SUPER_ADMIN', 'ADMIN', 'GENERAL_OVERSEER')
+  @ApiOperation({ summary: 'Get all support chat rooms (admin only)' })
+  @ApiResponse({ status: 200, description: 'List of support chat rooms' })
+  async getSupportRooms() {
+    return this.chatService.getSupportRooms();
   }
 
   @Get('rooms')

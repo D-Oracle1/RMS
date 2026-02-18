@@ -48,11 +48,23 @@ export class AuthService {
       return this.registerWithInviteCode(registerDto);
     }
 
+    // Normalize email to lowercase
+    registerDto.email = registerDto.email.toLowerCase();
+
     // Standard registration in current tenant DB (PrismaService is request-scoped)
     const existingUser = await this.usersService.findByEmail(registerDto.email);
 
     if (existingUser) {
       throw new ConflictException('User with this email already exists');
+    }
+
+    // Resolve referrer if referral code provided
+    let referrerId: string | null = null;
+    if (registerDto.referralCode) {
+      const referrer = await this.prisma.user.findUnique({
+        where: { referralCode: registerDto.referralCode },
+      });
+      if (referrer) referrerId = referrer.id;
     }
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 12);
@@ -66,11 +78,18 @@ export class AuthService {
         phone: registerDto.phone,
         role: registerDto.role || UserRole.CLIENT,
         status: UserStatus.ACTIVE,
+        referralCode: `REF-${uuidv4().substring(0, 8).toUpperCase()}`,
+        referredBy: referrerId,
       },
     });
 
     // Create role-specific profile
     await this.createRoleProfile(this.prisma, user, registerDto);
+
+    // Award referral reward to referrer
+    if (referrerId) {
+      await this.awardReferralReward(this.prisma, referrerId);
+    }
 
     const tokens = await this.generateTokens(user, companyId);
 
@@ -88,6 +107,9 @@ export class AuthService {
    * First user with the invite code becomes ADMIN.
    */
   private async registerWithInviteCode(registerDto: RegisterDto) {
+    // Normalize email to lowercase
+    registerDto.email = registerDto.email.toLowerCase();
+
     const company = await this.companyService.resolveByInviteCode(
       registerDto.inviteCode!,
     );
@@ -112,6 +134,15 @@ export class AuthService {
       throw new ConflictException('User with this email already exists in this company');
     }
 
+    // Resolve referrer if referral code provided
+    let referrerId: string | null = null;
+    if (registerDto.referralCode) {
+      const referrer = await tenantClient.user.findUnique({
+        where: { referralCode: registerDto.referralCode },
+      });
+      if (referrer) referrerId = referrer.id;
+    }
+
     // Check if this is the first user (becomes ADMIN)
     const userCount = await tenantClient.user.count();
     const role = userCount === 0 ? UserRole.ADMIN : (registerDto.role || UserRole.CLIENT);
@@ -127,11 +158,18 @@ export class AuthService {
         phone: registerDto.phone,
         role,
         status: UserStatus.ACTIVE,
+        referralCode: `REF-${uuidv4().substring(0, 8).toUpperCase()}`,
+        referredBy: referrerId,
       },
     });
 
     // Create role-specific profile using tenant client
     await this.createRoleProfile(tenantClient, user, registerDto);
+
+    // Award referral reward to referrer
+    if (referrerId) {
+      await this.awardReferralReward(tenantClient, referrerId);
+    }
 
     const tokens = await this.generateTokens(user, company.id);
 
@@ -150,6 +188,9 @@ export class AuthService {
    * If not, falls back to tenant user login (request-scoped PrismaService).
    */
   async login(loginDto: LoginDto, companyId?: string | null) {
+    // Normalize email to lowercase
+    loginDto.email = loginDto.email.toLowerCase();
+
     // Try SUPER_ADMIN login from master DB
     const superAdmin = await this.validateSuperAdmin(
       loginDto.email,
@@ -371,9 +412,27 @@ export class AuthService {
         phone: true,
         avatar: true,
         role: true,
+        referralCode: true,
       },
     });
     return updatedUser;
+  }
+
+  async getMyReferrals(userId: string) {
+    const referrals = await this.prisma.user.findMany({
+      where: { referredBy: userId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return { data: referrals, total: referrals.length };
   }
 
   async getProfile(userId: string) {
@@ -427,7 +486,7 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
 
     // Always return success to prevent user enumeration
     if (!user) {
@@ -521,6 +580,41 @@ export class AuthService {
           permissions: ['all'],
         },
       });
+    }
+  }
+
+  /**
+   * Award referral reward to the referrer.
+   * If the referrer is a realtor, award loyalty points.
+   */
+  private async awardReferralReward(prismaClient: any, referrerId: string) {
+    try {
+      const referrer = await prismaClient.user.findUnique({
+        where: { id: referrerId },
+        include: { realtorProfile: true },
+      });
+
+      if (referrer?.realtorProfile) {
+        const REFERRAL_POINTS = 50;
+
+        await prismaClient.loyaltyPoints.create({
+          data: {
+            realtorId: referrer.realtorProfile.id,
+            points: REFERRAL_POINTS,
+            source: 'REFERRAL',
+            description: 'Referral bonus - new user signed up with your referral link',
+          },
+        });
+
+        await prismaClient.realtorProfile.update({
+          where: { id: referrer.realtorProfile.id },
+          data: {
+            loyaltyPoints: { increment: REFERRAL_POINTS },
+          },
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Failed to award referral reward: ${error}`);
     }
   }
 }
