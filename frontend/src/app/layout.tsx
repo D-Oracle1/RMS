@@ -5,6 +5,7 @@ import { Providers } from './providers';
 import { Toaster } from '@/components/ui/sonner';
 import { SupportChatWidget } from '@/components/support/support-chat-widget';
 import { BrandingTitle } from '@/components/branding-title';
+import { BrandingGate } from '@/components/branding-gate';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -74,10 +75,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <Providers>
-          <BrandingTitle />
-          {children}
+          <BrandingGate>
+            <BrandingTitle />
+            {children}
+            <SupportChatWidget />
+          </BrandingGate>
           <Toaster position="top-right" richColors closeButton />
-          <SupportChatWidget />
         </Providers>
       </body>
     </html>

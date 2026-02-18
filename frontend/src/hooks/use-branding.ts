@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
+const STORAGE_KEY = 'cms_branding';
 
 export interface BrandingData {
   companyName?: string;
@@ -14,11 +15,25 @@ export interface BrandingData {
   address?: string;
 }
 
-// Module-level cache so the API is called only once per page load
+// Module-level cache — survives across component mounts within a page session
 const cache: { data: BrandingData | null; promise: Promise<void> | null } = {
   data: null,
   promise: null,
 };
+
+// Synchronously load from localStorage on module init (client only).
+// This makes branding data available BEFORE the first React render,
+// so there is zero flash of fallback values on repeat visits / refreshes.
+if (typeof window !== 'undefined') {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      cache.data = JSON.parse(stored);
+    }
+  } catch {
+    // localStorage unavailable or corrupt — will fetch from API
+  }
+}
 
 function fetchBranding(): Promise<void> {
   if (!cache.promise) {
@@ -27,22 +42,48 @@ function fetchBranding(): Promise<void> {
       .then((raw) => {
         const data = raw?.data || raw;
         cache.data = data && typeof data === 'object' ? data : {};
+        // Persist to localStorage so next page load / refresh is instant
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(cache.data));
+        } catch {}
       })
       .catch(() => {
-        cache.data = {};
+        if (!cache.data) cache.data = {};
       });
   }
   return cache.promise;
 }
 
+/**
+ * Returns true if branding data has already been loaded
+ * (from localStorage sync read or from a completed API call).
+ */
+export function hasBrandingData(): boolean {
+  return cache.data !== null;
+}
+
+/**
+ * Ensures branding data is fetched from the API.
+ * Returns a promise that resolves once data is available.
+ */
+export function ensureBranding(): Promise<void> {
+  return fetchBranding();
+}
+
+/**
+ * Primary hook — returns branding data reactively.
+ * On repeat visits, data is available on the very first render (from localStorage).
+ * Always re-fetches from API in the background to pick up CMS changes.
+ */
 export function useBranding(): BrandingData {
   const [branding, setBranding] = useState<BrandingData>(cache.data || {});
 
   useEffect(() => {
+    // If localStorage had data, use it immediately
     if (cache.data) {
       setBranding(cache.data);
-      return;
     }
+    // Always fetch fresh from API (stale-while-revalidate)
     fetchBranding().then(() => {
       if (cache.data) setBranding(cache.data);
     });
@@ -51,12 +92,12 @@ export function useBranding(): BrandingData {
   return branding;
 }
 
-/** Helper to get the company name with fallback */
+/** Helper — company name with fallback */
 export function getCompanyName(branding: BrandingData): string {
   return branding.companyName || 'RMS Platform';
 }
 
-/** Helper to get the short name with fallback */
+/** Helper — short name with fallback */
 export function getShortName(branding: BrandingData): string {
   return branding.shortName || 'RMS';
 }
