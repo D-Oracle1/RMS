@@ -283,7 +283,7 @@ export default function RankingsPage() {
   return (
     <div className="space-y-6">
       {/* Tab Switcher */}
-      <div className="flex flex-wrap gap-2 justify-between items-center">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-2 justify-between items-start sm:items-center">
         <div className="flex gap-2">
           <Button
             variant={activeTab === 'realtors' ? 'default' : 'outline'}

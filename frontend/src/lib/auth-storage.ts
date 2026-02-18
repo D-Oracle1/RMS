@@ -12,7 +12,7 @@ export function getToken(): string | null {
   return sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function getUser(): { id: string; firstName: string; lastName: string; email: string; role: string; avatar?: string; companyId?: string; isSuperAdmin?: boolean } | null {
+export function getUser(): { id: string; firstName: string; lastName: string; email: string; role: string; avatar?: string; companyId?: string; isSuperAdmin?: boolean; referralCode?: string } | null {
   if (typeof window === 'undefined') return null;
   try {
     const stored = sessionStorage.getItem(USER_KEY);

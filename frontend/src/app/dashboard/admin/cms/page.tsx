@@ -231,6 +231,14 @@ export default function CmsPage() {
               <label className="text-sm font-medium mb-1 block">Favicon URL (optional)</label>
               <Input value={sectionData.favicon || ''} onChange={(e) => updateField('favicon', e.target.value)} placeholder="/favicon.ico" />
             </div>
+            <div className="border-t pt-4 mt-4">
+              <h3 className="font-semibold text-sm mb-3">Support & Communication</h3>
+              <div>
+                <label className="text-sm font-medium mb-1 block">WhatsApp Number</label>
+                <Input value={sectionData.whatsappNumber || ''} onChange={(e) => updateField('whatsappNumber', e.target.value)} placeholder="+234XXXXXXXXXX" />
+                <p className="text-xs text-muted-foreground mt-1">International format with country code. Shows on the support chat widget.</p>
+              </div>
+            </div>
           </div>
         );
 
@@ -346,13 +354,25 @@ export default function CmsPage() {
               <label className="text-sm font-medium mb-1 block">Subtitle</label>
               <Textarea value={sectionData.subtitle || ''} onChange={(e) => updateField('subtitle', e.target.value)} rows={2} />
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Primary Button Text</label>
-              <Input value={sectionData.primaryButtonText || ''} onChange={(e) => updateField('primaryButtonText', e.target.value)} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Primary Button Text</label>
+                <Input value={sectionData.primaryButtonText || ''} onChange={(e) => updateField('primaryButtonText', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Primary Button Link</label>
+                <Input value={sectionData.primaryButtonLink || ''} onChange={(e) => updateField('primaryButtonLink', e.target.value)} placeholder="/auth/register" />
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium mb-1 block">Secondary Button Text</label>
-              <Input value={sectionData.secondaryButtonText || ''} onChange={(e) => updateField('secondaryButtonText', e.target.value)} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Secondary Button Text</label>
+                <Input value={sectionData.secondaryButtonText || ''} onChange={(e) => updateField('secondaryButtonText', e.target.value)} />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Secondary Button Link</label>
+                <Input value={sectionData.secondaryButtonLink || ''} onChange={(e) => updateField('secondaryButtonLink', e.target.value)} placeholder="/contact" />
+              </div>
             </div>
           </div>
         );
@@ -403,20 +423,20 @@ export default function CmsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Content Management</h1>
           <p className="text-muted-foreground">Manage your website pages and content</p>
         </div>
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving} className="w-full sm:w-auto">
           {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
           Save Changes
         </Button>
       </div>
 
-      <div className="flex gap-6">
+      <div className="flex flex-col md:flex-row gap-6">
         {/* Sidebar tabs */}
-        <div className="w-56 shrink-0 space-y-1">
+        <div className="w-full md:w-56 shrink-0 flex md:block overflow-x-auto md:overflow-x-visible gap-1 md:space-y-1 pb-2 md:pb-0">
           {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             return (

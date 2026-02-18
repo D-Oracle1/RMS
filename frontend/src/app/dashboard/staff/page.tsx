@@ -124,7 +124,8 @@ export default function StaffDashboard() {
     const fetchStaffOfMonth = async () => {
       try {
         const res: any = await api.get('/awards/staff-of-month');
-        setStaffOfMonth(res?.data || res);
+        const award = res?.data !== undefined ? res.data : res;
+        setStaffOfMonth(award && award.user ? award : null);
       } catch {
         setStaffOfMonth(null);
       }
@@ -520,6 +521,7 @@ export default function StaffDashboard() {
           </CardHeader>
           <CardContent className="p-0">
             {tasks.length > 0 ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#0b5c46] hover:bg-[#0b5c46]">
@@ -562,6 +564,7 @@ export default function StaffDashboard() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 No tasks assigned yet

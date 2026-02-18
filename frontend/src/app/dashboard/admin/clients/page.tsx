@@ -509,7 +509,7 @@ export default function ClientsPage() {
             <DialogTitle>Add New Client</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name *</Label>
                 <Input
@@ -594,7 +594,7 @@ export default function ClientsPage() {
             <DialogTitle>Edit Client</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-firstName">First Name *</Label>
                 <Input
@@ -693,7 +693,7 @@ export default function ClientsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Properties Owned</p>
                   <p className="text-xl font-bold">{selectedClient._count?.ownedProperties || 0}</p>

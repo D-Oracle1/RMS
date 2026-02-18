@@ -46,6 +46,25 @@ export class UpdateTaskDto {
   attachments?: string[];
 }
 
+export class SubmitReportDto {
+  @ApiPropertyOptional({ description: 'Report description' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiPropertyOptional({ description: 'External links', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  links?: string[];
+
+  @ApiPropertyOptional({ description: 'Uploaded file URLs', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  attachments?: string[];
+}
+
 export class AddCommentDto {
   @ApiPropertyOptional({ description: 'Comment content' })
   @IsString()

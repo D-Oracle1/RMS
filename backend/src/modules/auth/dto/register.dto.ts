@@ -120,6 +120,12 @@ export class RegisterDto {
   @IsString()
   budget?: string;
 
+  // Referral code from an existing user
+  @ApiPropertyOptional({ example: 'REF-ABC12345', description: 'Referral code from an existing user' })
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
+
   // Multi-tenancy: invite code to join a company
   @ApiPropertyOptional({ example: 'INV-A1B2C3D4', description: 'Company invite code for tenant registration' })
   @IsOptional()

@@ -362,18 +362,18 @@ export default function AdminPayrollPage() {
             type="date"
             value={periodStart}
             onChange={(e) => setPeriodStart(e.target.value)}
-            className="w-[160px]"
+            className="w-full sm:w-[160px]"
           />
           <span>to</span>
           <Input
             type="date"
             value={periodEnd}
             onChange={(e) => setPeriodEnd(e.target.value)}
-            className="w-[160px]"
+            className="w-full sm:w-[160px]"
           />
         </div>
         <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -384,7 +384,7 @@ export default function AdminPayrollPage() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -438,6 +438,7 @@ export default function AdminPayrollPage() {
                 <p className="text-sm">Generate payroll for the selected period</p>
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -510,6 +511,7 @@ export default function AdminPayrollPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -526,7 +528,7 @@ export default function AdminPayrollPage() {
                   {currentPeriodLabel} - Staff Breakdown
                   <Badge variant="secondary">{filteredCurrentPeriod.length}</Badge>
                 </CardTitle>
-                <div className="relative w-[250px]">
+                <div className="relative w-full sm:w-[250px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Search staff..."
@@ -543,6 +545,7 @@ export default function AdminPayrollPage() {
                   <p>No staff found</p>
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -619,6 +622,7 @@ export default function AdminPayrollPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

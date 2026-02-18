@@ -10,6 +10,12 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit() {
+    // Skip Redis in serverless — no Redis available and connection retries block cold start
+    if (process.env.VERCEL) {
+      this.logger.log('Vercel environment detected, skipping Redis connection');
+      return;
+    }
+
     try {
       const url = this.configService.get<string>('redis.url');
       if (url && url !== 'redis://localhost:6379') {

@@ -531,7 +531,7 @@ export default function RealtorPropertiesPage() {
                 <User className="w-4 h-4" />
                 Buyer Information
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>First Name *</Label>
                   <Input
@@ -549,7 +549,7 @@ export default function RealtorPropertiesPage() {
                   />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Email *</Label>
                   <div className="relative">
@@ -642,7 +642,7 @@ export default function RealtorPropertiesPage() {
               )}
 
               {/* Area and pricing */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Size Sold ({AREA_UNITS[saleAreaUnit].shortLabel}) *</Label>
                   <div className="flex gap-2">
@@ -691,7 +691,7 @@ export default function RealtorPropertiesPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Total Sale Amount (₦) *</Label>
                   {isLandProperty ? (

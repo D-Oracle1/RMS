@@ -32,7 +32,7 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AiModule } from './modules/ai/ai.module';
 import { UploadModule } from './modules/upload/upload.module';
-import { PusherModule } from './common/services/pusher.module';
+import { RealtimeModule } from './common/services/realtime.module';
 import { CallModule } from './modules/call/call.module';
 import { CronModule } from './modules/cron/cron.module';
 import { HealthModule } from './health/health.module';
@@ -155,8 +155,8 @@ import { CompanyModule } from './modules/company/company.module';
     // Multi-tenancy
     CompanyModule,
 
-    // Real-time (Pusher)
-    PusherModule,
+    // Real-time (Supabase Realtime)
+    RealtimeModule,
     CallModule,
 
     // Cron (HTTP-triggered scheduled jobs)

@@ -300,7 +300,7 @@ export default function HRPoliciesPage() {
           />
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Policy Type" />
           </SelectTrigger>
           <SelectContent>
@@ -330,6 +330,7 @@ export default function HRPoliciesPage() {
                 <p className="text-sm">Create your first HR policy to get started</p>
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -422,6 +423,7 @@ export default function HRPoliciesPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -437,7 +439,7 @@ export default function HRPoliciesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Policy Name *</Label>
                 <Input
@@ -473,7 +475,7 @@ export default function HRPoliciesPage() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="penaltyType">Penalty Type *</Label>
                 <Select value={formData.penaltyType} onValueChange={(v) => setFormData({ ...formData, penaltyType: v })}>
@@ -516,7 +518,7 @@ export default function HRPoliciesPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="graceMinutes">Grace Period (min)</Label>
                 <Input

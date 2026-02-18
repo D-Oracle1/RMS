@@ -21,6 +21,7 @@ async function main() {
       role: UserRole.SUPER_ADMIN,
       status: UserStatus.ACTIVE,
       emailVerified: true,
+      referralCode: 'REF-SADMIN01',
       adminProfile: {
         create: {
           permissions: ['all'],
@@ -45,6 +46,7 @@ async function main() {
       role: UserRole.ADMIN,
       status: UserStatus.ACTIVE,
       emailVerified: true,
+      referralCode: 'REF-ADMIN001',
       adminProfile: {
         create: {
           permissions: ['manage_realtors', 'manage_clients', 'manage_properties', 'view_analytics'],
@@ -85,6 +87,7 @@ async function main() {
         role: UserRole.STAFF,
         status: UserStatus.ACTIVE,
         emailVerified: true,
+        referralCode: 'REF-STAFF001',
         staffProfile: {
           create: {
             employeeId: 'EMP-001',
@@ -105,6 +108,64 @@ async function main() {
     console.log('Staff created:', staffUser.email);
   } else {
     console.log('Staff already exists:', existingStaff.email);
+  }
+
+  // Create General Overseer
+  const existingGO = await prisma.user.findUnique({
+    where: { email: 'overseer@rms.com' },
+  });
+
+  if (!existingGO) {
+    const goUser = await prisma.user.create({
+      data: {
+        email: 'overseer@rms.com',
+        password: hashedPassword,
+        firstName: 'General',
+        lastName: 'Overseer',
+        phone: '+1234567893',
+        role: UserRole.GENERAL_OVERSEER,
+        status: UserStatus.ACTIVE,
+        emailVerified: true,
+        referralCode: 'REF-OVSEER01',
+      },
+    });
+
+    console.log('General Overseer created:', goUser.email);
+  } else {
+    console.log('General Overseer already exists:', existingGO.email);
+  }
+
+  // Create Realtor
+  const existingRealtor = await prisma.user.findUnique({
+    where: { email: 'realtor@rms.com' },
+  });
+
+  if (!existingRealtor) {
+    const realtorUser = await prisma.user.create({
+      data: {
+        email: 'realtor@rms.com',
+        password: hashedPassword,
+        firstName: 'Jane',
+        lastName: 'Realtor',
+        phone: '+1234567894',
+        role: UserRole.REALTOR,
+        status: UserStatus.ACTIVE,
+        emailVerified: true,
+        referralCode: 'REF-REALTR01',
+        realtorProfile: {
+          create: {
+            licenseNumber: 'RMS-LIC-001',
+            agency: 'RMS Properties',
+            bio: 'Experienced real estate professional',
+            specializations: ['Residential', 'Land'],
+          },
+        },
+      },
+    });
+
+    console.log('Realtor created:', realtorUser.email);
+  } else {
+    console.log('Realtor already exists:', existingRealtor.email);
   }
 
   // Create system settings (commission rates and tax)
@@ -131,9 +192,11 @@ async function main() {
   console.log('Database seeded successfully!');
   console.log('');
   console.log('Accounts:');
-  console.log('  Super Admin: superadmin@rms.com / Admin123!');
-  console.log('  Admin:       admin@rms.com / Admin123!');
-  console.log('  Staff:       staff@rms.com / Admin123!');
+  console.log('  Super Admin:       superadmin@rms.com / Admin123!');
+  console.log('  Admin:             admin@rms.com / Admin123!');
+  console.log('  General Overseer:  overseer@rms.com / Admin123!');
+  console.log('  Realtor:           realtor@rms.com / Admin123!');
+  console.log('  Staff:             staff@rms.com / Admin123!');
 }
 
 main()

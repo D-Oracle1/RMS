@@ -6,18 +6,17 @@ let initPromise: Promise<express.Express> | null = null;
 async function getHandler(): Promise<express.Express> {
   if (cachedHandler) return cachedHandler;
 
-  // Prevent multiple concurrent initializations during cold start
   if (!initPromise) {
     initPromise = (async () => {
       try {
-        // Import from pre-built dist/ (NestJS decorators require tsc, not esbuild)
         const { configureApp } = await import('../dist/main');
         const expressApp = express();
         const { app } = await configureApp(expressApp);
         await app.init();
         cachedHandler = expressApp;
         return expressApp;
-      } catch (err) {
+      } catch (err: any) {
+        console.error('NestJS init error:', err.message, err.stack);
         initPromise = null;
         throw err;
       }
@@ -28,11 +27,21 @@ async function getHandler(): Promise<express.Express> {
 }
 
 export default async function handler(req: any, res: any) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,x-cron-secret');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
     const expressApp = await getHandler();
     expressApp(req, res);
-  } catch (err) {
-    console.error('Failed to initialize NestJS app:', err);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (err: any) {
+    res.status(500).json({
+      error: 'Server initialization failed',
+      message: err?.message || 'Unknown error',
+    });
   }
 }

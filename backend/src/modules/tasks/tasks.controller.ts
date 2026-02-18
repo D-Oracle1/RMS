@@ -13,7 +13,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto, AddCommentDto } from './dto/update-task.dto';
+import { UpdateTaskDto, AddCommentDto, SubmitReportDto } from './dto/update-task.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -113,6 +113,17 @@ export class TasksController {
     @CurrentUser('role') userRole: string,
   ) {
     return this.tasksService.updateStatus(id, status, userRole);
+  }
+
+  @Post(':id/submit-report')
+  @Roles('STAFF')
+  @ApiOperation({ summary: 'Submit task report for review' })
+  submitReport(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: SubmitReportDto,
+  ) {
+    return this.tasksService.submitReport(id, userId, dto);
   }
 
   @Delete(':id')

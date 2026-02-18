@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getToken, getUser } from '@/lib/auth-storage';
 import { Loader2 } from 'lucide-react';
+import { AuthenticatedProviders } from '../authenticated-providers';
 
 export default function DashboardLayout({
   children,
@@ -29,6 +30,7 @@ export default function DashboardLayout({
     const rolePrefixes: Record<string, string[]> = {
       super_admin: ['/dashboard/super-admin', '/dashboard/admin'],
       admin: ['/dashboard/admin'],
+      general_overseer: ['/dashboard/general-overseer'],
       realtor: ['/dashboard/realtor'],
       staff: ['/dashboard/staff'],
       client: ['/dashboard/client'],
@@ -53,5 +55,5 @@ export default function DashboardLayout({
     );
   }
 
-  return <>{children}</>;
+  return <AuthenticatedProviders>{children}</AuthenticatedProviders>;
 }

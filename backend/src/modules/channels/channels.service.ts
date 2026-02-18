@@ -1,13 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { PusherService } from '../../common/services/pusher.service';
+import { RealtimeService } from '../../common/services/realtime.service';
 import { ChannelType } from '@prisma/client';
 
 @Injectable()
 export class ChannelsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pusherService: PusherService,
+    private readonly realtimeService: RealtimeService,
   ) {}
 
   async getChannels(userId: string) {
@@ -164,7 +164,8 @@ export class ChannelsService {
   }
 
   async getMessages(channelId: string, userId: string, query: { page?: number; limit?: number }) {
-    const { page = 1, limit = 50 } = query;
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 50));
     const skip = (page - 1) * limit;
 
     // Verify channel exists
@@ -242,8 +243,8 @@ export class ChannelsService {
 
     const enrichedMessage = { ...message, sender };
 
-    // Broadcast to channel members via Pusher
-    this.pusherService.sendToChatRoom(channelId, 'channel:message', {
+    // Broadcast to channel members via Supabase Realtime
+    await this.realtimeService.sendToChatRoom(channelId, 'channel:message', {
       channelId,
       message: enrichedMessage,
     });

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationType, NotificationPriority } from '@prisma/client';
-import { PusherService } from '../../common/services/pusher.service';
+import { RealtimeService } from '../../common/services/realtime.service';
 import { SmsService } from '../../common/services/sms.service';
 import { PushNotificationService } from '../../common/services/push-notification.service';
 
@@ -9,7 +9,7 @@ import { PushNotificationService } from '../../common/services/push-notification
 export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly pusherService: PusherService,
+    private readonly realtimeService: RealtimeService,
     private readonly smsService: SmsService,
     private readonly pushNotificationService: PushNotificationService,
   ) {}
@@ -35,8 +35,8 @@ export class NotificationService {
       },
     });
 
-    // Send real-time notification via WebSocket
-    this.pusherService.sendToUser(data.userId, 'notification:new', notification);
+    // Send real-time notification
+    await this.realtimeService.sendToUser(data.userId, 'notification:new', notification);
 
     // Send SMS for URGENT priority notifications
     if (data.priority === 'URGENT' || data.priority === NotificationPriority.URGENT) {
@@ -335,7 +335,7 @@ export class NotificationService {
     });
 
     // Also send a dedicated callout event for the full-screen modal
-    this.pusherService.sendToUser(targetUserId, 'callout:receive', {
+    await this.realtimeService.sendToUser(targetUserId, 'callout:receive', {
       calloutId: notification.id,
       callerId: caller.id,
       callerName: `${caller.firstName} ${caller.lastName}`,
@@ -393,7 +393,7 @@ export class NotificationService {
     });
 
     // Send real-time response to caller
-    this.pusherService.sendToUser(callerId, 'callout:response', {
+    await this.realtimeService.sendToUser(callerId, 'callout:response', {
       calloutId,
       responderId,
       responderName,

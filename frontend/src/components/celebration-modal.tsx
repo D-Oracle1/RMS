@@ -6,7 +6,7 @@ import { Trophy, X, Star, Award, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { api, getImageUrl } from '@/lib/api';
 import { getUser } from '@/lib/auth-storage';
-import confetti from 'canvas-confetti';
+
 
 const AWARD_LABELS: Record<string, string> = {
   STAFF_OF_MONTH: 'Staff of the Month',
@@ -62,44 +62,46 @@ export function CelebrationModal() {
     if (awards.length > 0 && !dismissed && !confettiFired.current) {
       confettiFired.current = true;
 
-      // Initial big burst
-      const duration = 3000;
-      const end = Date.now() + duration;
+      import('canvas-confetti').then(({ default: confetti }) => {
+        // Initial big burst
+        const duration = 3000;
+        const end = Date.now() + duration;
 
-      const frame = () => {
+        const frame = () => {
+          confetti({
+            particleCount: 3,
+            angle: 60,
+            spread: 55,
+            origin: { x: 0, y: 0.6 },
+            colors: ['#FFD700', '#FFA500', '#FF6347', '#00CED1', '#9370DB'],
+            zIndex: 10001,
+          });
+          confetti({
+            particleCount: 3,
+            angle: 120,
+            spread: 55,
+            origin: { x: 1, y: 0.6 },
+            colors: ['#FFD700', '#FFA500', '#FF6347', '#00CED1', '#9370DB'],
+            zIndex: 10001,
+          });
+
+          if (Date.now() < end) {
+            requestAnimationFrame(frame);
+          }
+        };
+
+        // Big center burst first
         confetti({
-          particleCount: 3,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0, y: 0.6 },
-          colors: ['#FFD700', '#FFA500', '#FF6347', '#00CED1', '#9370DB'],
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#FFD700', '#FFA500', '#FF6347', '#00CED1', '#9370DB', '#FF69B4'],
           zIndex: 10001,
         });
-        confetti({
-          particleCount: 3,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1, y: 0.6 },
-          colors: ['#FFD700', '#FFA500', '#FF6347', '#00CED1', '#9370DB'],
-          zIndex: 10001,
-        });
 
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      };
-
-      // Big center burst first
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#FFD700', '#FFA500', '#FF6347', '#00CED1', '#9370DB', '#FF69B4'],
-        zIndex: 10001,
+        // Then side streams
+        setTimeout(() => requestAnimationFrame(frame), 300);
       });
-
-      // Then side streams
-      setTimeout(() => requestAnimationFrame(frame), 300);
     }
   }, [awards, dismissed]);
 

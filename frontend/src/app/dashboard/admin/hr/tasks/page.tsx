@@ -336,7 +336,7 @@ export default function AdminTasksPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -347,7 +347,7 @@ export default function AdminTasksPage() {
           </SelectContent>
         </Select>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Priority" />
           </SelectTrigger>
           <SelectContent>
@@ -377,6 +377,7 @@ export default function AdminTasksPage() {
                 <p className="text-sm">Create your first task to get started</p>
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -442,7 +443,7 @@ export default function AdminTasksPage() {
                             onValueChange={(v) => handleStatusChange(task, v)}
                             disabled={actionLoading === task.id}
                           >
-                            <SelectTrigger className="w-[130px] h-8">
+                            <SelectTrigger className="w-full sm:w-[130px] h-8">
                               <Badge className={statusConfig.color}>{statusConfig.label}</Badge>
                             </SelectTrigger>
                             <SelectContent>
@@ -484,6 +485,7 @@ export default function AdminTasksPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -516,7 +518,7 @@ export default function AdminTasksPage() {
                 rows={3}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Assign To *</Label>
                 <Select value={formData.assigneeId} onValueChange={(v) => setFormData({ ...formData, assigneeId: v })}>
@@ -546,7 +548,7 @@ export default function AdminTasksPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Due Date</Label>
                 <Input
@@ -600,7 +602,7 @@ export default function AdminTasksPage() {
                   <Badge key={tag} variant="outline">{tag}</Badge>
                 ))}
               </div>
-              <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t">
                 <div>
                   <p className="text-sm text-muted-foreground">Assigned To</p>
                   <div className="flex items-center gap-2 mt-1">
@@ -630,7 +632,7 @@ export default function AdminTasksPage() {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Due Date</p>
                   <p className={`font-medium ${isOverdue(selectedTask.dueDate, selectedTask.status) ? 'text-red-600' : ''}`}>

@@ -13,6 +13,9 @@ import {
   Save,
   Camera,
   Loader2,
+  Link,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +39,8 @@ export default function SettingsPage() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState({
     firstName: '',
@@ -68,6 +73,9 @@ export default function SettingsPage() {
         });
         if (user.avatar) {
           setAvatarUrl(getImageUrl(user.avatar));
+        }
+        if (user.referralCode) {
+          setReferralCode(user.referralCode);
         }
       }
     } catch {
@@ -301,6 +309,35 @@ export default function SettingsPage() {
                   {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                   Save Changes
                 </Button>
+
+                {referralCode && (
+                  <div className="border-t pt-6">
+                    <h3 className="font-semibold mb-2 flex items-center gap-2">
+                      <Link className="w-4 h-4" />
+                      Your Referral Link
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-3">Share this link to invite others. You&apos;ll earn rewards when they sign up.</p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?ref=${referralCode}`}
+                        className="bg-gray-50 text-sm"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${window.location.origin}/auth/register?ref=${referralCode}`);
+                          setCopied(true);
+                          toast.success('Referral link copied!');
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                      >
+                        {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

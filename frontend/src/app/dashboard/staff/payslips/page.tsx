@@ -185,7 +185,7 @@ export default function PayslipsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Payslips</h1>
           <p className="text-muted-foreground">View your salary details and payment history</p>
@@ -366,6 +366,7 @@ export default function PayslipsPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -399,6 +400,7 @@ export default function PayslipsPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </motion.div>

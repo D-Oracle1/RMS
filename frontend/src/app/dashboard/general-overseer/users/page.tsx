@@ -138,7 +138,7 @@ export default function UsersManagementPage() {
               />
             </div>
             <Select value={roleFilter} onValueChange={(v) => { setRoleFilter(v === 'ALL' ? '' : v); setPage(1); }}>
-              <SelectTrigger className="w-[160px]">
+              <SelectTrigger className="w-full sm:w-[160px]">
                 <SelectValue placeholder="All Roles" />
               </SelectTrigger>
               <SelectContent>
@@ -162,6 +162,7 @@ export default function UsersManagementPage() {
           ) : users.length === 0 ? (
             <div className="text-center py-20 text-muted-foreground">No users found</div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -236,6 +237,7 @@ export default function UsersManagementPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

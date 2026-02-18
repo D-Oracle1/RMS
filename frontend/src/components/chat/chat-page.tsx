@@ -1,16 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   MessageSquare,
   Search,
   Send,
   Phone,
   Video,
-  MoreVertical,
-  Paperclip,
-  Smile,
   Check,
   CheckCheck,
   Plus,
@@ -27,7 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { getImageUrl, api } from '@/lib/api';
 import { getUser } from '@/lib/auth-storage';
-import { useChat, ChatRoom, ChatMessage } from '@/contexts/chat-context';
+import { useChat, ChatRoom } from '@/contexts/chat-context';
 import { useSocket } from '@/contexts/pusher-context';
 import { useCall } from '@/contexts/call-context';
 
@@ -63,6 +60,15 @@ interface NewChatUser {
   avatar?: string;
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  GENERAL_OVERSEER: 'General Overseer',
+  ADMIN: 'Admin',
+  STAFF: 'Staff',
+  REALTOR: 'Realtor',
+  CLIENT: 'Client',
+};
+
 export default function ChatPage() {
   const currentUser = getUser();
   const { rooms, activeRoom, messages, isLoadingRooms, isLoadingMessages, typingUsers, fetchRooms, selectRoom, sendMessage, createRoom, sendTyping, setActiveRoom } = useChat();
@@ -72,8 +78,6 @@ export default function ChatPage() {
   const [showMobileChat, setShowMobileChat] = useState(false);
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatSearch, setNewChatSearch] = useState('');
-  const [newChatUsers, setNewChatUsers] = useState<NewChatUser[]>([]);
-  const [searchingUsers, setSearchingUsers] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingDebounceRef = useRef<NodeJS.Timeout | null>(null);
   let callCtx: ReturnType<typeof useCall> | null = null;
@@ -146,31 +150,55 @@ export default function ChatPage() {
 
   const activeTypingUsers = typingUsers.filter(t => t.roomId === activeRoom?.id);
 
-  // New chat - search users
-  const searchUsers = useCallback(async (query: string) => {
-    if (!query.trim()) { setNewChatUsers([]); return; }
-    setSearchingUsers(true);
+  // Load contacts when new chat panel opens
+  const [allContacts, setAllContacts] = useState<NewChatUser[]>([]);
+  const [groupedContacts, setGroupedContacts] = useState<Record<string, NewChatUser[]>>({});
+  const [loadingContacts, setLoadingContacts] = useState(false);
+
+  const loadContacts = useCallback(async () => {
+    setLoadingContacts(true);
     try {
-      const res = await api.get<any>(`/chat/users?search=${encodeURIComponent(query)}`);
-      const users = res?.data || res || [];
-      setNewChatUsers(Array.isArray(users) ? users.filter((u: any) => u.id !== currentUser?.id) : []);
+      const res = await api.get<any>('/chat/contacts');
+      const data = res?.data ?? res;
+      const contacts = Array.isArray(data?.contacts) ? data.contacts : [];
+      const grouped = data?.grouped || {};
+      setAllContacts(contacts.filter((u: any) => u.id !== currentUser?.id));
+      setGroupedContacts(grouped);
     } catch {
-      setNewChatUsers([]);
+      setAllContacts([]);
+      setGroupedContacts({});
     } finally {
-      setSearchingUsers(false);
+      setLoadingContacts(false);
     }
   }, [currentUser?.id]);
 
   useEffect(() => {
-    const timer = setTimeout(() => searchUsers(newChatSearch), 300);
-    return () => clearTimeout(timer);
-  }, [newChatSearch, searchUsers]);
+    if (showNewChat && allContacts.length === 0) {
+      loadContacts();
+    }
+  }, [showNewChat, loadContacts, allContacts.length]);
+
+  // Client-side filter of contacts
+  const filteredContacts = newChatSearch.trim()
+    ? allContacts.filter(u =>
+        `${u.firstName} ${u.lastName}`.toLowerCase().includes(newChatSearch.toLowerCase()) ||
+        u.email.toLowerCase().includes(newChatSearch.toLowerCase())
+      )
+    : allContacts;
+
+  // Group filtered contacts by role
+  const filteredGrouped: Record<string, NewChatUser[]> = {};
+  for (const user of filteredContacts) {
+    if (!filteredGrouped[user.role]) filteredGrouped[user.role] = [];
+    filteredGrouped[user.role].push(user);
+  }
 
   const startNewChat = async (user: NewChatUser) => {
     try {
       const room = await createRoom([user.id]);
       setShowNewChat(false);
       setNewChatSearch('');
+      setAllContacts([]);
       selectRoom(room);
       setShowMobileChat(true);
     } catch {
@@ -193,10 +221,9 @@ export default function ChatPage() {
   });
 
   return (
-    <div className="h-[calc(100vh-12rem)]">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="h-full">
-        <Card className="h-full overflow-hidden">
-          <div className="flex h-full">
+    <div className="h-[calc(100dvh-5rem)] md:h-[calc(100dvh-5.5rem)] overflow-hidden">
+      <Card className="h-full overflow-hidden">
+        <div className="flex h-full">
             {/* Conversations List */}
             <div className={cn(
               'w-full md:w-80 border-r flex flex-col',
@@ -236,38 +263,50 @@ export default function ChatPage() {
                         </Button>
                       </div>
                       <Input
-                        placeholder="Search users by name..."
+                        placeholder="Search by name..."
                         value={newChatSearch}
                         onChange={(e) => setNewChatSearch(e.target.value)}
                         autoFocus
                       />
-                      <div className="max-h-48 overflow-y-auto space-y-1">
-                        {searchingUsers && (
+                      <div className="max-h-64 overflow-y-auto">
+                        {loadingContacts && (
                           <div className="flex items-center justify-center py-3">
                             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                           </div>
                         )}
-                        {newChatUsers.map(user => (
-                          <button
-                            key={user.id}
-                            onClick={() => startNewChat(user)}
-                            className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
-                          >
-                            <Avatar className="h-8 w-8">
-                              {user.avatar && <AvatarImage src={getImageUrl(user.avatar)} />}
-                              <AvatarFallback className="bg-primary text-white text-xs">
-                                {getInitials(user.firstName, user.lastName)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
-                              <p className="text-xs text-muted-foreground capitalize">{user.role?.toLowerCase()}</p>
-                            </div>
-                            {isOnline(user.id) && <span className="w-2 h-2 bg-green-500 rounded-full" />}
-                          </button>
+                        {!loadingContacts && Object.entries(filteredGrouped).map(([role, users]) => (
+                          <div key={role}>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 pt-2 pb-1">
+                              {ROLE_LABELS[role] || role}
+                            </p>
+                            {users.map(user => (
+                              <button
+                                key={user.id}
+                                onClick={() => startNewChat(user)}
+                                className="w-full flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
+                              >
+                                <div className="relative">
+                                  <Avatar className="h-8 w-8">
+                                    {user.avatar && <AvatarImage src={getImageUrl(user.avatar)} />}
+                                    <AvatarFallback className="bg-primary text-white text-xs">
+                                      {getInitials(user.firstName, user.lastName)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  {isOnline(user.id) && (
+                                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-gray-900" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
                         ))}
-                        {!searchingUsers && newChatSearch && newChatUsers.length === 0 && (
-                          <p className="text-sm text-muted-foreground text-center py-3">No users found</p>
+                        {!loadingContacts && filteredContacts.length === 0 && (
+                          <p className="text-sm text-muted-foreground text-center py-3">
+                            {newChatSearch ? 'No users found' : 'No contacts available'}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -420,21 +459,26 @@ export default function ChatPage() {
                                 </AvatarFallback>
                               </Avatar>
                             )}
-                            <div className={cn('max-w-[70%] rounded-lg p-3', isMe ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-800')}>
+                            <div className={cn(
+                              'max-w-[75%] rounded-2xl px-3.5 py-2',
+                              isMe
+                                ? 'bg-primary text-white rounded-br-md'
+                                : 'bg-gray-100 dark:bg-gray-800 rounded-bl-md'
+                            )}>
                               {!isMe && activeRoom.type === 'GROUP' && (
-                                <p className="text-xs font-medium mb-1 opacity-70">
+                                <p className="text-xs font-medium mb-0.5 text-primary dark:text-primary/80">
                                   {message.sender?.firstName} {message.sender?.lastName}
                                 </p>
                               )}
-                              <p className="whitespace-pre-wrap break-words">{message.content}</p>
-                              <div className={cn('flex items-center gap-1 mt-1', isMe ? 'justify-end' : 'justify-start')}>
-                                <span className={cn('text-xs', isMe ? 'text-white/70' : 'text-muted-foreground')}>
+                              <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+                              <div className={cn('flex items-center gap-1 mt-0.5', isMe ? 'justify-end' : 'justify-start')}>
+                                <span className={cn('text-[10px]', isMe ? 'text-white/60' : 'text-muted-foreground')}>
                                   {formatMessageTime(message.createdAt)}
                                 </span>
                                 {isMe && (
                                   isRead
-                                    ? <CheckCheck className="w-4 h-4 text-white/70" />
-                                    : <Check className="w-4 h-4 text-white/70" />
+                                    ? <CheckCheck className="w-3.5 h-3.5 text-white/60" />
+                                    : <Check className="w-3.5 h-3.5 text-white/60" />
                                 )}
                               </div>
                             </div>
@@ -455,18 +499,23 @@ export default function ChatPage() {
                   )}
 
                   {/* Message Input */}
-                  <div className="p-4 border-t">
+                  <div className="p-3 border-t">
                     <div className="flex items-center gap-2">
-                      <Input
+                      <input
+                        type="text"
                         placeholder="Type a message..."
                         value={newMessage}
                         onChange={handleInputChange}
                         onKeyDown={handleKeyDown}
-                        className="flex-1"
+                        className="flex-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30 border-0 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
                       />
-                      <Button size="icon" onClick={handleSend} disabled={!newMessage.trim()}>
-                        <Send className="w-5 h-5" />
-                      </Button>
+                      <button
+                        onClick={handleSend}
+                        disabled={!newMessage.trim()}
+                        className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 disabled:opacity-40 transition-colors shrink-0"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 </>
@@ -482,7 +531,6 @@ export default function ChatPage() {
             </div>
           </div>
         </Card>
-      </motion.div>
     </div>
   );
 }

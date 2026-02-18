@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as admin from 'firebase-admin';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const webPush = require('web-push');
 
 @Injectable()
 export class PushNotificationService {
@@ -8,32 +10,24 @@ export class PushNotificationService {
   private initialized = false;
 
   constructor(private readonly configService: ConfigService) {
-    const projectId = this.configService.get<string>('firebase.projectId');
-    const privateKey = this.configService.get<string>('firebase.privateKey');
-    const clientEmail = this.configService.get<string>('firebase.clientEmail');
+    const subject = this.configService.get<string>('webPush.subject');
+    const publicKey = this.configService.get<string>('webPush.publicKey')?.trim();
+    const privateKey = this.configService.get<string>('webPush.privateKey')?.trim();
 
-    if (projectId && privateKey && clientEmail && projectId !== 'your-firebase-project-id') {
+    if (publicKey && privateKey) {
       try {
-        if (!admin.apps.length) {
-          admin.initializeApp({
-            credential: admin.credential.cert({
-              projectId,
-              privateKey: privateKey.replace(/\\n/g, '\n'),
-              clientEmail,
-            }),
-          });
-        }
+        webPush.setVapidDetails(subject || 'mailto:admin@rms-platform.com', publicKey, privateKey);
         this.initialized = true;
-        this.logger.log('Firebase push notification service initialized');
-      } catch (error) {
-        this.logger.warn(`Firebase init failed: ${error.message}`);
+        this.logger.log('Web Push notification service initialized');
+      } catch (error: any) {
+        this.logger.warn(`VAPID setup failed: ${error.message}. Push notifications disabled.`);
       }
     } else {
-      this.logger.warn('Firebase not configured, push notifications disabled');
+      this.logger.warn('VAPID keys not configured, push notifications disabled');
     }
   }
 
-  async sendToDevice(token: string, notification: {
+  async sendToDevice(subscriptionJson: string, notification: {
     title: string;
     body: string;
     data?: Record<string, string>;
@@ -41,23 +35,23 @@ export class PushNotificationService {
     if (!this.initialized) return false;
 
     try {
-      await admin.messaging().send({
-        token,
-        notification: {
-          title: notification.title,
-          body: notification.body,
-        },
+      const subscription = JSON.parse(subscriptionJson);
+      const payload = JSON.stringify({
+        title: notification.title,
+        body: notification.body,
+        icon: '/icon-192x192.png',
+        badge: '/badge-72x72.png',
         data: notification.data,
-        webpush: {
-          notification: {
-            icon: '/icon-192x192.png',
-            badge: '/badge-72x72.png',
-          },
-        },
       });
+
+      await webPush.sendNotification(subscription, payload);
       return true;
-    } catch (error) {
-      this.logger.error(`Push notification failed: ${error.message}`);
+    } catch (error: any) {
+      if (error.statusCode === 410 || error.statusCode === 404) {
+        this.logger.warn('Push subscription expired or invalid, should be removed');
+      } else {
+        this.logger.error(`Push notification failed: ${error.message}`);
+      }
       return false;
     }
   }

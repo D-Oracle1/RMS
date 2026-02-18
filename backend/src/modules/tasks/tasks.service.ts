@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { UpdateTaskDto, AddCommentDto } from './dto/update-task.dto';
+import { UpdateTaskDto, AddCommentDto, SubmitReportDto } from './dto/update-task.dto';
 import { TaskStatus, TaskPriority } from '@prisma/client';
 import { PolicyService } from '../hr/services/policy.service';
 import { NotificationService } from '../notification/notification.service';
@@ -359,6 +359,68 @@ export class TasksService {
         }
       } catch (error) {
         console.error('Failed to send task approval notification:', error);
+      }
+    }
+
+    return updated;
+  }
+
+  async submitReport(id: string, userId: string, dto: SubmitReportDto) {
+    const staffProfile = await this.prisma.staffProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!staffProfile) {
+      throw new NotFoundException('Staff profile not found');
+    }
+
+    const task = await this.prisma.staffTask.findUnique({
+      where: { id },
+    });
+
+    if (!task) {
+      throw new NotFoundException('Task not found');
+    }
+
+    if (task.assigneeId !== staffProfile.id) {
+      throw new ForbiddenException('You can only submit reports for your own tasks');
+    }
+
+    if (task.status !== TaskStatus.IN_PROGRESS && task.status !== TaskStatus.TODO) {
+      throw new ForbiddenException('Task must be in progress or to-do to submit a report');
+    }
+
+    const updated = await this.prisma.staffTask.update({
+      where: { id },
+      data: {
+        status: TaskStatus.IN_REVIEW,
+        reportDescription: dto.description || null,
+        reportLinks: dto.links || [],
+        attachments: dto.attachments || [],
+      },
+      include: {
+        assignee: {
+          include: {
+            user: {
+              select: { firstName: true, lastName: true, avatar: true },
+            },
+          },
+        },
+      },
+    });
+
+    // Notify task creator that a report has been submitted
+    if (task.createdByUserId) {
+      try {
+        await this.notificationService.create({
+          userId: task.createdByUserId,
+          type: 'SYSTEM',
+          title: 'Task Report Submitted',
+          message: `Report submitted for "${task.title}" and is ready for review.`,
+          link: '/dashboard/admin/hr/tasks',
+        });
+      } catch (error) {
+        console.error('Failed to send report notification:', error);
       }
     }
 

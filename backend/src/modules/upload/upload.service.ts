@@ -126,4 +126,11 @@ export class UploadService {
     );
     return urls;
   }
+
+  async uploadTaskFiles(files: MulterFile[]): Promise<string[]> {
+    const urls = await Promise.all(
+      files.map((file) => this.uploadToBlob(file, 'tasks')),
+    );
+    return urls;
+  }
 }

@@ -239,7 +239,7 @@ export default function AttendancePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Attendance</h1>
           <p className="text-muted-foreground">Track your work hours and attendance</p>
@@ -389,6 +389,7 @@ export default function AttendancePage() {
                 <p className="text-sm">Clock in to start tracking your attendance</p>
               </div>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -421,6 +422,7 @@ export default function AttendancePage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

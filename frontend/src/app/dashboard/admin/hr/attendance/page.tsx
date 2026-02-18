@@ -153,7 +153,7 @@ export default function AdminAttendancePage() {
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
-            className="w-[180px]"
+            className="w-full sm:w-[180px]"
           />
           <Button variant="outline" className="gap-2" onClick={fetchData} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -209,7 +209,7 @@ export default function AdminAttendancePage() {
           />
         </div>
         <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -220,7 +220,7 @@ export default function AdminAttendancePage() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -244,51 +244,53 @@ export default function AdminAttendancePage() {
                 <p>No attendance records found</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Staff Member</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Clock In</TableHead>
-                    <TableHead>Clock Out</TableHead>
-                    <TableHead>Hours</TableHead>
-                    <TableHead>Overtime</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAttendance.map((record) => (
-                    <TableRow key={record.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-8 h-8">
-                            {record.staffProfile?.user?.avatar && (
-                              <AvatarImage src={getImageUrl(record.staffProfile.user.avatar)} />
-                            )}
-                            <AvatarFallback className="bg-primary text-white text-xs">
-                              {record.staffProfile?.user?.firstName?.[0] || ''}
-                              {record.staffProfile?.user?.lastName?.[0] || ''}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">
-                            {record.staffProfile?.user?.firstName} {record.staffProfile?.user?.lastName}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{record.staffProfile?.department?.name || '-'}</TableCell>
-                      <TableCell>{formatTime(record.clockIn)}</TableCell>
-                      <TableCell>{formatTime(record.clockOut)}</TableCell>
-                      <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
-                      <TableCell>
-                        {record.overtime && record.overtime > 0 ? (
-                          <span className="text-green-600">+{record.overtime.toFixed(1)}h</span>
-                        ) : '-'}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(record.status)}</TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Staff Member</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Clock In</TableHead>
+                      <TableHead>Clock Out</TableHead>
+                      <TableHead>Hours</TableHead>
+                      <TableHead>Overtime</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAttendance.map((record) => (
+                      <TableRow key={record.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              {record.staffProfile?.user?.avatar && (
+                                <AvatarImage src={getImageUrl(record.staffProfile.user.avatar)} />
+                              )}
+                              <AvatarFallback className="bg-primary text-white text-xs">
+                                {record.staffProfile?.user?.firstName?.[0] || ''}
+                                {record.staffProfile?.user?.lastName?.[0] || ''}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">
+                              {record.staffProfile?.user?.firstName} {record.staffProfile?.user?.lastName}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{record.staffProfile?.department?.name || '-'}</TableCell>
+                        <TableCell>{formatTime(record.clockIn)}</TableCell>
+                        <TableCell>{formatTime(record.clockOut)}</TableCell>
+                        <TableCell>{record.hoursWorked ? `${record.hoursWorked.toFixed(1)}h` : '-'}</TableCell>
+                        <TableCell>
+                          {record.overtime && record.overtime > 0 ? (
+                            <span className="text-green-600">+{record.overtime.toFixed(1)}h</span>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

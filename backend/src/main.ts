@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+// Swagger is dynamically imported below only in non-production environments
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import helmet from 'helmet';
@@ -36,7 +36,10 @@ export async function configureApp(expressInstance?: express.Express) {
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   }));
-  app.use(compression());
+  // Vercel's edge CDN handles compression; skip in serverless to save CPU
+  if (!process.env.VERCEL) {
+    app.use(compression());
+  }
 
   // CORS
   const allowedOrigins = [
@@ -108,8 +111,9 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 4000);
   const nodeEnv = configService.get<string>('NODE_ENV', 'development');
 
-  // Swagger documentation
+  // Swagger documentation (dynamically imported to avoid parsing in production)
   if (nodeEnv !== 'production') {
+    const { DocumentBuilder, SwaggerModule } = await import('@nestjs/swagger');
     const config = new DocumentBuilder()
       .setTitle('RMS Platform API')
       .setDescription('Realtors Management System - Enterprise PropTech Platform API')

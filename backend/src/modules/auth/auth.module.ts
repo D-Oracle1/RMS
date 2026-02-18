@@ -4,7 +4,7 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { PusherAuthController } from './pusher-auth.controller';
+
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
@@ -27,7 +27,7 @@ import { MailService } from '../../common/services/mail.service';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController, PusherAuthController],
+  controllers: [AuthController],
   providers: [AuthService, JwtStrategy, LocalStrategy, MailService],
   exports: [AuthService, JwtModule],
 })

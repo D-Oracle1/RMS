@@ -494,7 +494,7 @@ export default function SalaryConfigPage() {
         {/* Allowances Tab */}
         <TabsContent value="allowances">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-green-600" />
                 Allowance Types
@@ -510,6 +510,7 @@ export default function SalaryConfigPage() {
                   <p>No allowances configured</p>
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -557,6 +558,7 @@ export default function SalaryConfigPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -565,7 +567,7 @@ export default function SalaryConfigPage() {
         {/* Deductions Tab */}
         <TabsContent value="deductions">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <CardTitle className="flex items-center gap-2">
                 <TrendingDown className="w-5 h-5 text-red-600" />
                 Deduction Types
@@ -581,6 +583,7 @@ export default function SalaryConfigPage() {
                   <p>No deductions configured</p>
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -628,6 +631,7 @@ export default function SalaryConfigPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -636,7 +640,7 @@ export default function SalaryConfigPage() {
         {/* Structures Tab */}
         <TabsContent value="structures">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <CardTitle className="flex items-center gap-2">
                 <Briefcase className="w-5 h-5 text-blue-600" />
                 Salary Structures
@@ -652,6 +656,7 @@ export default function SalaryConfigPage() {
                   <p>No salary structures configured</p>
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -697,6 +702,7 @@ export default function SalaryConfigPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -710,7 +716,7 @@ export default function SalaryConfigPage() {
             <DialogTitle>{editingAllowance ? 'Edit Allowance' : 'Add Allowance'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Name *</Label>
                 <Input
@@ -730,7 +736,7 @@ export default function SalaryConfigPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Amount Type</Label>
                 <Select value={allowanceForm.amountType} onValueChange={(v) => setAllowanceForm({ ...allowanceForm, amountType: v })}>
@@ -784,7 +790,7 @@ export default function SalaryConfigPage() {
             <DialogTitle>{editingDeduction ? 'Edit Deduction' : 'Add Deduction'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Name *</Label>
                 <Input
@@ -804,7 +810,7 @@ export default function SalaryConfigPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Amount Type</Label>
                 <Select value={deductionForm.amountType} onValueChange={(v) => setDeductionForm({ ...deductionForm, amountType: v })}>
@@ -858,7 +864,7 @@ export default function SalaryConfigPage() {
             <DialogTitle>{editingStructure ? 'Edit Salary Structure' : 'Add Salary Structure'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Name *</Label>
                 <Input
@@ -878,7 +884,7 @@ export default function SalaryConfigPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Min Salary (NGN)</Label>
                 <Input
@@ -896,7 +902,7 @@ export default function SalaryConfigPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Overtime Rate (x)</Label>
                 <Input

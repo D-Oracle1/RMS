@@ -62,7 +62,7 @@ interface NotificationContextValue {
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { userChannel, isConnected } = usePusher();
+  const { isConnected, subscribeToUserEvent, unsubscribeFromUserEvent } = usePusher();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,6 +73,20 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const mountedRef = useRef(true);
 
   const isDemo = () => getToken() === 'demo-token';
+
+  // Clear PWA badge
+  const clearBadge = useCallback(() => {
+    try {
+      if ('clearAppBadge' in navigator) {
+        (navigator as any).clearAppBadge();
+      }
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_BADGE' });
+      }
+    } catch {
+      // Badge API not supported
+    }
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     const token = getToken();
@@ -114,6 +128,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     if (!token || isDemo()) {
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() })));
       setUnreadCount(0);
+      clearBadge();
       return;
     }
 
@@ -121,10 +136,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       await api.post('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true, readAt: new Date().toISOString() })));
       setUnreadCount(0);
+      clearBadge();
     } catch {
       toast.error('Failed to mark all as read');
     }
-  }, []);
+  }, [clearBadge]);
 
   const deleteNotification = useCallback(async (id: string) => {
     const token = getToken();
@@ -166,19 +182,33 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     }
   }, []);
 
-  // Fetch notifications on mount
+  // Fetch notifications on mount and clear badge
   useEffect(() => {
     mountedRef.current = true;
     fetchNotifications();
+    clearBadge();
     return () => {
       mountedRef.current = false;
     };
-  }, [fetchNotifications]);
+  }, [fetchNotifications, clearBadge]);
 
-  // Listen for Pusher events on the user's private channel
+  // Clear badge when app regains focus
   useEffect(() => {
-    if (!userChannel) return;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        clearBadge();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', clearBadge);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', clearBadge);
+    };
+  }, [clearBadge]);
 
+  // Listen for realtime events on the user's channel
+  useEffect(() => {
     const handleNewNotification = (notification: Notification) => {
       if (!mountedRef.current) return;
       setNotifications((prev) => [notification, ...prev]);
@@ -220,16 +250,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       });
     };
 
-    userChannel.bind('notification:new', handleNewNotification);
-    userChannel.bind('callout:receive', handleCallout);
-    userChannel.bind('callout:response', handleCalloutResponse);
+    subscribeToUserEvent('notification:new', handleNewNotification);
+    subscribeToUserEvent('callout:receive', handleCallout);
+    subscribeToUserEvent('callout:response', handleCalloutResponse);
 
     return () => {
-      userChannel.unbind('notification:new', handleNewNotification);
-      userChannel.unbind('callout:receive', handleCallout);
-      userChannel.unbind('callout:response', handleCalloutResponse);
+      unsubscribeFromUserEvent('notification:new', handleNewNotification);
+      unsubscribeFromUserEvent('callout:receive', handleCallout);
+      unsubscribeFromUserEvent('callout:response', handleCalloutResponse);
     };
-  }, [userChannel]);
+  }, [subscribeToUserEvent, unsubscribeFromUserEvent]);
 
   // Re-fetch when user changes
   useEffect(() => {

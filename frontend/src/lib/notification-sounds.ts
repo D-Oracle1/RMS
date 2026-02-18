@@ -67,6 +67,17 @@ export function playCalloutSound() {
   }
 }
 
+/** Soft pop sound for incoming chat messages */
+export function playChatMessageSound() {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  if (ctx.state === 'suspended') ctx.resume();
+
+  // Short bubbly pop
+  playTone(660, 0.08, 'sine', 0.2);
+  setTimeout(() => playTone(880, 0.1, 'sine', 0.15), 70);
+}
+
 /** Soft confirmation sound for callout responses */
 export function playCalloutResponseSound() {
   const ctx = getAudioContext();

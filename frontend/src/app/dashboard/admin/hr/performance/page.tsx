@@ -278,7 +278,7 @@ export default function AdminPerformancePage() {
           />
         </div>
         <Select value={cycleFilter} onValueChange={setCycleFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Cycle" />
           </SelectTrigger>
           <SelectContent>
@@ -288,7 +288,7 @@ export default function AdminPerformancePage() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -324,6 +324,7 @@ export default function AdminPerformancePage() {
                   <p>No reviews found</p>
                 </div>
               ) : (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -370,6 +371,7 @@ export default function AdminPerformancePage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               )}
             </CardContent>
           </Card>

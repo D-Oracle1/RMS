@@ -20,8 +20,8 @@ export default function GeneralOverseerLayout({
         onClose={() => setMobileMenuOpen(false)}
       />
       <div className={cn('transition-all duration-300', 'md:ml-64')}>
-        <Header title="General Overseer Dashboard" onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <main className="p-4 md:p-6">{children}</main>
+        <Header onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
+        <main className="p-3 md:p-6">{children}</main>
       </div>
     </div>
   );

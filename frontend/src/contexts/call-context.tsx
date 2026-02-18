@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { usePusher } from './pusher-context';
-import { getUser, getToken } from '@/lib/auth-storage';
+import { getUser } from '@/lib/auth-storage';
 import { api } from '@/lib/api';
+
+const log = (...args: any[]) => console.log('[Call]', ...args);
 
 export type CallStatus = 'idle' | 'ringing' | 'incoming' | 'connecting' | 'connected';
 
@@ -36,11 +38,15 @@ const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    // TURN servers for NAT traversal behind firewalls
+    { urls: 'turn:a.relay.metered.ca:80', username: 'e7e3e6c4e5c7e2a3b1d0f4a6', credential: 'open' },
+    { urls: 'turn:a.relay.metered.ca:443', username: 'e7e3e6c4e5c7e2a3b1d0f4a6', credential: 'open' },
+    { urls: 'turn:a.relay.metered.ca:443?transport=tcp', username: 'e7e3e6c4e5c7e2a3b1d0f4a6', credential: 'open' },
   ],
 };
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
-  const { userChannel } = usePusher();
+  const { subscribeToUserEvent, unsubscribeFromUserEvent } = usePusher();
   const [callStatus, setCallStatus] = useState<CallStatus>('idle');
   const [callType, setCallType] = useState<'audio' | 'video'>('audio');
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -54,9 +60,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const localStreamRef = useRef<MediaStream | null>(null);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingOfferRef = useRef<{ callerId: string; offer: RTCSessionDescriptionInit } | null>(null);
   const incomingDataRef = useRef<{ callerId: string; callerName: string; callerAvatar?: string; callType: 'audio' | 'video' } | null>(null);
+  const callStatusRef = useRef<CallStatus>('idle');
 
   const cleanup = useCallback(() => {
+    log('Cleaning up call');
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
@@ -72,20 +81,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setLocalStream(null);
     setRemoteStream(null);
     setCallStatus('idle');
+    callStatusRef.current = 'idle';
     setPeerInfo(null);
     setIsMuted(false);
     setIsCameraOff(false);
     setCallDuration(0);
     pendingCandidatesRef.current = [];
+    pendingOfferRef.current = null;
     incomingDataRef.current = null;
   }, []);
 
   const createPeerConnection = useCallback((targetUserId: string) => {
+    log('Creating peer connection for', targetUserId);
     const pc = new RTCPeerConnection(ICE_SERVERS);
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        // Send ICE candidate via HTTP to backend
         api.post('/call/ice-candidate', {
           targetUserId,
           candidate: event.candidate.toJSON(),
@@ -94,6 +105,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     pc.ontrack = (event) => {
+      log('Remote track received');
       const stream = event.streams[0];
       if (stream) {
         setRemoteStream(stream);
@@ -101,8 +113,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
     pc.oniceconnectionstatechange = () => {
+      log('ICE state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected') {
         setCallStatus('connected');
+        callStatusRef.current = 'connected';
         setCallDuration(0);
         callTimerRef.current = setInterval(() => {
           setCallDuration((prev) => prev + 1);
@@ -118,7 +132,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [cleanup]);
 
   const initiateCall = useCallback(async (userId: string, type: 'audio' | 'video', userName: string, userAvatar?: string) => {
-    if (callStatus !== 'idle') return;
+    if (callStatusRef.current !== 'idle') return;
+    log('Initiating', type, 'call to', userName);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -129,11 +144,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setLocalStream(stream);
       setCallType(type);
       setCallStatus('ringing');
+      callStatusRef.current = 'ringing';
       setPeerInfo({ id: userId, name: userName, avatar: userAvatar });
 
       const currentUser = getUser();
 
-      // Send call initiation via HTTP
       await api.post('/call/initiate', {
         targetUserId: userId,
         callType: type,
@@ -147,18 +162,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      // Send offer via HTTP
+      log('Sending offer');
       await api.post('/call/offer', { targetUserId: userId, offer });
     } catch (error) {
-      console.error('Failed to initiate call:', error);
+      console.error('[Call] Failed to initiate call:', error);
       cleanup();
     }
-  }, [callStatus, createPeerConnection, cleanup]);
+  }, [createPeerConnection, cleanup]);
 
   const acceptCall = useCallback(async () => {
     if (!incomingDataRef.current) return;
 
     const { callerId, callType: type } = incomingDataRef.current;
+    log('Accepting call from', callerId);
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -169,6 +185,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setLocalStream(stream);
       setCallType(type);
       setCallStatus('connecting');
+      callStatusRef.current = 'connecting';
 
       const currentUser = getUser();
       await api.post('/call/accept', {
@@ -179,24 +196,40 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       const pc = createPeerConnection(callerId);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
-      // Process any pending candidates
-      for (const candidate of pendingCandidatesRef.current) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      // Process the cached offer FIRST (must set remote description before adding ICE candidates)
+      if (pendingOfferRef.current) {
+        log('Processing cached offer');
+        const { callerId: offerCallerId, offer } = pendingOfferRef.current;
+        pendingOfferRef.current = null;
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+        // Now process cached ICE candidates (remote description is set)
+        log('Processing', pendingCandidatesRef.current.length, 'cached ICE candidates');
+        for (const candidate of pendingCandidatesRef.current) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+        pendingCandidatesRef.current = [];
+
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        log('Sending answer');
+        await api.post('/call/answer', { targetUserId: offerCallerId, answer });
       }
-      pendingCandidatesRef.current = [];
     } catch (error) {
-      console.error('Failed to accept call:', error);
+      console.error('[Call] Failed to accept call:', error);
       cleanup();
     }
   }, [createPeerConnection, cleanup]);
 
   const rejectCall = useCallback(async () => {
     if (!incomingDataRef.current) return;
+    log('Rejecting call');
     await api.post('/call/reject', { callerId: incomingDataRef.current.callerId }).catch(() => {});
     cleanup();
   }, [cleanup]);
 
   const endCall = useCallback(async () => {
+    log('Ending call');
     if (peerInfo) {
       await api.post('/call/end', { peerId: peerInfo.id }).catch(() => {});
     }
@@ -221,12 +254,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Listen for call events on the user's private Pusher channel
+  // Listen for call events on the user's channel
   useEffect(() => {
-    if (!userChannel) return;
-
     const handleIncomingCall = (data: { callerId: string; callerName: string; callerAvatar?: string; callType: 'audio' | 'video' }) => {
-      if (callStatus !== 'idle') {
+      log('Incoming call from', data.callerName, data.callType);
+      if (callStatusRef.current !== 'idle') {
         api.post('/call/reject', { callerId: data.callerId }).catch(() => {});
         return;
       }
@@ -234,38 +266,59 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setPeerInfo({ id: data.callerId, name: data.callerName, avatar: data.callerAvatar });
       setCallType(data.callType);
       setCallStatus('incoming');
+      callStatusRef.current = 'incoming';
     };
 
     const handleCallAccepted = () => {
+      log('Call accepted by peer');
       setCallStatus('connecting');
+      callStatusRef.current = 'connecting';
     };
 
     const handleCallRejected = () => {
+      log('Call rejected by peer');
       cleanup();
     };
 
     const handleCallEnded = () => {
+      log('Call ended by peer');
       cleanup();
     };
 
     const handleOffer = async (data: { callerId: string; offer: RTCSessionDescriptionInit }) => {
-      if (!peerConnectionRef.current) return;
+      log('Received offer from', data.callerId);
+      // If peer connection doesn't exist yet (callee hasn't accepted), cache the offer
+      if (!peerConnectionRef.current) {
+        log('No peer connection yet, caching offer');
+        pendingOfferRef.current = data;
+        return;
+      }
       try {
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.offer));
         const answer = await peerConnectionRef.current.createAnswer();
         await peerConnectionRef.current.setLocalDescription(answer);
+        log('Sending answer');
         await api.post('/call/answer', { targetUserId: data.callerId, answer });
       } catch (error) {
-        console.error('Failed to handle offer:', error);
+        console.error('[Call] Failed to handle offer:', error);
       }
     };
 
     const handleAnswer = async (data: { answererId: string; answer: RTCSessionDescriptionInit }) => {
+      log('Received answer from', data.answererId);
       if (!peerConnectionRef.current) return;
       try {
         await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(data.answer));
+        // Flush any ICE candidates that arrived before remote description was set
+        if (pendingCandidatesRef.current.length > 0) {
+          log('Flushing', pendingCandidatesRef.current.length, 'pending ICE candidates after answer');
+          for (const candidate of pendingCandidatesRef.current) {
+            await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+          }
+          pendingCandidatesRef.current = [];
+        }
       } catch (error) {
-        console.error('Failed to handle answer:', error);
+        console.error('[Call] Failed to handle answer:', error);
       }
     };
 
@@ -274,31 +327,31 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         try {
           await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(data.candidate));
         } catch (error) {
-          console.error('Failed to add ICE candidate:', error);
+          console.error('[Call] Failed to add ICE candidate:', error);
         }
       } else {
         pendingCandidatesRef.current.push(data.candidate);
       }
     };
 
-    userChannel.bind('call:incoming', handleIncomingCall);
-    userChannel.bind('call:accepted', handleCallAccepted);
-    userChannel.bind('call:rejected', handleCallRejected);
-    userChannel.bind('call:ended', handleCallEnded);
-    userChannel.bind('call:offer', handleOffer);
-    userChannel.bind('call:answer', handleAnswer);
-    userChannel.bind('call:ice-candidate', handleIceCandidate);
+    subscribeToUserEvent('call:incoming', handleIncomingCall);
+    subscribeToUserEvent('call:accepted', handleCallAccepted);
+    subscribeToUserEvent('call:rejected', handleCallRejected);
+    subscribeToUserEvent('call:ended', handleCallEnded);
+    subscribeToUserEvent('call:offer', handleOffer);
+    subscribeToUserEvent('call:answer', handleAnswer);
+    subscribeToUserEvent('call:ice-candidate', handleIceCandidate);
 
     return () => {
-      userChannel.unbind('call:incoming', handleIncomingCall);
-      userChannel.unbind('call:accepted', handleCallAccepted);
-      userChannel.unbind('call:rejected', handleCallRejected);
-      userChannel.unbind('call:ended', handleCallEnded);
-      userChannel.unbind('call:offer', handleOffer);
-      userChannel.unbind('call:answer', handleAnswer);
-      userChannel.unbind('call:ice-candidate', handleIceCandidate);
+      unsubscribeFromUserEvent('call:incoming', handleIncomingCall);
+      unsubscribeFromUserEvent('call:accepted', handleCallAccepted);
+      unsubscribeFromUserEvent('call:rejected', handleCallRejected);
+      unsubscribeFromUserEvent('call:ended', handleCallEnded);
+      unsubscribeFromUserEvent('call:offer', handleOffer);
+      unsubscribeFromUserEvent('call:answer', handleAnswer);
+      unsubscribeFromUserEvent('call:ice-candidate', handleIceCandidate);
     };
-  }, [userChannel, callStatus, cleanup]);
+  }, [subscribeToUserEvent, unsubscribeFromUserEvent, cleanup]);
 
   return (
     <CallContext.Provider

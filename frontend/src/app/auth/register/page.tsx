@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Building2, Eye, EyeOff, Loader2, ChevronRight, ChevronLeft } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Building2, Eye, EyeOff, Loader2, ChevronRight, ChevronLeft, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +19,10 @@ const nigerianStates = [
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const roleParam = searchParams.get('role');
+  const refCode = searchParams.get('ref');
+  const isRealtorSignup = roleParam?.toLowerCase() === 'realtor';
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState(1);
@@ -105,7 +109,7 @@ export default function RegisterPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.email,
+          email: formData.email.toLowerCase().trim(),
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -116,6 +120,8 @@ export default function RegisterPage() {
           address: formData.address,
           city: formData.city,
           state: formData.state,
+          ...(isRealtorSignup && { role: 'REALTOR' }),
+          ...(refCode && { referralCode: refCode }),
         }),
       });
 
@@ -145,7 +151,16 @@ export default function RegisterPage() {
             <Building2 className="w-6 h-6 text-white" />
           </div>
           <CardTitle className="text-2xl">Create an account</CardTitle>
-          <CardDescription>Join RMS Platform today</CardDescription>
+          <CardDescription>
+            {isRealtorSignup ? 'Register as a Realtor on RMS Platform' : 'Join RMS Platform today'}
+          </CardDescription>
+
+          {isRealtorSignup && (
+            <div className="flex items-center gap-2 mt-2 p-3 rounded-lg bg-primary/10 text-primary text-sm font-medium">
+              <UserPlus className="w-4 h-4" />
+              Registering as a Realtor
+            </div>
+          )}
 
           {/* Progress Steps */}
           <div className="flex items-center justify-center gap-2 mt-4">
@@ -230,7 +245,7 @@ export default function RegisterPage() {
             {/* Step 1 - Account Details */}
             {step === 1 && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">First Name *</label>
                     <Input
@@ -311,7 +326,7 @@ export default function RegisterPage() {
             {/* Step 2 - Personal Details */}
             {step === 2 && (
               <>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">Date of Birth *</label>
                     <Input
@@ -357,7 +372,7 @@ export default function RegisterPage() {
                   />
                   {errors.address && <p className="text-xs text-red-500">{errors.address}</p>}
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium">City *</label>
                     <Input

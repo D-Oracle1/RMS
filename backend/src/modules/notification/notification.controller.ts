@@ -91,7 +91,7 @@ export class NotificationController {
     @CurrentUser('id') callerId: string,
     @Body() data: SendCalloutDto,
   ) {
-    return this.notificationService.sendCallout(callerId, data.targetUserId, data.message);
+    return this.notificationService.sendCallout(callerId, data.targetUserId, data.message, data.link);
   }
 
   @Post('callout/:id/respond')

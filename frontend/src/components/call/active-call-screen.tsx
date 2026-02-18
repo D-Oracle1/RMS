@@ -61,7 +61,7 @@ export function ActiveCallScreen() {
             ref={remoteVideoRef}
             autoPlay
             playsInline
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain bg-black"
           />
         ) : (
           <div className="text-center">

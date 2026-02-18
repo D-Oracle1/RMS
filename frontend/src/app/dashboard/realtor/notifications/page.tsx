@@ -66,7 +66,7 @@ export default function RealtorNotificationsPage() {
       >
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-lg bg-primary/10">
                   <Bell className="w-8 h-8 text-primary" />

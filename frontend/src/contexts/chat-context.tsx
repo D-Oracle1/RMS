@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { api } from '@/lib/api';
 import { getToken } from '@/lib/auth-storage';
 import { usePusher } from './pusher-context';
+import { playChatMessageSound } from '@/lib/notification-sounds';
+import { toast } from 'sonner';
 
 export interface ChatParticipant {
   id: string;
@@ -60,7 +62,7 @@ interface ChatContextValue {
 const ChatContext = createContext<ChatContextValue | null>(null);
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
-  const { pusher, userChannel } = usePusher();
+  const { subscribeToUserEvent, unsubscribeFromUserEvent, subscribeToChannel, unsubscribeFromChannel, broadcastToChannel } = usePusher();
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [activeRoom, setActiveRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -68,7 +70,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const activeRoomRef = useRef<string | null>(null);
-  const chatChannelRef = useRef<any>(null);
+  const messageCacheRef = useRef<Map<string, ChatMessage[]>>(new Map());
 
   const isDemo = () => getToken() === 'demo-token';
 
@@ -78,11 +80,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     setIsLoadingRooms(true);
     try {
-      const data = await api.get<ChatRoom[]>('/chat/rooms');
-      const roomsList = Array.isArray(data) ? data : (data as any)?.data || [];
+      const res = await api.get<any>('/chat/rooms');
+      // Handle TransformInterceptor wrapper: { success, data, timestamp }
+      const raw = res?.data ?? res;
+      const roomsList = Array.isArray(raw) ? raw : [];
       setRooms(roomsList);
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error('[Chat] Failed to fetch rooms:', err);
     } finally {
       setIsLoadingRooms(false);
     }
@@ -90,65 +94,89 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const selectRoom = useCallback(async (room: ChatRoom) => {
     // Unsubscribe from previous chat channel
-    if (activeRoomRef.current && pusher) {
-      pusher.unsubscribe(`presence-chat-${activeRoomRef.current}`);
-      chatChannelRef.current = null;
+    if (activeRoomRef.current) {
+      unsubscribeFromChannel(`chat-${activeRoomRef.current}`);
     }
 
     setActiveRoom(room);
     activeRoomRef.current = room.id;
-    setMessages([]);
-    setIsLoadingMessages(true);
 
-    // Subscribe to new chat room's presence channel
-    if (pusher) {
-      const channel = pusher.subscribe(`presence-chat-${room.id}`);
-      chatChannelRef.current = channel;
+    // Show cached messages instantly (no spinner if we have cache)
+    const cached = messageCacheRef.current.get(room.id);
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setIsLoadingMessages(false);
+    } else {
+      setMessages([]);
+      setIsLoadingMessages(true);
+    }
 
-      // Listen for typing via client events
-      channel.bind('client-typing', (data: { userId: string; isTyping: boolean }) => {
-        if (data.isTyping) {
-          setTypingUsers((prev) => {
-            if (prev.some((t) => t.userId === data.userId && t.roomId === room.id)) return prev;
-            return [...prev, { userId: data.userId, roomId: room.id }];
-          });
-          setTimeout(() => {
+    // Subscribe to new chat room channel for typing events
+    const channel = subscribeToChannel(`chat-${room.id}`);
+    if (channel) {
+      channel
+        .on('broadcast', { event: 'client-typing' }, (payload) => {
+          const data = payload.payload as { userId: string; isTyping: boolean };
+          if (data.isTyping) {
+            setTypingUsers((prev) => {
+              if (prev.some((t) => t.userId === data.userId && t.roomId === room.id)) return prev;
+              return [...prev, { userId: data.userId, roomId: room.id }];
+            });
+            setTimeout(() => {
+              setTypingUsers((prev) =>
+                prev.filter((t) => !(t.userId === data.userId && t.roomId === room.id)),
+              );
+            }, 3000);
+          } else {
             setTypingUsers((prev) =>
               prev.filter((t) => !(t.userId === data.userId && t.roomId === room.id)),
             );
-          }, 3000);
-        } else {
-          setTypingUsers((prev) =>
-            prev.filter((t) => !(t.userId === data.userId && t.roomId === room.id)),
-          );
-        }
-      });
+          }
+        })
+        .subscribe();
     }
 
+    // Fetch fresh messages (background refresh if cached, foreground if not)
     try {
-      const res = await api.get<{ data: ChatMessage[] }>(`/chat/rooms/${room.id}/messages?limit=100`);
-      const msgs = Array.isArray(res) ? res : res.data || [];
-      setMessages(msgs);
+      const res = await api.get<any>(`/chat/rooms/${room.id}/messages?limit=30`);
+      const raw = res?.data ?? res;
+      const msgs = Array.isArray(raw) ? raw : [];
+      console.log('[Chat] Loaded messages:', msgs.length, 'for room', room.id);
 
-      await api.post(`/chat/rooms/${room.id}/read`);
+      // Only update if this room is still active
+      if (activeRoomRef.current === room.id) {
+        setMessages(msgs);
+        messageCacheRef.current.set(room.id, msgs);
+      }
+
+      // Mark as read (fire-and-forget)
+      api.post(`/chat/rooms/${room.id}/read`).catch(() => {});
       setRooms((prev) => prev.map((r) => (r.id === room.id ? { ...r, unreadCount: 0 } : r)));
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error('[Chat] Failed to load messages:', err);
     } finally {
-      setIsLoadingMessages(false);
+      if (activeRoomRef.current === room.id) {
+        setIsLoadingMessages(false);
+      }
     }
-  }, [pusher]);
+  }, [subscribeToChannel, unsubscribeFromChannel]);
 
   const sendMessage = useCallback(async (content: string, type = 'TEXT') => {
     if (!activeRoomRef.current || !content.trim()) return;
 
     try {
-      const message = await api.post<ChatMessage>(`/chat/rooms/${activeRoomRef.current}/messages`, {
+      const res = await api.post<any>(`/chat/rooms/${activeRoomRef.current}/messages`, {
         content: content.trim(),
         type,
       });
-      const msg = (message as any)?.data || message;
-      setMessages((prev) => [...prev, msg]);
+      // Handle TransformInterceptor wrapper: { success, data: { message }, timestamp }
+      const msg = res?.data ?? res;
+      console.log('[Chat] Message sent:', msg?.id);
+      setMessages((prev) => {
+        const updated = [...prev, msg];
+        if (activeRoomRef.current) messageCacheRef.current.set(activeRoomRef.current, updated);
+        return updated;
+      });
 
       setRooms((prev) =>
         prev.map((r) => {
@@ -158,35 +186,38 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           return r;
         }),
       );
-    } catch {
+    } catch (err) {
+      console.error('[Chat] Failed to send message:', err);
       throw new Error('Failed to send message');
     }
   }, []);
 
   const createRoom = useCallback(async (participantIds: string[], name?: string) => {
-    const room = await api.post<ChatRoom>('/chat/rooms', { participantIds, name });
-    const newRoom = (room as any)?.data || room;
+    const res = await api.post<any>('/chat/rooms', { participantIds, name });
+    const newRoom = res?.data ?? res;
+    console.log('[Chat] Room created/found:', newRoom?.id);
     setRooms((prev) => [newRoom, ...prev]);
     return newRoom;
   }, []);
 
   const sendTyping = useCallback((isTyping: boolean) => {
-    if (!chatChannelRef.current) return;
-    // Use Pusher client events for typing (no server round-trip)
-    chatChannelRef.current.trigger('client-typing', { isTyping });
-  }, []);
+    if (!activeRoomRef.current) return;
+    broadcastToChannel(`chat-${activeRoomRef.current}`, 'client-typing', { isTyping });
+  }, [broadcastToChannel]);
 
-  // Listen for chat messages on the user's private channel
+  // Listen for chat messages on the user's channel
   useEffect(() => {
-    if (!userChannel) return;
-
     const handleNewMessage = (data: { roomId: string; message: ChatMessage }) => {
+      console.log('[Chat] Real-time message received:', data?.roomId, data?.message?.id);
       if (data.roomId === activeRoomRef.current) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === data.message.id)) return prev;
-          return [...prev, data.message];
+          const updated = [...prev, data.message];
+          messageCacheRef.current.set(data.roomId, updated);
+          return updated;
         });
         api.post(`/chat/rooms/${data.roomId}/read`).catch(() => {});
+        playChatMessageSound();
       } else {
         setRooms((prev) =>
           prev.map((r) => {
@@ -201,14 +232,24 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             return r;
           }),
         );
+        // Play sound and show toast for messages in other rooms
+        playChatMessageSound();
+        const senderName = data.message.sender
+          ? `${data.message.sender.firstName} ${data.message.sender.lastName}`
+          : 'Someone';
+        toast(senderName, {
+          description: data.message.content.length > 60
+            ? data.message.content.substring(0, 60) + '...'
+            : data.message.content,
+        });
       }
     };
 
-    userChannel.bind('chat:message', handleNewMessage);
+    subscribeToUserEvent('chat:message', handleNewMessage);
     return () => {
-      userChannel.unbind('chat:message', handleNewMessage);
+      unsubscribeFromUserEvent('chat:message', handleNewMessage);
     };
-  }, [userChannel]);
+  }, [subscribeToUserEvent, unsubscribeFromUserEvent]);
 
   // Fetch rooms on mount
   useEffect(() => {

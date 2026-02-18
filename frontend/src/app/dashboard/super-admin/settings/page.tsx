@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Link, Copy, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,8 @@ import { getUser, updateUser } from '@/lib/auth-storage';
 
 export default function SuperAdminSettings() {
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const [profile, setProfile] = useState({ firstName: '', lastName: '', email: '', phone: '' });
 
   useEffect(() => {
@@ -22,7 +24,15 @@ export default function SuperAdminSettings() {
         email: user.email || '',
         phone: '',
       });
+      if (user.referralCode) {
+        setReferralCode(user.referralCode);
+      }
     }
+    // Also try fetching from API for referralCode
+    api.get<any>('/auth/profile').then((res: any) => {
+      const data = res?.data || res;
+      if (data?.referralCode) setReferralCode(data.referralCode);
+    }).catch(() => {});
   }, []);
 
   const handleSave = async () => {
@@ -54,7 +64,7 @@ export default function SuperAdminSettings() {
           <CardTitle>Profile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium">First Name</label>
               <Input
@@ -83,6 +93,39 @@ export default function SuperAdminSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {referralCode && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Link className="w-4 h-4" />
+              Your Referral Link
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">Share this link to invite others. You&apos;ll earn rewards when they sign up.</p>
+            <div className="flex items-center gap-2">
+              <Input
+                readOnly
+                value={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/register?ref=${referralCode}`}
+                className="bg-muted text-sm"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/auth/register?ref=${referralCode}`);
+                  setCopied(true);
+                  toast.success('Referral link copied!');
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

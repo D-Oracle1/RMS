@@ -498,7 +498,7 @@ function AdminStaffPage() {
           />
         </div>
         <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -509,7 +509,7 @@ function AdminStaffPage() {
           </SelectContent>
         </Select>
         <Select value={positionFilter} onValueChange={setPositionFilter}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Position" />
           </SelectTrigger>
           <SelectContent>
@@ -533,6 +533,7 @@ function AdminStaffPage() {
       >
         <Card>
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -635,6 +636,7 @@ function AdminStaffPage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -646,7 +648,7 @@ function AdminStaffPage() {
             <DialogTitle>Add New Staff Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name *</Label>
                 <Input
@@ -686,7 +688,7 @@ function AdminStaffPage() {
                 placeholder="Enter password"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
                 <Input
@@ -706,7 +708,7 @@ function AdminStaffPage() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="position">Position *</Label>
                 <select
@@ -748,7 +750,7 @@ function AdminStaffPage() {
                 placeholder="e.g., Software Engineer"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="department">Department *</Label>
                 <select
@@ -803,7 +805,7 @@ function AdminStaffPage() {
             <DialogTitle>Edit Staff Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-firstName">First Name *</Label>
                 <Input
@@ -839,7 +841,7 @@ function AdminStaffPage() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-position">Position *</Label>
                 <select
@@ -940,7 +942,7 @@ function AdminStaffPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Employee ID</p>
                   <p className="font-bold">{selectedStaff.employeeId}</p>
@@ -959,7 +961,7 @@ function AdminStaffPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Hire Date</p>
                   <p className="font-bold">{selectedStaff.hireDate?.split('T')[0] || 'N/A'}</p>

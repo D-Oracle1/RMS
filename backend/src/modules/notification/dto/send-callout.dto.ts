@@ -10,6 +10,11 @@ export class SendCalloutDto {
   @IsOptional()
   @IsString()
   message?: string;
+
+  @ApiProperty({ description: 'Optional link to include with the callout', required: false })
+  @IsOptional()
+  @IsString()
+  link?: string;
 }
 
 export class RespondCalloutDto {

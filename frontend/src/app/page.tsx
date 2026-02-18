@@ -132,7 +132,7 @@ export default function HomePage() {
   if (cmsLoading) {
     return (
       <div className="min-h-screen bg-white dark:bg-primary-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
       </div>
     );
   }
@@ -544,12 +544,12 @@ export default function HomePage() {
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">{cta.title || `Ready to Get Started with ${companyName}?`}</h2>
           <p className="text-lg text-white/80 max-w-2xl mx-auto mb-8">{cta.subtitle || 'Whether you\'re buying, selling, or managing properties, we are your trusted partner.'}</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/auth/register">
+            <Link href={cta.primaryButtonLink || '/auth/register'}>
               <Button size="lg" className="bg-accent hover:bg-accent-600 text-white shadow-accent text-lg px-8">
                 {cta.primaryButtonText || 'Get Started'}
               </Button>
             </Link>
-            <Link href="/contact">
+            <Link href={cta.secondaryButtonLink || '/contact'}>
               <Button size="lg" variant="outline" className="text-white border-white/40 hover:bg-white/10 text-lg px-8">
                 {cta.secondaryButtonText || 'Contact Us'}
               </Button>

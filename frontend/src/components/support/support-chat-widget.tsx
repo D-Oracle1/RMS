@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { MessageCircle, X, Send, Loader2, LogIn, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -19,6 +20,7 @@ interface Message {
 }
 
 export function SupportChatWidget() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -148,11 +150,16 @@ export function SupportChatWidget() {
     ? `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}`
     : '';
 
+  // Hide widget on chat pages to avoid blocking the send button
+  if (pathname?.includes('/chat') || pathname?.includes('/support')) {
+    return null;
+  }
+
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {/* Chat Panel */}
       {isOpen && (
-        <div className="w-[360px] max-w-[calc(100vw-3rem)] h-[480px] max-h-[calc(100vh-8rem)] bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200">
+        <div className="fixed inset-0 md:inset-auto md:bottom-6 md:right-6 w-full h-full md:w-[360px] md:h-[480px] bg-white dark:bg-gray-900 md:rounded-2xl shadow-2xl md:border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-200 z-50">
           {/* Header */}
           <div className="bg-[#0b5c46] text-white px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
@@ -290,7 +297,7 @@ export function SupportChatWidget() {
       )}
 
       {/* Floating Buttons */}
-      <div className="flex flex-col items-center gap-2">
+      <div className={`flex flex-col items-center gap-2 ${isOpen ? 'hidden md:flex' : ''}`}>
         {/* WhatsApp Button */}
         {whatsappUrl && !isOpen && (
           <a

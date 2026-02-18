@@ -81,7 +81,7 @@ export default function AuditLogPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4 items-end">
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <label className="text-sm font-medium mb-1 block">Entity</label>
               <Select
                 value={filters.entity}
@@ -106,7 +106,7 @@ export default function AuditLogPage() {
               </Select>
             </div>
 
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <label className="text-sm font-medium mb-1 block">Action</label>
               <Select
                 value={filters.action}
@@ -138,6 +138,7 @@ export default function AuditLogPage() {
 
       <Card>
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -196,6 +197,7 @@ export default function AuditLogPage() {
               )}
             </TableBody>
           </Table>
+          </div>
 
           {/* Pagination */}
           {meta.totalPages > 1 && (

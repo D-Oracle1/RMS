@@ -95,3 +95,4 @@ nul
 **/public/workbox-*.js.map
 **/public/swe-worker-*.js
 **/public/swe-worker-*.js.map
+backend/.env.production

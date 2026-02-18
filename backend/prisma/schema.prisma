@@ -294,6 +294,10 @@ model User {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
 
+  // Referral system
+  referralCode  String?    @unique
+  referredBy    String?
+
   // Role-specific profiles
   adminProfile   AdminProfile?
   realtorProfile RealtorProfile?
@@ -331,6 +335,7 @@ model User {
   @@index([email])
   @@index([role])
   @@index([status])
+  @@index([referralCode])
   @@map("users")
 }
 
@@ -1208,6 +1213,10 @@ model StaffTask {
   // Organization
   tags            String[]     @default([])
   attachments     String[]     @default([])
+
+  // Report (filled when staff submits for review)
+  reportDescription String?    @map("report_description")
+  reportLinks       String[]   @default([]) @map("report_links")
 
   // Relation to property/sale if applicable
   propertyId      String?

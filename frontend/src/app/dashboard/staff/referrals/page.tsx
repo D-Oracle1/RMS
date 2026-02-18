@@ -110,32 +110,34 @@ export default function StaffReferralsPage() {
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : referrals.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-[#0b5c46] hover:bg-[#0b5c46]">
-                  <TableHead className="text-white font-semibold">NAME</TableHead>
-                  <TableHead className="text-white font-semibold">EMAIL</TableHead>
-                  <TableHead className="text-white font-semibold">ROLE</TableHead>
-                  <TableHead className="text-white font-semibold">STATUS</TableHead>
-                  <TableHead className="text-white font-semibold">JOINED</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {referrals.map((r: any) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">
-                      {r.firstName} {r.lastName}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{r.email}</TableCell>
-                    <TableCell>{getRoleBadge(r.role)}</TableCell>
-                    <TableCell>{getStatusBadge(r.status)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[#0b5c46] hover:bg-[#0b5c46]">
+                    <TableHead className="text-white font-semibold">NAME</TableHead>
+                    <TableHead className="text-white font-semibold hidden md:table-cell">EMAIL</TableHead>
+                    <TableHead className="text-white font-semibold">ROLE</TableHead>
+                    <TableHead className="text-white font-semibold">STATUS</TableHead>
+                    <TableHead className="text-white font-semibold">JOINED</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {referrals.map((r: any) => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">
+                        {r.firstName} {r.lastName}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{r.email}</TableCell>
+                      <TableCell>{getRoleBadge(r.role)}</TableCell>
+                      <TableCell>{getStatusBadge(r.status)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <Users2 className="w-12 h-12 mx-auto mb-3 opacity-30" />

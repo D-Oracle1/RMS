@@ -123,7 +123,7 @@ export default function LeaveApprovalsPage() {
         <CardContent className="p-4">
           <div className="flex gap-3">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === 'ALL' ? '' : v); setPage(1); }}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -149,6 +149,7 @@ export default function LeaveApprovalsPage() {
               No leave requests found
             </div>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -217,6 +218,7 @@ export default function LeaveApprovalsPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

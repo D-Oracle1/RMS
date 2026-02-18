@@ -34,6 +34,12 @@ export class QueueService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
+    // Skip BullMQ in serverless — Workers require persistent connections
+    if (process.env.VERCEL) {
+      this.logger.log('Vercel environment detected, emails will be sent synchronously');
+      return;
+    }
+
     const connection = {
       host: this.configService.get<string>('redis.host', 'localhost'),
       port: this.configService.get<number>('redis.port', 6379),

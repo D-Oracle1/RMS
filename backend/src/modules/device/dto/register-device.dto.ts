@@ -5,7 +5,7 @@ export class RegisterDeviceDto {
   @ApiProperty({ example: 'fcm-token-string' })
   @IsString()
   @IsNotEmpty()
-  @MaxLength(512)
+  @MaxLength(2048)
   fcmToken: string;
 
   @ApiProperty({ example: 'web', enum: ['web', 'android', 'ios'] })

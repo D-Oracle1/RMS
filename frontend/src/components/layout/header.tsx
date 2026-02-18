@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -15,10 +15,8 @@ import {
   Settings,
   LogOut,
   ChevronDown,
-  Check,
   DollarSign,
   Home,
-  Users,
   Award,
   AlertCircle,
   MessageSquare,
@@ -33,7 +31,7 @@ import { getImageUrl } from '@/lib/api';
 import { getUser, clearAuth } from '@/lib/auth-storage';
 
 interface HeaderProps {
-  title: string;
+  title?: string;
   onMenuClick?: () => void;
 }
 
@@ -64,13 +62,15 @@ function timeAgo(dateStr: string) {
   return date.toLocaleDateString();
 }
 
-export function Header({ title, onMenuClick }: HeaderProps) {
+export function Header({ onMenuClick }: HeaderProps) {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const [showSearch, setShowSearch] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const lastScrollY = useRef(0);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -78,7 +78,8 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
   // Determine current role from pathname
   const getCurrentRole = () => {
-    if (pathname.includes('/dashboard/admin')) return 'admin';
+    if (pathname.includes('/dashboard/admin') || pathname.includes('/dashboard/super-admin')) return 'admin';
+    if (pathname.includes('/dashboard/general-overseer')) return 'general-overseer';
     if (pathname.includes('/dashboard/realtor')) return 'realtor';
     if (pathname.includes('/dashboard/staff')) return 'staff';
     return 'client';
@@ -86,12 +87,15 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
   const role = getCurrentRole();
 
-  // Get logged-in user from localStorage
+  const getChatPath = () => {
+    if (role === 'general-overseer') return '/dashboard/general-overseer';
+    return `/dashboard/${role}/chat`;
+  };
+
+  // Get logged-in user
   const [currentUser, setCurrentUser] = useState<{ firstName: string; lastName: string; email: string; role: string; avatar?: string } | null>(null);
   useEffect(() => {
-    const loadUser = () => {
-      setCurrentUser(getUser());
-    };
+    const loadUser = () => setCurrentUser(getUser());
     loadUser();
     window.addEventListener('user-updated', loadUser);
     return () => window.removeEventListener('user-updated', loadUser);
@@ -99,6 +103,26 @@ export function Header({ title, onMenuClick }: HeaderProps) {
 
   const userName = currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'User';
   const userInitials = currentUser ? `${currentUser.firstName[0]}${currentUser.lastName[0]}` : 'U';
+
+  // Auto-hide header on scroll down, show on scroll up
+  const handleScroll = useCallback(() => {
+    const currentScrollY = window.scrollY;
+    if (currentScrollY < 10) {
+      setVisible(true);
+    } else if (currentScrollY > lastScrollY.current && currentScrollY > 60) {
+      setVisible(false);
+      setShowProfileMenu(false);
+      setShowNotifications(false);
+    } else if (currentScrollY < lastScrollY.current) {
+      setVisible(true);
+    }
+    lastScrollY.current = currentScrollY;
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -110,7 +134,6 @@ export function Header({ title, onMenuClick }: HeaderProps) {
         setShowNotifications(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -121,45 +144,63 @@ export function Header({ title, onMenuClick }: HeaderProps) {
   };
 
   const recentNotifications = notifications.slice(0, 5);
+  const isOnChatPage = pathname.includes('/chat');
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b px-4 md:px-6 flex items-center justify-between">
-      <div className="flex items-center gap-4">
+    <header
+      className={cn(
+        'sticky top-0 z-[60] h-14 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border-b px-4 md:px-6 flex items-center justify-between transition-transform duration-300',
+        visible ? 'translate-y-0' : '-translate-y-full'
+      )}
+    >
+      <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="md:hidden h-9 w-9"
           onClick={onMenuClick}
         >
           <Menu className="w-5 h-5" />
         </Button>
-        <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-          {title}
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-2 md:gap-4">
-        {/* Search */}
+        {/* Desktop search */}
         <div className="hidden md:flex relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <Input
             placeholder="Search..."
-            className="pl-10 w-64 bg-gray-50 dark:bg-gray-800 border-0"
+            className="pl-10 w-56 h-9 bg-gray-50 dark:bg-gray-800 border-0 text-sm"
           />
         </div>
+      </div>
+
+      <div className="flex items-center gap-1 md:gap-2">
+        {/* Mobile search */}
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="md:hidden h-9 w-9"
           onClick={() => setShowSearch(!showSearch)}
         >
           {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
         </Button>
 
+        {/* Chat icon */}
+        {!isOnChatPage && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={() => router.push(getChatPath())}
+            title="Chat"
+          >
+            <MessageSquare className="w-5 h-5" />
+          </Button>
+        )}
+
         {/* Theme toggle */}
         <Button
           variant="ghost"
           size="icon"
+          className="h-9 w-9"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         >
           <Sun className="w-5 h-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
@@ -176,18 +217,17 @@ export function Header({ title, onMenuClick }: HeaderProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="relative"
+            className="relative h-9 w-9"
             onClick={() => setShowNotifications(!showNotifications)}
           >
             <Bell className="w-5 h-5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </Button>
 
-          {/* Notification Dropdown */}
           {showNotifications && (
             <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg border z-50 overflow-hidden">
               <div className="px-4 py-3 border-b flex items-center justify-between">
@@ -251,28 +291,27 @@ export function Header({ title, onMenuClick }: HeaderProps) {
         <div className="relative" ref={profileMenuRef}>
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-1 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <Avatar key={currentUser?.avatar || 'no-avatar'} className="w-9 h-9 cursor-pointer">
+            <Avatar key={currentUser?.avatar || 'no-avatar'} className="w-8 h-8 cursor-pointer">
               {currentUser?.avatar && (
                 <AvatarImage src={getImageUrl(currentUser.avatar)} alt={userName} />
               )}
-              <AvatarFallback className="bg-primary text-white text-sm">{userInitials}</AvatarFallback>
+              <AvatarFallback className="bg-primary text-white text-xs">{userInitials}</AvatarFallback>
             </Avatar>
-            <ChevronDown className={`w-4 h-4 hidden md:block transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-3.5 h-3.5 hidden md:block transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Profile Dropdown Menu */}
           {showProfileMenu && (
             <div className="absolute right-0 top-full mt-2 w-56 max-w-[calc(100vw-2rem)] bg-white dark:bg-gray-900 rounded-lg shadow-lg border py-2 z-50">
               <div className="px-4 py-2 border-b">
-                <p className="font-medium">{userName}</p>
-                <p className="text-sm text-muted-foreground capitalize">{role}</p>
+                <p className="font-medium text-sm">{userName}</p>
+                <p className="text-xs text-muted-foreground capitalize">{currentUser?.role?.toLowerCase().replace('_', ' ')}</p>
               </div>
               <Link
                 href={`/dashboard/${role}/settings`}
                 onClick={() => setShowProfileMenu(false)}
-                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 <User className="w-4 h-4" />
                 <span>My Profile</span>
@@ -280,7 +319,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
               <Link
                 href={`/dashboard/${role}/settings`}
                 onClick={() => setShowProfileMenu(false)}
-                className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                className="flex items-center gap-3 px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               >
                 <Settings className="w-4 h-4" />
                 <span>Settings</span>
@@ -288,7 +327,7 @@ export function Header({ title, onMenuClick }: HeaderProps) {
               <div className="border-t my-1" />
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 px-4 py-2 w-full text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                className="flex items-center gap-3 px-4 py-2 w-full text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout</span>
@@ -298,12 +337,12 @@ export function Header({ title, onMenuClick }: HeaderProps) {
         </div>
       </div>
 
-      {/* Mobile search */}
+      {/* Mobile search bar */}
       {showSearch && (
-        <div className="absolute top-16 left-0 right-0 p-4 bg-white dark:bg-gray-900 border-b md:hidden">
+        <div className="absolute top-14 left-0 right-0 p-3 bg-white dark:bg-gray-900 border-b md:hidden z-20">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Search..." className="pl-10" autoFocus />
+            <Input placeholder="Search..." className="pl-10 h-9" autoFocus />
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { PusherService } from '../../common/services/pusher.service';
+import { RealtimeService } from '../../common/services/realtime.service';
 import { Request } from 'express';
 
 @ApiTags('Call')
@@ -9,15 +9,15 @@ import { Request } from 'express';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class CallController {
-  constructor(private readonly pusherService: PusherService) {}
+  constructor(private readonly realtimeService: RealtimeService) {}
 
   @Post('initiate')
   @ApiOperation({ summary: 'Initiate a call' })
-  initiateCall(
+  async initiateCall(
     @Req() req: Request & { user: { id: string } },
     @Body() data: { targetUserId: string; callType: 'audio' | 'video'; callerName: string; callerAvatar?: string },
   ) {
-    this.pusherService.sendToUser(data.targetUserId, 'call:incoming', {
+    await this.realtimeService.sendToUser(data.targetUserId, 'call:incoming', {
       callerId: req.user.id,
       callerName: data.callerName,
       callerAvatar: data.callerAvatar,
@@ -28,11 +28,11 @@ export class CallController {
 
   @Post('accept')
   @ApiOperation({ summary: 'Accept a call' })
-  acceptCall(
+  async acceptCall(
     @Req() req: Request & { user: { id: string } },
     @Body() data: { callerId: string; accepterName: string },
   ) {
-    this.pusherService.sendToUser(data.callerId, 'call:accepted', {
+    await this.realtimeService.sendToUser(data.callerId, 'call:accepted', {
       accepterId: req.user.id,
       accepterName: data.accepterName,
     });
@@ -41,11 +41,11 @@ export class CallController {
 
   @Post('reject')
   @ApiOperation({ summary: 'Reject a call' })
-  rejectCall(
+  async rejectCall(
     @Req() req: Request & { user: { id: string } },
     @Body() data: { callerId: string },
   ) {
-    this.pusherService.sendToUser(data.callerId, 'call:rejected', {
+    await this.realtimeService.sendToUser(data.callerId, 'call:rejected', {
       rejecterId: req.user.id,
     });
     return { success: true };
@@ -53,11 +53,11 @@ export class CallController {
 
   @Post('end')
   @ApiOperation({ summary: 'End a call' })
-  endCall(
+  async endCall(
     @Req() req: Request & { user: { id: string } },
     @Body() data: { peerId: string },
   ) {
-    this.pusherService.sendToUser(data.peerId, 'call:ended', {
+    await this.realtimeService.sendToUser(data.peerId, 'call:ended', {
       endedBy: req.user.id,
     });
     return { success: true };
@@ -65,11 +65,11 @@ export class CallController {
 
   @Post('offer')
   @ApiOperation({ summary: 'Send WebRTC offer' })
-  sendOffer(
+  async sendOffer(
     @Req() req: Request & { user: { id: string } },
     @Body() data: { targetUserId: string; offer: any },
   ) {
-    this.pusherService.sendToUser(data.targetUserId, 'call:offer', {
+    await this.realtimeService.sendToUser(data.targetUserId, 'call:offer', {
       callerId: req.user.id,
       offer: data.offer,
     });
@@ -78,11 +78,11 @@ export class CallController {
 
   @Post('answer')
   @ApiOperation({ summary: 'Send WebRTC answer' })
-  sendAnswer(
+  async sendAnswer(
     @Req() req: Request & { user: { id: string } },
     @Body() data: { targetUserId: string; answer: any },
   ) {
-    this.pusherService.sendToUser(data.targetUserId, 'call:answer', {
+    await this.realtimeService.sendToUser(data.targetUserId, 'call:answer', {
       answererId: req.user.id,
       answer: data.answer,
     });
@@ -91,11 +91,11 @@ export class CallController {
 
   @Post('ice-candidate')
   @ApiOperation({ summary: 'Send ICE candidate' })
-  sendIceCandidate(
+  async sendIceCandidate(
     @Req() req: Request & { user: { id: string } },
     @Body() data: { targetUserId: string; candidate: any },
   ) {
-    this.pusherService.sendToUser(data.targetUserId, 'call:ice-candidate', {
+    await this.realtimeService.sendToUser(data.targetUserId, 'call:ice-candidate', {
       senderId: req.user.id,
       candidate: data.candidate,
     });

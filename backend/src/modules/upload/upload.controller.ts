@@ -185,4 +185,33 @@ export class UploadController {
     const urls = await this.uploadService.uploadCmsFiles(files);
     return { urls };
   }
+
+  @Post('task-files')
+  @UseInterceptors(
+    FilesInterceptor('files', 5, {
+      storage: memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload task report files' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Task files uploaded' })
+  async uploadTaskFiles(@UploadedFiles() files: MulterFile[]) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files uploaded');
+    }
+    const urls = await this.uploadService.uploadTaskFiles(files);
+    return { urls };
+  }
 }

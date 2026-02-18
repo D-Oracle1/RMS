@@ -58,11 +58,11 @@ export default () => ({
     phoneNumber: process.env.TWILIO_PHONE_NUMBER,
   },
 
-  // Push Notifications (Firebase)
-  firebase: {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  // Push Notifications (Web Push)
+  webPush: {
+    subject: process.env.VAPID_SUBJECT || 'mailto:admin@rms-platform.com',
+    publicKey: process.env.VAPID_PUBLIC_KEY,
+    privateKey: process.env.VAPID_PRIVATE_KEY,
   },
 
   // AWS S3

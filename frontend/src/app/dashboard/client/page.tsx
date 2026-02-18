@@ -108,7 +108,8 @@ export default function ClientDashboard() {
     const fetchClientOfMonth = async () => {
       try {
         const res: any = await api.get('/awards/client-of-month');
-        setClientOfMonth(res?.data || res);
+        const award = res?.data !== undefined ? res.data : res;
+        setClientOfMonth(award && award.user ? award : null);
       } catch {
         setClientOfMonth(null);
       }

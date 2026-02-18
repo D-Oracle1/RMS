@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageCircle, Send, Loader2, Search, User } from 'lucide-react';
+import { MessageCircle, Send, Loader2, Search, User, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { api, getImageUrl } from '@/lib/api';
 import { getUser } from '@/lib/auth-storage';
@@ -50,6 +51,7 @@ export default function AdminSupportPage() {
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState('');
   const [currentUserId, setCurrentUserId] = useState('');
+  const [showMobileChat, setShowMobileChat] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -85,6 +87,7 @@ export default function AdminSupportPage() {
 
   const selectRoom = useCallback(async (room: SupportRoom) => {
     setSelectedRoom(room);
+    setShowMobileChat(true);
     setLoadingMessages(true);
     await fetchMessages(room.id);
     setLoadingMessages(false);
@@ -152,16 +155,17 @@ export default function AdminSupportPage() {
     : rooms;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Support Chats</h1>
-        <p className="text-muted-foreground">Manage support conversations with users</p>
-      </div>
-
-      <Card className="shadow-sm overflow-hidden">
-        <div className="flex h-[calc(100vh-220px)] min-h-[500px]">
+    <div className="h-[calc(100dvh-5rem)] md:h-[calc(100dvh-5.5rem)] overflow-hidden">
+      <Card className="h-full shadow-sm overflow-hidden">
+        <div className="flex h-full">
           {/* Room List */}
-          <div className="w-80 border-r border-gray-200 dark:border-gray-700 flex flex-col shrink-0">
+          <div className={cn(
+            'w-full md:w-80 border-r border-gray-200 dark:border-gray-700 flex flex-col',
+            showMobileChat && 'hidden md:flex'
+          )}>
+            <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-[#0b5c46] text-white">
+              <h2 className="font-semibold text-sm">Support Chats</h2>
+            </div>
             <div className="p-3 border-b border-gray-200 dark:border-gray-700">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -235,11 +239,22 @@ export default function AdminSupportPage() {
           </div>
 
           {/* Chat Panel */}
-          <div className="flex-1 flex flex-col">
+          <div className={cn(
+            'flex-1 flex flex-col',
+            !showMobileChat && 'hidden md:flex'
+          )}>
             {selectedRoom ? (
               <>
                 {/* Chat Header */}
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3 shrink-0">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3 shrink-0 bg-[#0b5c46] text-white">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="md:hidden text-white hover:bg-white/20"
+                    onClick={() => { setShowMobileChat(false); setSelectedRoom(null); }}
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
                   {(() => {
                     const customer = getCustomer(selectedRoom);
                     return (
@@ -248,7 +263,7 @@ export default function AdminSupportPage() {
                           {customer?.avatar && (
                             <AvatarImage src={getImageUrl(customer.avatar)} />
                           )}
-                          <AvatarFallback className="bg-[#0b5c46]/10 text-[#0b5c46] text-sm">
+                          <AvatarFallback className="bg-white/20 text-white text-sm">
                             {customer ? `${customer.firstName[0]}${customer.lastName[0]}` : '?'}
                           </AvatarFallback>
                         </Avatar>
@@ -256,7 +271,7 @@ export default function AdminSupportPage() {
                           <p className="font-medium text-sm">
                             {customer ? `${customer.firstName} ${customer.lastName}` : selectedRoom.name}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-white/70">
                             {customer?.role || 'Support Chat'}
                           </p>
                         </div>
@@ -315,24 +330,25 @@ export default function AdminSupportPage() {
                 {/* Input */}
                 <div className="border-t border-gray-200 dark:border-gray-700 p-3 shrink-0">
                   <div className="flex items-center gap-2">
-                    <Input
+                    <input
+                      type="text"
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       onKeyDown={handleKeyDown}
                       placeholder="Type your reply..."
-                      className="flex-1"
+                      className="flex-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-[#0b5c46]/30 border-0 text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
                     />
-                    <Button
+                    <button
                       onClick={handleSend}
                       disabled={!newMessage.trim() || sending}
-                      className="bg-[#0b5c46] hover:bg-[#094a38] shrink-0"
+                      className="w-10 h-10 rounded-full bg-[#0b5c46] text-white flex items-center justify-center hover:bg-[#094a38] disabled:opacity-40 transition-colors shrink-0"
                     >
                       {sending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
                         <Send className="w-4 h-4" />
                       )}
-                    </Button>
+                    </button>
                   </div>
                 </div>
               </>

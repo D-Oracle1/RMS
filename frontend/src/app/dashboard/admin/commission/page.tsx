@@ -375,7 +375,7 @@ export default function CommissionPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Search..."
-                    className="pl-9 w-40"
+                    className="pl-9 w-full sm:w-40"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />

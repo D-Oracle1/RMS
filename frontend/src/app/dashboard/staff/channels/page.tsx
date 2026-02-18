@@ -75,7 +75,7 @@ const getChannelIcon = (type: string) => {
 
 export default function ChannelsPage() {
   const currentUser = getUser();
-  const { pusher } = usePusher();
+  const { subscribeToChannel, unsubscribeFromChannel } = usePusher();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [messages, setMessages] = useState<ChannelMessage[]>([]);
@@ -137,24 +137,30 @@ export default function ChannelsPage() {
     fetchMessages(channel.id);
   };
 
-  // Listen for real-time messages via Pusher
+  // Listen for real-time messages via Supabase Realtime
   useEffect(() => {
-    if (!pusher || !activeChannel) return;
+    if (!activeChannel) return;
 
-    const channelSub = pusher.subscribe(`presence-chat-${activeChannel.id}`);
-    channelSub.bind('channel:message', (data: { channelId: string; message: ChannelMessage }) => {
-      if (data.channelId === activeChannel.id) {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === data.message.id)) return prev;
-          return [...prev, data.message];
-        });
-      }
-    });
+    const channelName = `chat-${activeChannel.id}`;
+    const channel = subscribeToChannel(channelName);
+    if (channel) {
+      channel
+        .on('broadcast', { event: 'channel:message' }, (payload) => {
+          const data = payload.payload as { channelId: string; message: ChannelMessage };
+          if (data.channelId === activeChannel.id) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === data.message.id)) return prev;
+              return [...prev, data.message];
+            });
+          }
+        })
+        .subscribe();
+    }
 
     return () => {
-      pusher.unsubscribe(`presence-chat-${activeChannel.id}`);
+      unsubscribeFromChannel(channelName);
     };
-  }, [pusher, activeChannel]);
+  }, [activeChannel, subscribeToChannel, unsubscribeFromChannel]);
 
   // Send message
   const handleSend = async () => {
@@ -235,12 +241,12 @@ export default function ChannelsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Team Channels</h1>
           <p className="text-muted-foreground">Collaborate with your team in real-time</p>
         </div>
-        <Button className="gap-2" onClick={() => setShowCreateModal(true)}>
+        <Button className="gap-2 w-full sm:w-auto" onClick={() => setShowCreateModal(true)}>
           <Plus className="w-4 h-4" />
           New Channel
         </Button>

@@ -1,14 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationService } from './notification.service';
 import { PrismaService } from '../../database/prisma.service';
-import { PusherService } from '../../common/services/pusher.service';
+import { RealtimeService } from '../../common/services/realtime.service';
 import { SmsService } from '../../common/services/sms.service';
 import { PushNotificationService } from '../../common/services/push-notification.service';
 
 describe('NotificationService', () => {
   let service: NotificationService;
   let prisma: any;
-  let pusherService: any;
+  let realtimeService: any;
   let smsService: any;
 
   const mockPrisma = {
@@ -29,7 +29,7 @@ describe('NotificationService', () => {
     },
   };
 
-  const mockPusherService = {
+  const mockRealtimeService = {
     sendToUser: jest.fn(),
     sendToRole: jest.fn(),
   };
@@ -47,7 +47,7 @@ describe('NotificationService', () => {
       providers: [
         NotificationService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: PusherService, useValue: mockPusherService },
+        { provide: RealtimeService, useValue: mockRealtimeService },
         { provide: SmsService, useValue: mockSmsService },
         { provide: PushNotificationService, useValue: mockPushNotificationService },
       ],
@@ -55,7 +55,7 @@ describe('NotificationService', () => {
 
     service = module.get<NotificationService>(NotificationService);
     prisma = mockPrisma;
-    pusherService = mockPusherService;
+    realtimeService = mockRealtimeService;
     smsService = mockSmsService;
 
     jest.clearAllMocks();
@@ -91,14 +91,14 @@ describe('NotificationService', () => {
       expect(result).toEqual(mockNotification);
     });
 
-    it('should send real-time notification via Pusher', async () => {
+    it('should send real-time notification via Supabase Realtime', async () => {
       const mockNotification = { id: 'notif-1', ...notificationData };
       prisma.notification.create.mockResolvedValue(mockNotification);
       prisma.userDevice.findMany.mockResolvedValue([]);
 
       await service.create(notificationData);
 
-      expect(pusherService.sendToUser).toHaveBeenCalledWith(
+      expect(realtimeService.sendToUser).toHaveBeenCalledWith(
         'user-1',
         'notification:new',
         mockNotification,

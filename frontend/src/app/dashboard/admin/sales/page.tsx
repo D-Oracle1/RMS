@@ -524,7 +524,7 @@ export default function SalesPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search sales..."
-                  className="pl-9 w-40"
+                  className="pl-9 w-full sm:w-40"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -705,7 +705,7 @@ export default function SalesPage() {
 
       {/* Sale Detail Dialog */}
       <Dialog open={showSaleDetail} onOpenChange={setShowSaleDetail}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
           {selectedSale && (
             <>
               <DialogHeader>

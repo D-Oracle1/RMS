@@ -494,7 +494,7 @@ export default function RealtorsPage() {
             <DialogTitle>Add New Realtor</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name *</Label>
                 <Input
@@ -572,7 +572,7 @@ export default function RealtorsPage() {
             <DialogTitle>Edit Realtor</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-firstName">First Name *</Label>
                 <Input
@@ -661,7 +661,7 @@ export default function RealtorsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Total Sales</p>
                   <p className="text-xl font-bold">{selectedRealtor.totalSales}</p>
@@ -682,7 +682,7 @@ export default function RealtorsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
                   <p className="text-sm text-muted-foreground">Clients</p>
                   <p className="text-xl font-bold">{selectedRealtor._count?.clients || 0}</p>

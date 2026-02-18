@@ -627,6 +627,7 @@ export default function AdminDashboard() {
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
             ) : recentSales.length > 0 ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#0b5c46] hover:bg-[#0b5c46]">
@@ -649,6 +650,7 @@ export default function AdminDashboard() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 No sales found for this period
