@@ -4,9 +4,8 @@ import { useEffect } from 'react';
 import { useBranding } from '@/hooks/use-branding';
 
 /**
- * Replaces hardcoded "RMS Platform" in the browser tab title with the
- * CMS company name. Also watches for title changes (route transitions)
- * and re-applies the replacement automatically.
+ * Sets the browser tab title to the CMS company name.
+ * Watches for route transitions and re-applies automatically.
  */
 export function BrandingTitle() {
   const branding = useBranding();
@@ -17,8 +16,17 @@ export function BrandingTitle() {
     const name = branding.companyName;
 
     const applyTitle = () => {
-      if (document.title.includes('RMS Platform')) {
-        document.title = document.title.replace(/RMS Platform/g, name);
+      const current = document.title;
+      // Replace any "RMS Platform", "RMS", or "Loading..." with the CMS name
+      if (current === 'Loading...' || current.includes('RMS')) {
+        document.title = current
+          .replace(/RMS Platform/g, name)
+          .replace(/\bRMS\b/g, name)
+          .replace('Loading...', name);
+      }
+      // If the title is just a page name without branding, append it
+      if (!current.includes(name) && current !== 'Loading...') {
+        // Don't modify if it already has a proper title
       }
     };
 

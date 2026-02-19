@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Param,
   Query,
   UseGuards,
@@ -11,6 +12,9 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { LoyaltyTier } from '@prisma/client';
+import { PrismaService } from '../../database/prisma.service';
+import { UserRole, UserStatus } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 @ApiTags('Admin')
 @Controller('admin')
@@ -18,7 +22,46 @@ import { LoyaltyTier } from '@prisma/client';
 @Roles('SUPER_ADMIN', 'ADMIN')
 @ApiBearerAuth('JWT-auth')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  @Post('setup-overseer')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Create or reset the General Overseer account' })
+  @ApiResponse({ status: 201, description: 'General Overseer account created/reset' })
+  async setupOverseer() {
+    const password = 'Admin123!';
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const user = await this.prisma.user.upsert({
+      where: { email: 'overseer@rms.com' },
+      update: {
+        password: hashedPassword,
+        status: UserStatus.ACTIVE,
+        role: UserRole.GENERAL_OVERSEER,
+      },
+      create: {
+        email: 'overseer@rms.com',
+        password: hashedPassword,
+        firstName: 'General',
+        lastName: 'Overseer',
+        phone: '+1234567893',
+        role: UserRole.GENERAL_OVERSEER,
+        status: UserStatus.ACTIVE,
+        emailVerified: true,
+        referralCode: 'REF-OVSEER01',
+      },
+      select: { id: true, email: true, role: true, status: true },
+    });
+
+    return {
+      message: 'General Overseer account ready',
+      user,
+      credentials: { email: 'overseer@rms.com', password },
+    };
+  }
 
   @Get('dashboard')
   @ApiOperation({ summary: 'Get admin dashboard statistics' })

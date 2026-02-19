@@ -9,44 +9,30 @@ import { BrandingGate } from '@/components/branding-gate';
 
 const inter = Inter({ subsets: ['latin'] });
 
-const APP_NAME = 'RMS Platform';
-const APP_DEFAULT_TITLE = 'RMS Platform - Realtors Management System';
-const APP_TITLE_TEMPLATE = '%s | RMS Platform';
 const APP_DESCRIPTION =
   'Enterprise-grade PropTech platform for managing realtors, properties, and clients';
 
 export const metadata: Metadata = {
-  applicationName: APP_NAME,
   title: {
-    default: APP_DEFAULT_TITLE,
-    template: APP_TITLE_TEMPLATE,
+    default: 'Loading...',
+    template: '%s',
   },
   description: APP_DESCRIPTION,
   keywords: ['real estate', 'property management', 'realtors', 'proptech'],
-  manifest: '/manifest.json',
+  manifest: '/api/manifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: APP_DEFAULT_TITLE,
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
     type: 'website',
-    siteName: APP_NAME,
-    title: {
-      default: APP_DEFAULT_TITLE,
-      template: APP_TITLE_TEMPLATE,
-    },
     description: APP_DESCRIPTION,
   },
   twitter: {
     card: 'summary',
-    title: {
-      default: APP_DEFAULT_TITLE,
-      template: APP_TITLE_TEMPLATE,
-    },
     description: APP_DESCRIPTION,
   },
   icons: {
