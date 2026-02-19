@@ -72,101 +72,80 @@ async function main() {
   console.log('Department created:', department.name);
 
   // Create Staff Member
-  const existingStaff = await prisma.user.findUnique({
+  const staffUser = await prisma.user.upsert({
     where: { email: 'staff@rms.com' },
-  });
-
-  if (!existingStaff) {
-    const staffUser = await prisma.user.create({
-      data: {
-        email: 'staff@rms.com',
-        password: hashedPassword,
-        firstName: 'John',
-        lastName: 'Staff',
-        phone: '+1234567892',
-        role: UserRole.STAFF,
-        status: UserStatus.ACTIVE,
-        emailVerified: true,
-        referralCode: 'REF-STAFF001',
-        staffProfile: {
-          create: {
-            employeeId: 'EMP-001',
-            position: StaffPosition.SENIOR,
-            title: 'Senior Operations Officer',
-            employmentType: EmploymentType.FULL_TIME,
-            hireDate: new Date('2024-01-15'),
-            departmentId: department.id,
-            baseSalary: 500000,
-            currency: 'NGN',
-            annualLeaveBalance: 20,
-            sickLeaveBalance: 10,
-          },
+    update: { password: hashedPassword, status: UserStatus.ACTIVE },
+    create: {
+      email: 'staff@rms.com',
+      password: hashedPassword,
+      firstName: 'John',
+      lastName: 'Staff',
+      phone: '+1234567892',
+      role: UserRole.STAFF,
+      status: UserStatus.ACTIVE,
+      emailVerified: true,
+      referralCode: 'REF-STAFF001',
+      staffProfile: {
+        create: {
+          employeeId: 'EMP-001',
+          position: StaffPosition.SENIOR,
+          title: 'Senior Operations Officer',
+          employmentType: EmploymentType.FULL_TIME,
+          hireDate: new Date('2024-01-15'),
+          departmentId: department.id,
+          baseSalary: 500000,
+          currency: 'NGN',
+          annualLeaveBalance: 20,
+          sickLeaveBalance: 10,
         },
       },
-    });
-
-    console.log('Staff created:', staffUser.email);
-  } else {
-    console.log('Staff already exists:', existingStaff.email);
-  }
+    },
+  });
+  console.log('Staff:', staffUser.email);
 
   // Create General Overseer
-  const existingGO = await prisma.user.findUnique({
+  const goUser = await prisma.user.upsert({
     where: { email: 'overseer@rms.com' },
+    update: { password: hashedPassword, status: UserStatus.ACTIVE },
+    create: {
+      email: 'overseer@rms.com',
+      password: hashedPassword,
+      firstName: 'General',
+      lastName: 'Overseer',
+      phone: '+1234567893',
+      role: UserRole.GENERAL_OVERSEER,
+      status: UserStatus.ACTIVE,
+      emailVerified: true,
+      referralCode: 'REF-OVSEER01',
+    },
   });
-
-  if (!existingGO) {
-    const goUser = await prisma.user.create({
-      data: {
-        email: 'overseer@rms.com',
-        password: hashedPassword,
-        firstName: 'General',
-        lastName: 'Overseer',
-        phone: '+1234567893',
-        role: UserRole.GENERAL_OVERSEER,
-        status: UserStatus.ACTIVE,
-        emailVerified: true,
-        referralCode: 'REF-OVSEER01',
-      },
-    });
-
-    console.log('General Overseer created:', goUser.email);
-  } else {
-    console.log('General Overseer already exists:', existingGO.email);
-  }
+  console.log('General Overseer:', goUser.email);
 
   // Create Realtor
-  const existingRealtor = await prisma.user.findUnique({
+  const realtorUser = await prisma.user.upsert({
     where: { email: 'realtor@rms.com' },
-  });
-
-  if (!existingRealtor) {
-    const realtorUser = await prisma.user.create({
-      data: {
-        email: 'realtor@rms.com',
-        password: hashedPassword,
-        firstName: 'Jane',
-        lastName: 'Realtor',
-        phone: '+1234567894',
-        role: UserRole.REALTOR,
-        status: UserStatus.ACTIVE,
-        emailVerified: true,
-        referralCode: 'REF-REALTR01',
-        realtorProfile: {
-          create: {
-            licenseNumber: 'RMS-LIC-001',
-            agency: 'RMS Properties',
-            bio: 'Experienced real estate professional',
-            specializations: ['Residential', 'Land'],
-          },
+    update: { password: hashedPassword, status: UserStatus.ACTIVE },
+    create: {
+      email: 'realtor@rms.com',
+      password: hashedPassword,
+      firstName: 'Jane',
+      lastName: 'Realtor',
+      phone: '+1234567894',
+      role: UserRole.REALTOR,
+      status: UserStatus.ACTIVE,
+      emailVerified: true,
+      referralCode: 'REF-REALTR01',
+      realtorProfile: {
+        create: {
+          licenseNumber: 'RMS-LIC-001',
+          agency: 'RMS Properties',
+          bio: 'Experienced real estate professional',
+          specializations: ['Residential', 'Land'],
         },
       },
-    });
-
-    console.log('Realtor created:', realtorUser.email);
-  } else {
-    console.log('Realtor already exists:', existingRealtor.email);
-  }
+    },
+  });
+  console.log('Realtor:', realtorUser.email);
 
   // Create system settings (commission rates and tax)
   const settings = [
