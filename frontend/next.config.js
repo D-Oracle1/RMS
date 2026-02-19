@@ -26,6 +26,15 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.vercel.app' },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/create-Director',
+        destination: '/create-director',
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     const backendUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').trim();
     return [
