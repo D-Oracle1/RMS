@@ -265,10 +265,10 @@ export function Header({ onMenuClick }: HeaderProps) {
         {/* Theme toggle */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          className="relative p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
         >
-          <Sun className="w-5 h-5 rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute w-5 h-5 rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
+          <Sun className="w-5 h-5 transition-all rotate-0 scale-100 dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute inset-0 m-auto w-5 h-5 transition-all rotate-90 scale-0 dark:rotate-0 dark:scale-100" />
         </button>
 
         {/* Callout button (admin/staff only) */}
