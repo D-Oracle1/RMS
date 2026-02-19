@@ -134,6 +134,28 @@ export class EngagementController {
     return this.engagementService.trackCtaClick(postId);
   }
 
+  @Post('feed/:id/share')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Track internal share' })
+  async trackShare(@Param('id') postId: string) {
+    return this.engagementService.trackShare(postId);
+  }
+
+  // ============ AI-Ready Endpoints (stubs — no AI logic yet) ============
+
+  @Get('insights')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'AI-ready: Get aggregated feed insights' })
+  async getFeedInsights() {
+    return this.engagementService.getFeedInsights();
+  }
+
+  @Get('recommendations')
+  @ApiOperation({ summary: 'AI-ready: Get personalized post recommendations' })
+  async getRecommendations(@CurrentUser('id') userId: string) {
+    return this.engagementService.getRecommendations(userId);
+  }
+
   // ============ Admin Endpoints ============
 
   @Get('posts')

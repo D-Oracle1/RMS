@@ -355,6 +355,78 @@ export class EngagementService {
     return { success: true };
   }
 
+  async trackShare(postId: string) {
+    await this.prisma.contentAnalytics.upsert({
+      where: { postId },
+      create: { postId, shares: 1 },
+      update: { shares: { increment: 1 } },
+    });
+    return { success: true };
+  }
+
+  // ============ AI-Ready Stubs ============
+
+  async getFeedInsights() {
+    const [topPosts, reactionBreakdown, engagementByType] = await Promise.all([
+      this.prisma.engagementPost.findMany({
+        where: { status: PostStatus.PUBLISHED },
+        orderBy: [{ reactionCount: 'desc' }, { viewCount: 'desc' }],
+        take: 10,
+        select: { id: true, title: true, type: true, reactionCount: true, commentCount: true, viewCount: true },
+      }),
+      this.prisma.postReaction.groupBy({
+        by: ['type'],
+        _count: { type: true },
+      }),
+      this.prisma.engagementPost.groupBy({
+        by: ['type'],
+        where: { status: PostStatus.PUBLISHED },
+        _sum: { reactionCount: true, commentCount: true, viewCount: true },
+      }),
+    ]);
+
+    return {
+      topPosts,
+      reactionBreakdown: reactionBreakdown.reduce((acc, r) => {
+        acc[r.type] = r._count.type;
+        return acc;
+      }, {} as Record<string, number>),
+      engagementByType: engagementByType.map((e) => ({
+        type: e.type,
+        reactions: e._sum.reactionCount || 0,
+        comments: e._sum.commentCount || 0,
+        views: e._sum.viewCount || 0,
+      })),
+      _aiReady: true,
+      _generatedAt: new Date().toISOString(),
+    };
+  }
+
+  async getRecommendations(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    const userRole = user?.role || 'CLIENT';
+
+    const posts = await this.prisma.engagementPost.findMany({
+      where: {
+        status: PostStatus.PUBLISHED,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        tags: { hasSome: ['ALL', userRole] },
+      },
+      orderBy: [{ reactionCount: 'desc' }, { viewCount: 'desc' }],
+      take: 5,
+      select: {
+        id: true, title: true, type: true, excerpt: true,
+        reactionCount: true, viewCount: true, publishedAt: true,
+      },
+    });
+
+    return {
+      posts,
+      _aiReady: true,
+      _note: 'AI personalization not yet enabled. Returning top-engagement posts for user role.',
+    };
+  }
+
   // ============ Trending & Events ============
 
   async getTrending() {

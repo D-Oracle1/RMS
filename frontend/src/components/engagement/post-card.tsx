@@ -11,6 +11,7 @@ import {
   Eye,
   ExternalLink,
   Video,
+  Share2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +56,7 @@ export interface PostCardProps {
   onReact: (postId: string, type: string) => void;
   onSave: (postId: string) => void;
   onOpenDetail: (postId: string) => void;
+  onShare?: (postId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +123,7 @@ function getInitials(firstName: string, lastName: string): string {
 // Component
 // ---------------------------------------------------------------------------
 
-export default function PostCard({ post, onReact, onSave, onOpenDetail }: PostCardProps) {
+export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare }: PostCardProps) {
   const [ctaLoading, setCtaLoading] = useState(false);
 
   const typeConfig = TYPE_CONFIG[post.type] || {
@@ -288,6 +290,21 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail }: PostCa
             >
               <Bookmark className={cn('h-3.5 w-3.5', post.isSaved && 'fill-current')} />
             </Button>
+
+            {onShare && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare(post.id);
+                }}
+                title="Share internally"
+              >
+                <Share2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
 
             <div className="flex items-center gap-1 text-xs text-muted-foreground px-2">
               <Eye className="h-3.5 w-3.5" />

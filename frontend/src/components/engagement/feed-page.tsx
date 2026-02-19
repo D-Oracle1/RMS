@@ -114,6 +114,15 @@ export default function EngagementFeedPage() {
     setDetailOpen(true);
   };
 
+  const handleShare = async (postId: string) => {
+    try {
+      await api.post(`/engagement/feed/${postId}/share`);
+      toast.success('Shared internally');
+    } catch {
+      toast.error('Failed to share');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -156,6 +165,7 @@ export default function EngagementFeedPage() {
                   onReact={handleReact}
                   onSave={handleSave}
                   onOpenDetail={handleOpenDetail}
+                  onShare={handleShare}
                 />
               ))}
               {page < meta.totalPages && (
