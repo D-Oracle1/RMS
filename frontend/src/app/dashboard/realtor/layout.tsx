@@ -1,32 +1,17 @@
 'use client';
 
-import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Sidebar } from '@/components/layout/sidebar';
-import { Header } from '@/components/layout/header';
-import { cn } from '@/lib/utils';
+import { DashboardShell } from '@/components/layout/dashboard-shell';
 
-const CelebrationModal = dynamic(() => import('@/components/celebration-modal').then(m => ({ default: m.CelebrationModal })), { ssr: false });
+const CelebrationModal = dynamic(
+  () => import('@/components/celebration-modal').then((m) => ({ default: m.CelebrationModal })),
+  { ssr: false },
+);
 
-export default function RealtorLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
+export default function RealtorLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      <Sidebar
-        role="realtor"
-        isOpen={mobileMenuOpen}
-        onClose={() => setMobileMenuOpen(false)}
-      />
-      <div className={cn('transition-all duration-300', 'md:ml-64')}>
-        <Header onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <CelebrationModal />
-        <main className="p-3 md:p-6">{children}</main>
-      </div>
-    </div>
+    <DashboardShell role="realtor" extras={<CelebrationModal />}>
+      {children}
+    </DashboardShell>
   );
 }
