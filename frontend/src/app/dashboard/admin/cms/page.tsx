@@ -225,10 +225,7 @@ export default function CmsPage() {
               <Input value={sectionData.shortName || ''} onChange={(e) => updateField('shortName', e.target.value)} placeholder="RMS" />
             </div>
             {renderImageField('Logo Image', 'logo')}
-            <div>
-              <label className="text-sm font-medium mb-1 block">Favicon URL (optional)</label>
-              <Input value={sectionData.favicon || ''} onChange={(e) => updateField('favicon', e.target.value)} placeholder="/favicon.ico" />
-            </div>
+            {renderImageField('Favicon', 'favicon')}
             <div className="border-t pt-4 mt-4">
               <h3 className="font-semibold text-sm mb-3">Contact & Communication</h3>
               <div className="space-y-4">
@@ -281,6 +278,7 @@ export default function CmsPage() {
               <Input value={sectionData.badgeText || ''} onChange={(e) => updateField('badgeText', e.target.value)} />
             </div>
             {renderImageField('Background Image', 'backgroundImage')}
+            {renderImageField('Hero Image (Right Side)', 'heroImage')}
             {renderDynamicList('Hero Stats', 'stats', [
               { key: 'value', label: 'Value (e.g. 200+)' },
               { key: 'label', label: 'Label (e.g. Premium Properties)' },

@@ -22,10 +22,12 @@ export async function GET() {
   }
 
   const manifest = {
+    id: '/',
     name: companyName,
     short_name: shortName,
     description,
     start_url: '/',
+    scope: '/',
     display: 'standalone',
     orientation: 'portrait-primary',
     background_color: '#ffffff',
@@ -42,6 +44,7 @@ export async function GET() {
     ],
     categories: ['business', 'productivity'],
     lang: 'en',
+    prefer_related_applications: false,
   };
 
   return NextResponse.json(manifest, {

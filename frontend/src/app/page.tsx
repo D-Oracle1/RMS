@@ -128,6 +128,9 @@ export default function HomePage() {
   const heroImage = hero.backgroundImage
     ? (hero.backgroundImage.startsWith('http') ? hero.backgroundImage : getImageUrl(hero.backgroundImage))
     : '';
+  const heroSideImage = hero.heroImage
+    ? (hero.heroImage.startsWith('http') ? hero.heroImage : getImageUrl(hero.heroImage))
+    : '';
 
   if (cmsLoading) {
     return (
@@ -156,45 +159,63 @@ export default function HomePage() {
             ) : (
               <div className="w-full h-full bg-primary" />
             )}
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/85 to-primary/70" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/85 to-primary/60" />
             <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
           </div>
 
           <div className="container mx-auto px-4 relative z-10 pt-20">
-            <div className="max-w-3xl">
-              {hero.badgeText && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/40 text-accent text-sm font-medium mb-6">
-                  <Star className="w-4 h-4 fill-accent" />
-                  <span>{hero.badgeText}</span>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+              {/* Left: Text Content */}
+              <div>
+                {hero.badgeText && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/20 border border-accent/40 text-accent text-sm font-medium mb-6">
+                    <Star className="w-4 h-4 fill-accent" />
+                    <span>{hero.badgeText}</span>
+                  </div>
+                )}
+
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
+                  {heroTitle}
+                  <br />
+                  <span className="text-accent">{heroTitleAccent}</span>
+                </h1>
+                <p className="text-lg text-white/80 mb-10 max-w-xl">
+                  {heroSubtitle}
+                </p>
+
+                <div className="inline-flex items-center gap-3 bg-accent hover:bg-accent-600 text-white px-8 py-4 rounded-2xl text-lg font-semibold shadow-2xl transition-all group-hover:scale-105">
+                  Get Started
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </div>
-              )}
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-white leading-tight">
-                {heroTitle}
-                <br />
-                <span className="text-accent">{heroTitleAccent}</span>
-              </h1>
-              <p className="text-lg text-white/80 mb-10 max-w-xl">
-                {heroSubtitle}
-              </p>
-
-              <div className="inline-flex items-center gap-3 bg-accent hover:bg-accent-600 text-white px-8 py-4 rounded-2xl text-lg font-semibold shadow-2xl transition-all group-hover:scale-105">
-                Get Started
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                {/* Stats */}
+                {hero.stats && hero.stats.length > 0 && (
+                  <div className="flex flex-wrap gap-8 md:gap-12 mt-12">
+                    {hero.stats.map((stat: any, i: number) => (
+                      <div key={i} className="flex items-center gap-8 md:gap-12">
+                        {i > 0 && <div className="w-px h-12 bg-white/30 hidden md:block -ml-8 md:-ml-12" />}
+                        <div>
+                          <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
+                          <div className="text-white/70 text-sm">{stat.label}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              {/* Stats */}
-              {hero.stats && hero.stats.length > 0 && (
-                <div className="flex flex-wrap gap-8 md:gap-12 mt-12">
-                  {hero.stats.map((stat: any, i: number) => (
-                    <div key={i} className="flex items-center gap-8 md:gap-12">
-                      {i > 0 && <div className="w-px h-12 bg-white/30 hidden md:block -ml-8 md:-ml-12" />}
-                      <div>
-                        <div className="text-3xl md:text-4xl font-bold text-white">{stat.value}</div>
-                        <div className="text-white/70 text-sm">{stat.label}</div>
-                      </div>
-                    </div>
-                  ))}
+              {/* Right: Hero Image */}
+              {heroSideImage && (
+                <div className="hidden lg:flex justify-center items-center">
+                  <div className="relative w-full max-w-lg aspect-square">
+                    <Image
+                      src={heroSideImage}
+                      alt="Hero"
+                      fill
+                      className="object-contain drop-shadow-2xl"
+                      priority
+                    />
+                  </div>
                 </div>
               )}
             </div>

@@ -21,7 +21,7 @@ export class UsersService {
       role: { not: UserRole.SUPER_ADMIN },
     };
 
-    if (role) {
+    if (role && role !== UserRole.SUPER_ADMIN) {
       where.role = role;
     }
 

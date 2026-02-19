@@ -23,6 +23,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
+    title: 'RMS',
   },
   formatDetection: {
     telephone: false,
@@ -36,8 +37,19 @@ export const metadata: Metadata = {
     description: APP_DESCRIPTION,
   },
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png' },
+      { url: '/icons/icon-152x152.png', sizes: '152x152' },
+      { url: '/icons/icon-192x192.png', sizes: '180x180' },
+    ],
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
   },
 };
 

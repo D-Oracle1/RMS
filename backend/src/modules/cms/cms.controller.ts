@@ -88,9 +88,9 @@ export class CmsController {
     @Body() dto: UpsertCmsSectionDto,
     @Req() req: any,
   ) {
-    // Branding section is restricted to SUPER_ADMIN only
-    if (key === 'branding' && req.user?.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Only Super Admin can modify branding settings');
+    // Branding section is restricted to SUPER_ADMIN and ADMIN
+    if (key === 'branding' && !['SUPER_ADMIN', 'ADMIN'].includes(req.user?.role)) {
+      throw new ForbiddenException('Only admins can modify branding settings');
     }
     await this.cmsService.upsertSection(key, dto.content);
     return { success: true };

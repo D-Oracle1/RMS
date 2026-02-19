@@ -18,13 +18,17 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { SaleStatus } from '@prisma/client';
+import { PrismaService } from '../../database/prisma.service';
 
 @ApiTags('Sales')
 @Controller('sales')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class SaleController {
-  constructor(private readonly saleService: SaleService) {}
+  constructor(
+    private readonly saleService: SaleService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post()
   @Roles('REALTOR')
@@ -48,6 +52,8 @@ export class SaleController {
   @ApiQuery({ name: 'endDate', required: false, type: String })
   @ApiResponse({ status: 200, description: 'List of sales' })
   async findAll(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('realtorId') realtorId?: string,
@@ -56,6 +62,11 @@ export class SaleController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
+    // Auto-scope to realtor's own data
+    if (role === 'REALTOR' && !realtorId) {
+      const realtor = await this.prisma.realtorProfile.findUnique({ where: { userId } });
+      if (realtor) realtorId = realtor.id;
+    }
     const parsedPage = page !== undefined && !isNaN(Number(page)) ? Number(page) : undefined;
     const parsedLimit = limit !== undefined && !isNaN(Number(limit)) ? Number(limit) : undefined;
     return this.saleService.findAll({

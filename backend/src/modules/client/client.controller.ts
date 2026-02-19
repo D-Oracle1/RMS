@@ -14,13 +14,17 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { PrismaService } from '../../database/prisma.service';
 
 @ApiTags('Clients')
 @Controller('clients')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class ClientController {
-  constructor(private readonly clientService: ClientService) {}
+  constructor(
+    private readonly clientService: ClientService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get()
   @Roles('SUPER_ADMIN', 'ADMIN', 'REALTOR')
@@ -31,11 +35,18 @@ export class ClientController {
   @ApiQuery({ name: 'realtorId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'List of clients' })
   async findAll(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
     @Query('realtorId') realtorId?: string,
   ) {
+    // Auto-scope to realtor's own clients
+    if (role === 'REALTOR' && !realtorId) {
+      const realtor = await this.prisma.realtorProfile.findUnique({ where: { userId } });
+      if (realtor) realtorId = realtor.id;
+    }
     return this.clientService.findAll({ page, limit, search, realtorId });
   }
 

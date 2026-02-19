@@ -4,13 +4,15 @@ import { MessageType, UserRole } from '@prisma/client';
 import { RealtimeService } from '../../common/services/realtime.service';
 
 // Default chat zone policies: which roles each role can chat with
+// SUPER_ADMIN is intentionally excluded from all tenant-visible role lists —
+// tenants see GENERAL_OVERSEER as the highest authority.
 const DEFAULT_CHAT_ZONES: Record<string, UserRole[]> = {
   SUPER_ADMIN: [UserRole.SUPER_ADMIN, UserRole.GENERAL_OVERSEER, UserRole.ADMIN, UserRole.STAFF, UserRole.REALTOR, UserRole.CLIENT],
-  GENERAL_OVERSEER: [UserRole.SUPER_ADMIN, UserRole.GENERAL_OVERSEER, UserRole.ADMIN, UserRole.STAFF, UserRole.REALTOR, UserRole.CLIENT],
-  ADMIN: [UserRole.SUPER_ADMIN, UserRole.GENERAL_OVERSEER, UserRole.ADMIN, UserRole.STAFF, UserRole.REALTOR, UserRole.CLIENT],
-  STAFF: [UserRole.STAFF, UserRole.ADMIN, UserRole.GENERAL_OVERSEER, UserRole.SUPER_ADMIN],
-  REALTOR: [UserRole.REALTOR, UserRole.ADMIN, UserRole.GENERAL_OVERSEER, UserRole.SUPER_ADMIN],
-  CLIENT: [UserRole.ADMIN, UserRole.STAFF, UserRole.GENERAL_OVERSEER, UserRole.SUPER_ADMIN],
+  GENERAL_OVERSEER: [UserRole.GENERAL_OVERSEER, UserRole.ADMIN, UserRole.STAFF, UserRole.REALTOR, UserRole.CLIENT],
+  ADMIN: [UserRole.GENERAL_OVERSEER, UserRole.ADMIN, UserRole.STAFF, UserRole.REALTOR, UserRole.CLIENT],
+  STAFF: [UserRole.STAFF, UserRole.ADMIN, UserRole.GENERAL_OVERSEER],
+  REALTOR: [UserRole.REALTOR, UserRole.ADMIN, UserRole.GENERAL_OVERSEER],
+  CLIENT: [UserRole.ADMIN, UserRole.STAFF, UserRole.GENERAL_OVERSEER],
 };
 
 @Injectable()

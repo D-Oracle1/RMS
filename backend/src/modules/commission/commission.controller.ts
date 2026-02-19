@@ -11,17 +11,22 @@ import { CommissionService } from './commission.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CommissionStatus, LoyaltyTier } from '@prisma/client';
+import { PrismaService } from '../../database/prisma.service';
 
 @ApiTags('Commission')
 @Controller('commissions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class CommissionController {
-  constructor(private readonly commissionService: CommissionService) {}
+  constructor(
+    private readonly commissionService: CommissionService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get()
-  @Roles('SUPER_ADMIN', 'ADMIN')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'REALTOR')
   @ApiOperation({ summary: 'Get all commissions' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -29,6 +34,8 @@ export class CommissionController {
   @ApiQuery({ name: 'status', required: false, enum: CommissionStatus })
   @ApiResponse({ status: 200, description: 'List of commissions' })
   async findAll(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('realtorId') realtorId?: string,
@@ -36,6 +43,11 @@ export class CommissionController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
+    // Auto-scope to realtor's own data
+    if (role === 'REALTOR' && !realtorId) {
+      const realtor = await this.prisma.realtorProfile.findUnique({ where: { userId } });
+      if (realtor) realtorId = realtor.id;
+    }
     return this.commissionService.findAll({
       page,
       limit,

@@ -430,7 +430,7 @@ export class AuthService {
 
   async getMyReferrals(userId: string) {
     const referrals = await this.prisma.user.findMany({
-      where: { referredBy: userId },
+      where: { referredBy: userId, role: { not: 'SUPER_ADMIN' } },
       select: {
         id: true,
         firstName: true,
@@ -447,7 +447,7 @@ export class AuthService {
 
   async getAllReferrals() {
     const referrals = await this.prisma.user.findMany({
-      where: { referredBy: { not: null } },
+      where: { referredBy: { not: null }, role: { not: 'SUPER_ADMIN' } },
       select: {
         id: true,
         firstName: true,

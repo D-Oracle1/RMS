@@ -20,13 +20,17 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { DocumentType } from '@prisma/client';
 import { PropertyType, PropertyStatus } from '@prisma/client';
+import { PrismaService } from '../../database/prisma.service';
 
 @ApiTags('Properties')
 @Controller('properties')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('JWT-auth')
 export class PropertyController {
-  constructor(private readonly propertyService: PropertyService) {}
+  constructor(
+    private readonly propertyService: PropertyService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post()
   @Roles('SUPER_ADMIN', 'ADMIN', 'REALTOR')
@@ -51,6 +55,8 @@ export class PropertyController {
   @ApiQuery({ name: 'maxPrice', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'List of properties' })
   async findAll(
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') role: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
@@ -65,6 +71,11 @@ export class PropertyController {
     @Query('sortBy') sortBy?: string,
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
   ) {
+    // Auto-scope to realtor's own properties
+    if (role === 'REALTOR' && !realtorId) {
+      const realtor = await this.prisma.realtorProfile.findUnique({ where: { userId } });
+      if (realtor) realtorId = realtor.id;
+    }
     return this.propertyService.findAll({
       page,
       limit,

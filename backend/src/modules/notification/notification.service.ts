@@ -272,6 +272,7 @@ export class NotificationService {
       where: {
         status: 'ACTIVE',
         id: { not: currentUserId },
+        role: { not: 'SUPER_ADMIN' },
       },
       select: {
         id: true,
