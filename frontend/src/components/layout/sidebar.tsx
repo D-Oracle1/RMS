@@ -38,6 +38,8 @@ import {
   Mail,
   Headphones,
   Share2,
+  Newspaper,
+  Bookmark,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -92,6 +94,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Support Chats', href: '/dashboard/admin/support', icon: Headphones },
     { name: 'Referral Tracking', href: '/dashboard/admin/referrals', icon: Share2 },
     { name: 'Newsletter', href: '/dashboard/admin/newsletter', icon: Mail },
+    { name: 'Engagement', href: '/dashboard/admin/engagement', icon: Newspaper },
     { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
   ],
   realtor: [
@@ -102,6 +105,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Commission', href: '/dashboard/realtor/commission', icon: Calculator },
     { name: 'Loyalty', href: '/dashboard/realtor/loyalty', icon: Award },
     { name: 'My Referrals', href: '/dashboard/realtor/referrals', icon: Share2 },
+    { name: 'Feed', href: '/dashboard/realtor/feed', icon: Newspaper },
     { name: 'Chat', href: '/dashboard/realtor/chat', icon: MessageSquare },
     { name: 'Notifications', href: '/dashboard/realtor/notifications', icon: Bell },
   ],
@@ -111,6 +115,8 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Offers', href: '/dashboard/client/offers', icon: DollarSign },
     { name: 'Documents', href: '/dashboard/client/documents', icon: FileText },
     { name: 'My Referrals', href: '/dashboard/client/referrals', icon: Share2 },
+    { name: 'Feed', href: '/dashboard/client/feed', icon: Newspaper },
+    { name: 'Saved Posts', href: '/dashboard/client/saved', icon: Bookmark },
     { name: 'Chat', href: '/dashboard/client/chat', icon: MessageSquare },
     { name: 'Notifications', href: '/dashboard/client/notifications', icon: Bell },
   ],
@@ -125,6 +131,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Reviews', href: '/dashboard/staff/reviews', icon: Star },
     { name: 'Payslips', href: '/dashboard/staff/payslips', icon: Wallet },
     { name: 'My Referrals', href: '/dashboard/staff/referrals', icon: Share2 },
+    { name: 'Feed', href: '/dashboard/staff/feed', icon: Newspaper },
     { name: 'Chat', href: '/dashboard/staff/chat', icon: MessageSquare },
     { name: 'Notifications', href: '/dashboard/staff/notifications', icon: Bell },
   ],

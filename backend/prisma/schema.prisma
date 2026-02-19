@@ -100,6 +100,11 @@ enum NotificationType {
   // Callout bell system
   CALLOUT
   CALLOUT_RESPONSE
+  // Engagement feed
+  ENGAGEMENT_POST
+  POST_COMMENT
+  POST_MENTION
+  EVENT_REMINDER
 }
 
 enum NotificationPriority {
@@ -331,6 +336,13 @@ model User {
 
   // Shared Files
   sharedFiles SharedFile[]
+
+  // Engagement
+  engagementPosts EngagementPost[]
+  postReactions   PostReaction[]
+  postComments    PostComment[]
+  postViews       PostView[]
+  savedPosts      SavedPost[]
 
   @@index([email])
   @@index([role])
@@ -1835,4 +1847,149 @@ model PopupNotification {
   @@index([targetRole])
   @@index([expiresAt])
   @@map("popup_notifications")
+}
+
+// ===========================================
+// ENGAGEMENT FEED SYSTEM
+// ===========================================
+
+enum PostType {
+  ANNOUNCEMENT
+  PRODUCT_UPDATE
+  EDUCATIONAL_TIP
+  EVENT
+  POLL
+  CASE_STUDY
+  SPONSORED_FEATURE
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+}
+
+enum ReactionType {
+  HELPFUL
+  INSIGHTFUL
+  GAME_CHANGER
+}
+
+model EngagementPost {
+  id               String     @id @default(uuid())
+  title            String
+  content          String     @db.Text
+  excerpt          String?
+  type             PostType
+  status           PostStatus @default(DRAFT)
+
+  mediaUrl         String?
+  mediaType        String?    // IMAGE, VIDEO
+  externalLink     String?
+  tags             Json?      // Audience targeting: ["CLIENT","REALTOR","STAFF","ALL"]
+
+  isPinned         Boolean    @default(false)
+  commentsDisabled Boolean    @default(false)
+  scheduledAt      DateTime?
+  expiresAt        DateTime?
+  publishedAt      DateTime?
+
+  authorId         String
+  author           User       @relation(fields: [authorId], references: [id])
+
+  viewCount        Int        @default(0)
+  reactionCount    Int        @default(0)
+  commentCount     Int        @default(0)
+
+  reactions        PostReaction[]
+  comments         PostComment[]
+  views            PostView[]
+  savedBy          SavedPost[]
+  analytics        ContentAnalytics?
+
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([type])
+  @@index([isPinned])
+  @@index([authorId])
+  @@map("engagement_posts")
+}
+
+model PostReaction {
+  id        String       @id @default(uuid())
+  postId    String
+  post      EngagementPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      ReactionType
+  createdAt DateTime     @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@map("post_reactions")
+}
+
+model PostComment {
+  id        String         @id @default(uuid())
+  postId    String
+  post      EngagementPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String         @db.Text
+  parentId  String?
+  parent    PostComment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   PostComment[]  @relation("CommentReplies")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@map("post_comments")
+}
+
+model PostView {
+  id        String         @id @default(uuid())
+  postId    String
+  post      EngagementPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@map("post_views")
+}
+
+model SavedPost {
+  id        String         @id @default(uuid())
+  postId    String
+  post      EngagementPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@unique([postId, userId])
+  @@index([userId])
+  @@map("saved_posts")
+}
+
+model ContentAnalytics {
+  id                     String         @id @default(uuid())
+  postId                 String         @unique
+  post                   EngagementPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  impressions            Int            @default(0)
+  uniqueViews            Int            @default(0)
+  reactions              Int            @default(0)
+  comments               Int            @default(0)
+  shares                 Int            @default(0)
+  ctaClicks              Int            @default(0)
+  // AI-ready fields
+  aiInsightGenerated     Boolean        @default(false)
+  aiRecommendationScore  Float?
+  updatedAt              DateTime       @updatedAt
+
+  @@map("content_analytics")
 }

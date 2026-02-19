@@ -58,6 +58,9 @@ import { NewsletterModule } from './modules/newsletter/newsletter.module';
 // Communication (AI Campaigns, Email Marketing, Notifications)
 import { CommunicationModule } from './modules/communication/communication.module';
 
+// Engagement Feed
+import { EngagementModule } from './modules/engagement/engagement.module';
+
 // Audit
 import { AuditModule } from './modules/audit/audit.module';
 
@@ -139,6 +142,9 @@ import { CompanyModule } from './modules/company/company.module';
 
     // Communication (AI Campaigns, Email Marketing, Notifications)
     CommunicationModule,
+
+    // Engagement Feed
+    EngagementModule,
 
     // Audit
     AuditModule,
