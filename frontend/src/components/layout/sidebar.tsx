@@ -37,6 +37,7 @@ import {
   ImageIcon,
   Mail,
   Headphones,
+  Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -99,6 +100,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Clients', href: '/dashboard/realtor/clients', icon: Users },
     { name: 'Commission', href: '/dashboard/realtor/commission', icon: Calculator },
     { name: 'Loyalty', href: '/dashboard/realtor/loyalty', icon: Award },
+    { name: 'My Referrals', href: '/dashboard/realtor/referrals', icon: Share2 },
     { name: 'Chat', href: '/dashboard/realtor/chat', icon: MessageSquare },
     { name: 'Notifications', href: '/dashboard/realtor/notifications', icon: Bell },
   ],
@@ -107,6 +109,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'My Properties', href: '/dashboard/client/properties', icon: Home },
     { name: 'Offers', href: '/dashboard/client/offers', icon: DollarSign },
     { name: 'Documents', href: '/dashboard/client/documents', icon: FileText },
+    { name: 'My Referrals', href: '/dashboard/client/referrals', icon: Share2 },
     { name: 'Chat', href: '/dashboard/client/chat', icon: MessageSquare },
     { name: 'Notifications', href: '/dashboard/client/notifications', icon: Bell },
   ],
@@ -120,6 +123,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Files', href: '/dashboard/staff/files', icon: FolderOpen },
     { name: 'Reviews', href: '/dashboard/staff/reviews', icon: Star },
     { name: 'Payslips', href: '/dashboard/staff/payslips', icon: Wallet },
+    { name: 'My Referrals', href: '/dashboard/staff/referrals', icon: Share2 },
     { name: 'Chat', href: '/dashboard/staff/chat', icon: MessageSquare },
     { name: 'Notifications', href: '/dashboard/staff/notifications', icon: Bell },
   ],
