@@ -410,7 +410,6 @@ export class EngagementService {
       where: {
         status: PostStatus.PUBLISHED,
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-        tags: { hasSome: ['ALL', userRole] },
       },
       orderBy: [{ reactionCount: 'desc' }, { viewCount: 'desc' }],
       take: 5,
