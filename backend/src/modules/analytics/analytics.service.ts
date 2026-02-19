@@ -1,12 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import { SaleStatus, PropertyType, PropertyStatus } from '@prisma/client';
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async getSalesAnalytics(period: 'week' | 'month' | 'quarter' | 'year' = 'month') {
+    const cacheKey = `analytics:sales:${period}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
     const periods = this.getPeriodDates(period);
 
@@ -45,10 +53,15 @@ export class AnalyticsService {
       (analytics[i] as any).growth = prev > 0 ? ((curr - prev) / prev) * 100 : 0;
     }
 
+    await this.cacheService.set(cacheKey, analytics, 120);
     return analytics;
   }
 
   async getPropertyAnalytics() {
+    const cacheKey = 'analytics:property';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const [
       byType,
       byStatus,
@@ -74,7 +87,7 @@ export class AnalyticsService {
       this.getLocationStats(),
     ]);
 
-    return {
+    const result = {
       byType: byType.map((t) => ({
         type: t.type,
         count: t._count.id,
@@ -93,9 +106,16 @@ export class AnalyticsService {
       },
       locationStats,
     };
+
+    await this.cacheService.set(cacheKey, result, 120);
+    return result;
   }
 
   async getRealtorAnalytics() {
+    const cacheKey = 'analytics:realtor';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const [
       performanceDistribution,
       tierDistribution,
@@ -127,7 +147,7 @@ export class AnalyticsService {
       }),
     ]);
 
-    return {
+    const result = {
       tierDistribution: tierDistribution.map((t) => ({
         tier: t.loyaltyTier,
         count: t._count.id,
@@ -151,9 +171,16 @@ export class AnalyticsService {
         points: avgMetrics._avg.loyaltyPoints,
       },
     };
+
+    await this.cacheService.set(cacheKey, result, 120);
+    return result;
   }
 
   async getCommissionAnalytics() {
+    const cacheKey = 'analytics:commission';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
 
@@ -172,7 +199,7 @@ export class AnalyticsService {
       }),
     ]);
 
-    return {
+    const result = {
       monthly: monthlyCommissions,
       byTier,
       pending: {
@@ -184,9 +211,16 @@ export class AnalyticsService {
         count: paid._count.id,
       },
     };
+
+    await this.cacheService.set(cacheKey, result, 120);
+    return result;
   }
 
   async getMarketTrends() {
+    const cacheKey = 'analytics:marketTrends';
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const [priceHistory, salesVelocity, demandByType, seasonality] = await Promise.all([
       this.getPriceHistory(),
       this.getSalesVelocity(),
@@ -194,12 +228,15 @@ export class AnalyticsService {
       this.getSeasonalTrends(),
     ]);
 
-    return {
+    const result = {
       priceHistory,
       salesVelocity,
       demandByType,
       seasonality,
     };
+
+    await this.cacheService.set(cacheKey, result, 120);
+    return result;
   }
 
   // Helper methods
@@ -310,75 +347,94 @@ export class AnalyticsService {
   }
 
   private async getMonthlyCommissions() {
-    const months = 12;
     const now = new Date();
-    const results = [];
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-    for (let i = months - 1; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    // Single query instead of 12
+    const commissions = await this.prisma.commission.findMany({
+      where: { createdAt: { gte: startDate } },
+      select: { createdAt: true, amount: true },
+    });
 
-      const sum = await this.prisma.commission.aggregate({
-        where: { createdAt: { gte: start, lte: end } },
-        _sum: { amount: true },
-      });
-
-      results.push({
-        month: start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        amount: sum._sum.amount || 0,
-      });
+    // Bucket into months in JS
+    const buckets = new Map<string, number>();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      buckets.set(key, 0);
+    }
+    for (const c of commissions) {
+      const d = new Date(c.createdAt);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (buckets.has(key)) {
+        buckets.set(key, (buckets.get(key) || 0) + Number(c.amount || 0));
+      }
     }
 
-    return results;
+    return Array.from(buckets.entries()).map(([key, amount]) => {
+      const [yr, mo] = key.split('-').map(Number);
+      return {
+        month: new Date(yr, mo, 1).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        amount,
+      };
+    });
   }
 
   private async getCommissionsByTier() {
-    const tiers = ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'];
+    // Single query: fetch all commissions with realtor tier
+    const commissions = await this.prisma.commission.findMany({
+      select: { amount: true, realtor: { select: { loyaltyTier: true } } },
+    });
 
-    return Promise.all(
-      tiers.map(async (tier) => {
-        const sum = await this.prisma.commission.aggregate({
-          where: {
-            realtor: { loyaltyTier: tier as any },
-          },
-          _sum: { amount: true },
-          _count: { id: true },
-        });
+    const tierMap: Record<string, { amount: number; count: number }> = {};
+    for (const tier of ['BRONZE', 'SILVER', 'GOLD', 'PLATINUM']) {
+      tierMap[tier] = { amount: 0, count: 0 };
+    }
+    for (const c of commissions) {
+      const tier = c.realtor?.loyaltyTier || 'BRONZE';
+      if (tierMap[tier]) {
+        tierMap[tier].amount += Number(c.amount || 0);
+        tierMap[tier].count += 1;
+      }
+    }
 
-        return {
-          tier,
-          amount: sum._sum.amount || 0,
-          count: sum._count.id,
-        };
-      }),
-    );
+    return Object.entries(tierMap).map(([tier, data]) => ({
+      tier,
+      amount: data.amount,
+      count: data.count,
+    }));
   }
 
   private async getPriceHistory() {
-    // Get average price by month for the last 12 months
-    const months = 12;
     const now = new Date();
-    const results = [];
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-    for (let i = months - 1; i >= 0; i--) {
-      const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    // Single query instead of 12
+    const sales = await this.prisma.sale.findMany({
+      where: { status: SaleStatus.COMPLETED, saleDate: { gte: startDate } },
+      select: { saleDate: true, salePrice: true },
+    });
 
-      const avg = await this.prisma.sale.aggregate({
-        where: {
-          status: SaleStatus.COMPLETED,
-          saleDate: { gte: start, lte: end },
-        },
-        _avg: { salePrice: true },
-      });
-
-      results.push({
-        month: start.toLocaleDateString('en-US', { month: 'short' }),
-        avgPrice: avg._avg.salePrice || 0,
-      });
+    // Bucket into months
+    const buckets = new Map<string, { total: number; count: number }>();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.set(`${d.getFullYear()}-${d.getMonth()}`, { total: 0, count: 0 });
+    }
+    for (const s of sales) {
+      const d = new Date(s.saleDate);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const b = buckets.get(key);
+      if (b) { b.total += Number(s.salePrice || 0); b.count += 1; }
     }
 
-    return results;
+    return Array.from(buckets.entries()).map(([key, { total, count }]) => {
+      const [yr, mo] = key.split('-').map(Number);
+      return {
+        month: new Date(yr, mo, 1).toLocaleDateString('en-US', { month: 'short' }),
+        avgPrice: count > 0 ? total / count : 0,
+      };
+    });
   }
 
   private async getSalesVelocity() {
@@ -412,23 +468,22 @@ export class AnalyticsService {
   }
 
   private async getSeasonalTrends() {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const now = new Date();
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const yearEnd = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
 
-    return Promise.all(
-      months.map(async (month, index) => {
-        const start = new Date(now.getFullYear(), index, 1);
-        const end = new Date(now.getFullYear(), index + 1, 0);
+    // Single query for the entire year
+    const sales = await this.prisma.sale.findMany({
+      where: { status: SaleStatus.COMPLETED, saleDate: { gte: yearStart, lte: yearEnd } },
+      select: { saleDate: true },
+    });
 
-        const count = await this.prisma.sale.count({
-          where: {
-            status: SaleStatus.COMPLETED,
-            saleDate: { gte: start, lte: end },
-          },
-        });
+    const monthlyCounts = new Array(12).fill(0);
+    for (const s of sales) {
+      monthlyCounts[new Date(s.saleDate).getMonth()]++;
+    }
 
-        return { month, sales: count };
-      }),
-    );
+    return monthNames.map((month, i) => ({ month, sales: monthlyCounts[i] }));
   }
 }

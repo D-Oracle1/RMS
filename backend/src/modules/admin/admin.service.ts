@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { CacheService } from '../../common/services/cache.service';
 import { SaleStatus, PropertyStatus, LoyaltyTier } from '@prisma/client';
 import { DashboardPeriod, getDateRange, groupSalesIntoChartBuckets } from '../../common/utils/date-range.util';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cacheService: CacheService,
+  ) {}
 
   async getDashboardStats(
     period?: DashboardPeriod,
@@ -15,6 +19,11 @@ export class AdminService {
     const activePeriod: DashboardPeriod = period || 'monthly';
     const parsedMonth = month !== undefined && !isNaN(Number(month)) ? Number(month) : undefined;
     const parsedYear = year !== undefined && !isNaN(Number(year)) ? Number(year) : undefined;
+
+    const cacheKey = `admin:dash:${activePeriod}:${parsedMonth ?? 'all'}:${parsedYear ?? 'all'}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const { startDate, endDate } = getDateRange(activePeriod, parsedMonth, parsedYear);
     const dateFilter = { gte: startDate, lte: endDate };
 
@@ -95,7 +104,7 @@ export class AdminService {
       return acc;
     }, {} as Record<string, number>);
 
-    return {
+    const result = {
       realtors: { total: totalRealtors, active: activeRealtors },
       clients: { total: totalClients },
       properties: { total: totalProperties, activeListings },
@@ -117,6 +126,9 @@ export class AdminService {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
     };
+
+    await this.cacheService.set(cacheKey, result, 60);
+    return result;
   }
 
   async getRealtorMonitoring(query: {
@@ -264,46 +276,39 @@ export class AdminService {
   }
 
   async getRealtorMonthlyPerformance(realtorId: string) {
-    const months = 12;
     const now = new Date();
-    const performance = [];
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 11, 1);
 
-    for (let i = 0; i < months; i++) {
-      const startDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+    // Single query instead of 24
+    const sales = await this.prisma.sale.findMany({
+      where: {
+        realtorId,
+        status: SaleStatus.COMPLETED,
+        saleDate: { gte: startDate },
+      },
+      select: { saleDate: true, salePrice: true },
+    });
 
-      const [sales, revenue] = await Promise.all([
-        this.prisma.sale.count({
-          where: {
-            realtorId,
-            status: SaleStatus.COMPLETED,
-            saleDate: {
-              gte: startDate,
-              lte: endDate,
-            },
-          },
-        }),
-        this.prisma.sale.aggregate({
-          where: {
-            realtorId,
-            status: SaleStatus.COMPLETED,
-            saleDate: {
-              gte: startDate,
-              lte: endDate,
-            },
-          },
-          _sum: { salePrice: true },
-        }),
-      ]);
-
-      performance.push({
-        month: startDate.toISOString().slice(0, 7),
-        sales,
-        revenue: revenue._sum.salePrice || 0,
-      });
+    // Bucket into months in JS
+    const buckets = new Map<string, { sales: number; revenue: number }>();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.set(d.toISOString().slice(0, 7), { sales: 0, revenue: 0 });
+    }
+    for (const s of sales) {
+      const key = new Date(s.saleDate).toISOString().slice(0, 7);
+      const b = buckets.get(key);
+      if (b) {
+        b.sales += 1;
+        b.revenue += Number(s.salePrice || 0);
+      }
     }
 
-    return performance.reverse();
+    return Array.from(buckets.entries()).map(([month, data]) => ({
+      month,
+      sales: data.sales,
+      revenue: data.revenue,
+    }));
   }
 
   async getRecentSalesFeed(limit: number = 20) {
@@ -351,6 +356,11 @@ export class AdminService {
     const now = new Date();
     const selectedYear = year !== undefined && !isNaN(Number(year)) ? Number(year) : now.getFullYear();
     const selectedMonth = month !== undefined && !isNaN(Number(month)) ? Number(month) : now.getMonth();
+
+    const cacheKey = `admin:perf:${period}:${selectedMonth}:${selectedYear}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     let startDate: Date;
     let endDate: Date;
 
@@ -533,7 +543,7 @@ export class AdminService {
         : 0,
     };
 
-    return {
+    const result = {
       stats,
       chartData,
       propertyTypes,
@@ -550,6 +560,9 @@ export class AdminService {
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
     };
+
+    await this.cacheService.set(cacheKey, result, 60);
+    return result;
   }
 
   private processChartData(

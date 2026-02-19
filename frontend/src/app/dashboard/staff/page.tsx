@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AwardBanner } from '@/components/award-banner';
 import {
@@ -222,23 +222,23 @@ export default function StaffDashboard() {
   const teamMembers = stats.teamMembers || 0;
 
   // Task distribution for pie chart
-  const taskDistribution = [
+  const taskDistribution = useMemo(() => [
     { name: 'Completed', value: completedThisMonth || 1, color: '#0b5c46' },
     { name: 'Pending', value: pendingTasks || 1, color: '#fca639' },
     { name: 'Blocked', value: 0, color: '#ef4444' },
-  ].filter(t => t.value > 0);
-  const totalTaskDist = taskDistribution.reduce((s, t) => s + t.value, 0) || 1;
+  ].filter(t => t.value > 0), [completedThisMonth, pendingTasks]);
+  const totalTaskDist = useMemo(() => taskDistribution.reduce((s, t) => s + t.value, 0) || 1, [taskDistribution]);
 
   // Build weekly attendance chart data
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const attendanceChartData = weekDays.map((day, idx) => {
+  const attendanceChartData = useMemo(() => weekDays.map((day, idx) => {
     const record = recentAttendance.find((a: any) => new Date(a.date).getDay() === idx);
     return {
       day,
       hours: record?.hoursWorked || 0,
       present: record?.status === 'PRESENT' || record?.status === 'WORK_FROM_HOME' ? 1 : 0,
     };
-  });
+  }), [recentAttendance]);
 
   // Bottom stats
   const bottomStats = [

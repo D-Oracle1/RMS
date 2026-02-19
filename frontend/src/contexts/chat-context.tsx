@@ -251,10 +251,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     };
   }, [subscribeToUserEvent, unsubscribeFromUserEvent]);
 
-  // Fetch rooms on mount
-  useEffect(() => {
-    fetchRooms();
-  }, [fetchRooms]);
+  // Rooms are fetched lazily — chat page calls fetchRooms() when it mounts
 
   return (
     <ChatContext.Provider

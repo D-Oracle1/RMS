@@ -147,13 +147,13 @@ export default function AdminDashboard() {
 
   // Get tier distribution from API
   const tierData = dashboardData?.tierDistribution || {};
-  const tierDistributionData = [
+  const tierDistributionData = useMemo(() => [
     { name: 'Platinum', value: tierData.PLATINUM || 0, color: '#0b5c46' },
     { name: 'Gold', value: tierData.GOLD || 0, color: '#fca639' },
     { name: 'Silver', value: tierData.SILVER || 0, color: '#94a3b8' },
     { name: 'Bronze', value: tierData.BRONZE || 0, color: '#c2956b' },
-  ];
-  const totalTiers = tierDistributionData.reduce((sum, t) => sum + t.value, 0) || 1;
+  ], [tierData]);
+  const totalTiers = useMemo(() => tierDistributionData.reduce((sum, t) => sum + t.value, 0) || 1, [tierDistributionData]);
 
   // Find highest selling property from recent sales
   const highestSellingProperty = useMemo(() => {
@@ -175,7 +175,7 @@ export default function AdminDashboard() {
   }, [recentSales]);
 
   // Get award highlights
-  const getHighlightData = () => {
+  const highlights = useMemo(() => {
     const staffAward = currentAwards.find((a: any) => a.type === 'STAFF_OF_MONTH' && a.isPublished);
     const realtorAward = currentAwards.find((a: any) => a.type === 'REALTOR_OF_MONTH' && a.isPublished);
     const clientAward = currentAwards.find((a: any) => a.type === 'CLIENT_OF_MONTH' && a.isPublished);
@@ -191,9 +191,7 @@ export default function AdminDashboard() {
         ? { name: `${clientAward.user?.firstName || ''} ${clientAward.user?.lastName || ''}`.trim(), achievement: clientAward.reason, fromApi: true }
         : { name: 'Not yet selected', achievement: 'No data available', fromApi: false },
     };
-  };
-
-  const highlights = getHighlightData();
+  }, [currentAwards]);
 
   // Stats cards data
   const mainStats = [

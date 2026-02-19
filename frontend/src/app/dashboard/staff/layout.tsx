@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
-import { CelebrationModal } from '@/components/celebration-modal';
 import { cn } from '@/lib/utils';
+
+const CelebrationModal = dynamic(() => import('@/components/celebration-modal').then(m => ({ default: m.CelebrationModal })), { ssr: false });
 
 export default function StaffLayout({
   children,

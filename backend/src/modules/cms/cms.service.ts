@@ -76,7 +76,7 @@ export class CmsService {
   // ============ CMS Pages ============
 
   async createPage(dto: CreatePageDto, authorId: string) {
-    return this.prisma.cmsPage.create({
+    const result = await this.prisma.cmsPage.create({
       data: {
         title: dto.title,
         slug: dto.slug,
@@ -89,17 +89,21 @@ export class CmsService {
       },
       include: { author: { select: { firstName: true, lastName: true } } },
     });
+    await this.cacheService.invalidate('cms');
+    return result;
   }
 
   async updatePage(id: string, dto: UpdatePageDto) {
     const page = await this.prisma.cmsPage.findUnique({ where: { id } });
     if (!page) throw new NotFoundException('Page not found');
 
-    return this.prisma.cmsPage.update({
+    const result = await this.prisma.cmsPage.update({
       where: { id },
       data: dto,
       include: { author: { select: { firstName: true, lastName: true } } },
     });
+    await this.cacheService.invalidate('cms');
+    return result;
   }
 
   async deletePage(id: string) {
@@ -107,6 +111,7 @@ export class CmsService {
     if (!page) throw new NotFoundException('Page not found');
 
     await this.prisma.cmsPage.delete({ where: { id } });
+    await this.cacheService.invalidate('cms');
     return { message: 'Page deleted successfully' };
   }
 
@@ -135,22 +140,35 @@ export class CmsService {
   }
 
   async getPublishedPages(type?: ContentType) {
+    const cacheKey = `cms:published_pages:${type || 'all'}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const where: any = { isPublished: true };
     if (type) where.type = type;
 
-    return this.prisma.cmsPage.findMany({
+    const result = await this.prisma.cmsPage.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
       include: { author: { select: { firstName: true, lastName: true, avatar: true } } },
     });
+
+    await this.cacheService.set(cacheKey, result, 300);
+    return result;
   }
 
   async getPageBySlug(slug: string) {
+    const cacheKey = `cms:page_slug:${slug}`;
+    const cached = await this.cacheService.get<any>(cacheKey);
+    if (cached) return cached;
+
     const page = await this.prisma.cmsPage.findFirst({
       where: { slug, isPublished: true },
       include: { author: { select: { firstName: true, lastName: true, avatar: true } } },
     });
     if (!page) throw new NotFoundException('Page not found');
+
+    await this.cacheService.set(cacheKey, page, 300);
     return page;
   }
 
@@ -158,19 +176,23 @@ export class CmsService {
     const page = await this.prisma.cmsPage.findUnique({ where: { id } });
     if (!page) throw new NotFoundException('Page not found');
 
-    return this.prisma.cmsPage.update({
+    const result = await this.prisma.cmsPage.update({
       where: { id },
       data: { isPublished: true, publishedAt: new Date() },
     });
+    await this.cacheService.invalidate('cms');
+    return result;
   }
 
   async unpublishPage(id: string) {
     const page = await this.prisma.cmsPage.findUnique({ where: { id } });
     if (!page) throw new NotFoundException('Page not found');
 
-    return this.prisma.cmsPage.update({
+    const result = await this.prisma.cmsPage.update({
       where: { id },
       data: { isPublished: false, publishedAt: null },
     });
+    await this.cacheService.invalidate('cms');
+    return result;
   }
 }

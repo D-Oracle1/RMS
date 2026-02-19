@@ -5,7 +5,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 60,
-      "memory": 1024,
+      "memory": 1769,
       "includeFiles": "{dist/**,src/generated/**,node_modules/.prisma/**,node_modules/@prisma/engines/**,node_modules/@supabase/**,node_modules/web-push/**,prisma/**}"
     }
   },

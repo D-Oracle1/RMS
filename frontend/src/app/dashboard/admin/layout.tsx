@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
-import { CelebrationModal } from '@/components/celebration-modal';
-import { SaleApprovalModal } from '@/components/sale-approval-modal';
 import { useNotifications } from '@/contexts/notification-context';
 import { cn } from '@/lib/utils';
+
+const CelebrationModal = dynamic(() => import('@/components/celebration-modal').then(m => ({ default: m.CelebrationModal })), { ssr: false });
+const SaleApprovalModal = dynamic(() => import('@/components/sale-approval-modal').then(m => ({ default: m.SaleApprovalModal })), { ssr: false });
 
 export default function AdminLayout({
   children,

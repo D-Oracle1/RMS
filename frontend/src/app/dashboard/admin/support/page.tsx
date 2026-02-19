@@ -99,16 +99,42 @@ export default function AdminSupportPage() {
     }
   }, [fetchMessages]);
 
-  // Poll for new messages in selected room
+  // Poll for new messages in selected room — pause when tab is hidden
   useEffect(() => {
-    if (selectedRoom) {
-      pollRef.current = setInterval(() => {
+    if (!selectedRoom) return;
+
+    let msgInterval: ReturnType<typeof setInterval> | null = null;
+    let roomInterval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      // Messages every 5s (only for active room)
+      msgInterval = setInterval(() => fetchMessages(selectedRoom.id), 5000);
+      // Room list every 15s (less frequent)
+      roomInterval = setInterval(fetchRooms, 15000);
+    };
+
+    const stopPolling = () => {
+      if (msgInterval) { clearInterval(msgInterval); msgInterval = null; }
+      if (roomInterval) { clearInterval(roomInterval); roomInterval = null; }
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // Refresh immediately on tab focus, then resume polling
         fetchMessages(selectedRoom.id);
         fetchRooms();
-      }, 5000);
-    }
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [selectedRoom, fetchMessages, fetchRooms]);
 

@@ -83,6 +83,11 @@ export default function ChatPage() {
   let callCtx: ReturnType<typeof useCall> | null = null;
   try { callCtx = useCall(); } catch { /* CallProvider may not be mounted yet */ }
 
+  // Fetch rooms when chat page mounts (lazy-loaded, not on app init)
+  useEffect(() => {
+    fetchRooms();
+  }, [fetchRooms]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };

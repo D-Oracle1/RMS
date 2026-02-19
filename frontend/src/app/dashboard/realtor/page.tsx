@@ -176,10 +176,10 @@ export default function RealtorDashboard() {
   const currentTierInfo = tierProgress[tier] || tierProgress.BRONZE;
   const progressToNext = ((points - currentTierInfo.min) / (currentTierInfo.max - currentTierInfo.min)) * 100;
 
-  const earningsBreakdown = [
+  const earningsBreakdown = useMemo(() => [
     { name: 'Net Earnings', value: Number(filteredNetEarnings), color: '#0b5c46' },
     { name: 'Tax Deducted', value: Number(filteredTax), color: '#fca639' },
-  ].filter((e) => e.value > 0);
+  ].filter((e) => e.value > 0), [filteredNetEarnings, filteredTax]);
 
   const bottomStats = [
     { label: 'Active Listings', value: String(properties), icon: Home, color: '#0b5c46' },
