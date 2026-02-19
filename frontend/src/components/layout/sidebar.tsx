@@ -90,6 +90,7 @@ const navigationConfig: Record<string, { name: string; href: string; icon: any }
     { name: 'Channels', href: '/dashboard/admin/channels', icon: Hash },
     { name: 'Chat', href: '/dashboard/admin/chat', icon: MessageSquare },
     { name: 'Support Chats', href: '/dashboard/admin/support', icon: Headphones },
+    { name: 'Referral Tracking', href: '/dashboard/admin/referrals', icon: Share2 },
     { name: 'Newsletter', href: '/dashboard/admin/newsletter', icon: Mail },
     { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
   ],

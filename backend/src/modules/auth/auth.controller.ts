@@ -8,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  HttpException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -119,6 +120,18 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Referrals retrieved successfully' })
   async getMyReferrals(@CurrentUser('id') userId: string) {
     return this.authService.getMyReferrals(userId);
+  }
+
+  @Get('all-referrals')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Get all referral data (admin only)' })
+  @ApiResponse({ status: 200, description: 'All referrals retrieved successfully' })
+  async getAllReferrals(@CurrentUser('role') role: string) {
+    if (!['ADMIN', 'SUPER_ADMIN', 'GENERAL_OVERSEER'].includes(role)) {
+      throw new HttpException('Forbidden', HttpStatus.FORBIDDEN);
+    }
+    return this.authService.getAllReferrals();
   }
 
   @Get('profile')

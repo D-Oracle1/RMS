@@ -221,11 +221,21 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    // Update last login
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    // Generate referral code if user doesn't have one (legacy accounts)
+    if (!user.referralCode) {
+      const referralCode = `REF-${uuidv4().substring(0, 8).toUpperCase()}`;
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date(), referralCode },
+      });
+      user.referralCode = referralCode;
+    } else {
+      // Update last login
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      });
+    }
 
     const tokens = await this.generateTokens(user, companyId);
 
@@ -433,6 +443,46 @@ export class AuthService {
       orderBy: { createdAt: 'desc' },
     });
     return { data: referrals, total: referrals.length };
+  }
+
+  async getAllReferrals() {
+    const referrals = await this.prisma.user.findMany({
+      where: { referredBy: { not: null } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        status: true,
+        referredBy: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Get referrer details
+    const referrerIds = [...new Set(referrals.map((r) => r.referredBy!))];
+    const referrers = await this.prisma.user.findMany({
+      where: { id: { in: referrerIds } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        role: true,
+        referralCode: true,
+      },
+    });
+
+    const referrerMap = new Map(referrers.map((r) => [r.id, r]));
+
+    const data = referrals.map((r) => ({
+      ...r,
+      referrer: referrerMap.get(r.referredBy!) || null,
+    }));
+
+    return { data, total: data.length };
   }
 
   async getProfile(userId: string) {

@@ -31,10 +31,10 @@ import { toast } from 'sonner';
 import { api, getImageUrl } from '@/lib/api';
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { cn } from '@/lib/utils';
-import { getUser } from '@/lib/auth-storage';
+
 
 const TABS = [
-  { id: 'branding', label: 'Branding', icon: Palette, superAdminOnly: true },
+  { id: 'branding', label: 'Branding', icon: Palette },
   { id: 'hero', label: 'Hero', icon: Home },
   { id: 'about', label: 'About Us', icon: Info },
   { id: 'mission', label: 'Mission & Vision', icon: Target },
@@ -49,10 +49,8 @@ const TABS = [
 ];
 
 export default function CmsPage() {
-  const user = getUser();
-  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
-  const visibleTabs = TABS.filter((tab) => !tab.superAdminOnly || isSuperAdmin);
-  const [activeTab, setActiveTab] = useState(isSuperAdmin ? 'branding' : 'hero');
+  const visibleTabs = TABS;
+  const [activeTab, setActiveTab] = useState('branding');
   const [sectionData, setSectionData] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
