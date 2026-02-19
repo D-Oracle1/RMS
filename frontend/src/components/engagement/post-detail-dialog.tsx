@@ -379,11 +379,16 @@ export default function PostDetailDialog({ postId, open, onClose }: PostDetailDi
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0" aria-describedby={undefined}>
         {loading || !post ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </div>
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>Loading post</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          </>
         ) : (
           <>
             {/* Header */}

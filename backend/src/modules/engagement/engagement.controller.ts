@@ -15,11 +15,12 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { EngagementService } from './engagement.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { ReactPostDto } from './dto/react-post.dto';
+import { AddCommentDto } from './dto/add-comment.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { ReactionType } from '@prisma/client';
 
 @ApiTags('Engagement')
 @Controller('engagement')
@@ -92,9 +93,9 @@ export class EngagementController {
   async reactToPost(
     @Param('id') postId: string,
     @CurrentUser('id') userId: string,
-    @Body('type') type: ReactionType,
+    @Body() dto: ReactPostDto,
   ) {
-    return this.engagementService.reactToPost(postId, userId, type);
+    return this.engagementService.reactToPost(postId, userId, dto.type);
   }
 
   @Post('feed/:id/comment')
@@ -102,10 +103,9 @@ export class EngagementController {
   async addComment(
     @Param('id') postId: string,
     @CurrentUser('id') userId: string,
-    @Body('content') content: string,
-    @Body('parentId') parentId?: string,
+    @Body() dto: AddCommentDto,
   ) {
-    return this.engagementService.addComment(postId, userId, content, parentId);
+    return this.engagementService.addComment(postId, userId, dto.content, dto.parentId);
   }
 
   @Delete('feed/:id/comment/:commentId')

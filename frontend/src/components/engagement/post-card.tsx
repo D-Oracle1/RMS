@@ -125,6 +125,15 @@ function getInitials(firstName: string, lastName: string): string {
 
 export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare }: PostCardProps) {
   const [ctaLoading, setCtaLoading] = useState(false);
+  const [imgOrientation, setImgOrientation] = useState<'portrait' | 'landscape' | null>(null);
+
+  const handleImgLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setImgOrientation(img.naturalHeight > img.naturalWidth ? 'portrait' : 'landscape');
+  };
+
+  const hasImage = !!post.mediaUrl && !post.mediaType?.startsWith('video');
+  const isPortrait = hasImage && imgOrientation === 'portrait';
 
   const typeConfig = TYPE_CONFIG[post.type] || {
     label: post.type.replace(/_/g, ' '),
@@ -189,31 +198,56 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare 
           </Badge>
         </div>
 
-        {/* Title */}
-        <h3 className="text-lg font-bold leading-snug mb-2">{post.title}</h3>
-
-        {/* Content preview -- rendered as HTML, truncated to 3 lines */}
-        <div
-          className="text-sm text-muted-foreground mb-3 line-clamp-3 prose prose-sm dark:prose-invert max-w-none [&>*]:m-0"
-          dangerouslySetInnerHTML={{ __html: post.excerpt || post.content }}
-        />
-
-        {/* Media preview */}
-        {post.mediaUrl && (
-          <div className="mb-3 rounded-lg overflow-hidden bg-muted/50">
-            {post.mediaType?.startsWith('video') ? (
-              <div className="flex items-center justify-center h-40 sm:h-52 bg-muted/30">
-                <Video className="h-10 w-10 text-muted-foreground" />
-              </div>
-            ) : (
-              <img
-                src={getImageUrl(post.mediaUrl)}
-                alt={post.title}
-                className="w-full h-40 sm:h-52 object-cover"
-                loading="lazy"
+        {/* Portrait: title+content left, thumbnail right */}
+        {isPortrait ? (
+          <div className="flex gap-3 mb-3 items-start">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-base sm:text-lg font-bold leading-snug mb-1.5">{post.title}</h3>
+              <div
+                className="text-sm text-muted-foreground line-clamp-4 prose prose-sm dark:prose-invert max-w-none [&>*]:m-0"
+                dangerouslySetInnerHTML={{ __html: post.excerpt || post.content }}
               />
-            )}
+            </div>
+            <div className="w-24 sm:w-32 shrink-0 rounded-lg overflow-hidden self-stretch min-h-[96px]">
+              <img
+                src={getImageUrl(post.mediaUrl!)}
+                alt={post.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+                onLoad={handleImgLoad}
+              />
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Title */}
+            <h3 className="text-lg font-bold leading-snug mb-2">{post.title}</h3>
+
+            {/* Content preview */}
+            <div
+              className="text-sm text-muted-foreground mb-3 line-clamp-3 prose prose-sm dark:prose-invert max-w-none [&>*]:m-0"
+              dangerouslySetInnerHTML={{ __html: post.excerpt || post.content }}
+            />
+
+            {/* Media preview: landscape or video */}
+            {post.mediaUrl && (
+              <div className="mb-3 rounded-lg overflow-hidden bg-muted/50">
+                {post.mediaType?.startsWith('video') ? (
+                  <div className="flex items-center justify-center h-40 sm:h-52 bg-muted/30">
+                    <Video className="h-10 w-10 text-muted-foreground" />
+                  </div>
+                ) : (
+                  <img
+                    src={getImageUrl(post.mediaUrl)}
+                    alt={post.title}
+                    className="w-full max-h-[260px] object-cover"
+                    loading="lazy"
+                    onLoad={handleImgLoad}
+                  />
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* CTA button */}
