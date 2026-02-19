@@ -231,35 +231,35 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare 
         <h3 className="text-[15px] font-bold leading-snug mt-3 text-gray-900 dark:text-white group-hover:text-primary transition-colors duration-200">
           {post.title}
         </h3>
-      </div>
 
-      {/* Media — sits directly after title, before any text */}
-      {hasImage && (
-        <div className="mt-3">
-          {isVideo ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 bg-gray-100 dark:bg-gray-800">
-              <div className="w-16 h-16 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center shadow-md">
-                <Video className="h-7 w-7 text-gray-400" />
-              </div>
-              <p className="text-xs text-gray-400 font-medium">Video content · click to view</p>
-            </div>
-          ) : (
-            <img
-              src={getImageUrl(post.mediaUrl!)}
-              alt={post.title}
-              className="w-full h-auto block"
-              loading="lazy"
-            />
-          )}
-        </div>
-      )}
-
-      {/* Text / excerpt — always below image (or below title if no image) */}
-      {excerptText && (
-        <div className="px-4 pt-2.5">
-          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3 leading-relaxed">
+        {/* Excerpt — right after title, before the image */}
+        {excerptText && (
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-3 leading-relaxed">
             {excerptText}
           </p>
+        )}
+      </div>
+
+      {/* Media — rounded, with side padding so corners are visible */}
+      {hasImage && (
+        <div className="mt-3 px-4">
+          <div className="rounded-2xl overflow-hidden bg-gray-50 dark:bg-gray-800/50">
+            {isVideo ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 bg-gray-100 dark:bg-gray-800">
+                <div className="w-16 h-16 rounded-full bg-white dark:bg-gray-700 flex items-center justify-center shadow-md">
+                  <Video className="h-7 w-7 text-gray-400" />
+                </div>
+                <p className="text-xs text-gray-400 font-medium">Video content · click to view</p>
+              </div>
+            ) : (
+              <img
+                src={getImageUrl(post.mediaUrl!)}
+                alt={post.title}
+                className="w-full h-auto block"
+                loading="lazy"
+              />
+            )}
+          </div>
         </div>
       )}
 
