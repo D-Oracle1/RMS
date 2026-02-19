@@ -231,16 +231,9 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare 
         <h3 className="text-[15px] font-bold leading-snug mt-3 text-gray-900 dark:text-white group-hover:text-primary transition-colors duration-200">
           {post.title}
         </h3>
-
-        {/* Excerpt for text-only posts */}
-        {!hasImage && excerptText && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 pb-3 line-clamp-3 leading-relaxed">
-            {excerptText}
-          </p>
-        )}
       </div>
 
-      {/* Full-width media — natural aspect ratio, no cropping */}
+      {/* Media — sits directly after title, before any text */}
       {hasImage && (
         <div className="mt-3">
           {isVideo ? (
@@ -256,16 +249,15 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare 
               alt={post.title}
               className="w-full h-auto block"
               loading="lazy"
-              style={{ display: 'block' }}
             />
           )}
         </div>
       )}
 
-      {/* Caption below image */}
-      {hasImage && excerptText && (
+      {/* Text / excerpt — always below image (or below title if no image) */}
+      {excerptText && (
         <div className="px-4 pt-2.5">
-          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
+          <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-3 leading-relaxed">
             {excerptText}
           </p>
         </div>

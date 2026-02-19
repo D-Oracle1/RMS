@@ -49,6 +49,7 @@ export default function ClientDashboard() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
+  const [detailPost, setDetailPost] = useState<PostData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   // Sidebar extras
@@ -156,6 +157,7 @@ export default function ClientDashboard() {
 
   const handleOpenDetail = (postId: string) => {
     setDetailPostId(postId);
+    setDetailPost(posts.find((p) => p.id === postId) ?? null);
     setDetailOpen(true);
   };
 
@@ -302,6 +304,7 @@ export default function ClientDashboard() {
         postId={detailPostId}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        preloadedPost={detailPost ?? undefined}
       />
     </div>
   );

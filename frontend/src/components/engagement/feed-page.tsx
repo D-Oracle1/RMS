@@ -43,6 +43,7 @@ export default function EngagementFeedPage() {
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [page, setPage] = useState(1);
   const [detailPostId, setDetailPostId] = useState<string | null>(null);
+  const [detailPost, setDetailPost] = useState<PostData | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
   const fetchPosts = useCallback(async (pageNum: number, type: string, append = false) => {
@@ -112,6 +113,7 @@ export default function EngagementFeedPage() {
 
   const handleOpenDetail = (postId: string) => {
     setDetailPostId(postId);
+    setDetailPost(posts.find((p) => p.id === postId) ?? null);
     setDetailOpen(true);
   };
 
@@ -235,6 +237,7 @@ export default function EngagementFeedPage() {
         postId={detailPostId}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
+        preloadedPost={detailPost ?? undefined}
       />
     </div>
   );
