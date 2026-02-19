@@ -10,6 +10,7 @@ export interface BrandingData {
   shortName?: string;
   logo?: string;
   whatsappNumber?: string;
+  whatsappLink?: string;
   supportEmail?: string;
   supportPhone?: string;
   address?: string;

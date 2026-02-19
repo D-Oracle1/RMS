@@ -251,7 +251,12 @@ export default function CmsPage() {
                 <div>
                   <label className="text-sm font-medium mb-1 block">WhatsApp Number</label>
                   <Input value={sectionData.whatsappNumber || ''} onChange={(e) => updateField('whatsappNumber', e.target.value)} placeholder="+234XXXXXXXXXX" />
-                  <p className="text-xs text-muted-foreground mt-1">International format with country code. Shows on the support chat widget.</p>
+                  <p className="text-xs text-muted-foreground mt-1">International format with country code. Used as fallback if no link is set.</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">WhatsApp Link (Full URL)</label>
+                  <Input value={sectionData.whatsappLink || ''} onChange={(e) => updateField('whatsappLink', e.target.value)} placeholder="https://wa.me/234XXXXXXXXXX" />
+                  <p className="text-xs text-muted-foreground mt-1">Paste your full WhatsApp or WhatsApp Business link. This is what opens when users click the WhatsApp icon on the support widget.</p>
                 </div>
               </div>
             </div>
