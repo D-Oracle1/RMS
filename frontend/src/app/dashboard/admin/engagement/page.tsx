@@ -209,8 +209,8 @@ export default function EngagementPage() {
   const fetchAnalytics = useCallback(async () => {
     setAnalyticsLoading(true);
     try {
-      const res = await api.get<Analytics>('/engagement/analytics');
-      setAnalytics(res);
+      const res = await api.get<any>('/engagement/analytics');
+      setAnalytics(res?.data ?? res);
     } catch {
       toast.error('Failed to load analytics');
     } finally {
@@ -324,8 +324,8 @@ export default function EngagementPage() {
         await api.put(`/engagement/posts/${editingPost.id}`, payload);
         postId = editingPost.id;
       } else {
-        const created = await api.post<Post>('/engagement/posts', payload);
-        postId = created.id;
+        const created = await api.post<any>('/engagement/posts', payload);
+        postId = (created?.data ?? created)?.id;
       }
 
       await api.post(`/engagement/posts/${postId}/publish`);
@@ -684,7 +684,7 @@ export default function EngagementPage() {
 
   const renderDialog = () => (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{editingPost ? 'Edit Post' : 'Create Post'}</DialogTitle>
         </DialogHeader>
