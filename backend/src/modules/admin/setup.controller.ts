@@ -1,4 +1,4 @@
-import { Controller, Post, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../../database/prisma.service';
 import { UserRole, UserStatus } from '@prisma/client';
@@ -8,6 +8,12 @@ import * as bcrypt from 'bcryptjs';
 @Controller('setup')
 export class SetupController {
   constructor(private readonly prisma: PrismaService) {}
+
+  @Get('director')
+  @ApiOperation({ summary: 'Check if the Director setup endpoint is reachable' })
+  checkDirectorSetup() {
+    return { status: 'ok', message: 'Director setup endpoint is reachable. Use POST to create or reset the Director account.' };
+  }
 
   @Post('director')
   @ApiOperation({ summary: 'Create or reset the Director (General Overseer) account' })
