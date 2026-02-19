@@ -13,8 +13,12 @@ import {
   Upload,
   FileText,
   TrendingUp,
-  ChevronLeft,
-  ChevronRight,
+  MessageSquare,
+  Sparkles,
+  Clock,
+  Archive,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +44,9 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { cn, formatDate, formatNumber } from '@/lib/utils';
 
-// --- Types ---
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type PostType =
   | 'ANNOUNCEMENT'
@@ -106,7 +112,9 @@ interface PostFormData {
   commentsDisabled: boolean;
 }
 
-// --- Constants ---
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const POST_TYPES: PostType[] = [
   'ANNOUNCEMENT',
@@ -129,21 +137,63 @@ const POST_TYPE_LABELS: Record<PostType, string> = {
 };
 
 const POST_TYPE_COLORS: Record<PostType, string> = {
-  ANNOUNCEMENT: 'bg-blue-100 text-blue-800',
-  PRODUCT_UPDATE: 'bg-purple-100 text-purple-800',
-  EDUCATIONAL_TIP: 'bg-green-100 text-green-800',
-  EVENT: 'bg-orange-100 text-orange-800',
-  POLL: 'bg-cyan-100 text-cyan-800',
-  CASE_STUDY: 'bg-indigo-100 text-indigo-800',
-  SPONSORED_FEATURE: 'bg-pink-100 text-pink-800',
+  ANNOUNCEMENT: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  PRODUCT_UPDATE: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  EDUCATIONAL_TIP: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+  EVENT: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  POLL: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+  CASE_STUDY: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+  SPONSORED_FEATURE: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
 };
 
-const STATUS_COLORS: Record<PostStatus, string> = {
-  DRAFT: 'bg-gray-100 text-gray-800',
-  PUBLISHED: 'bg-green-100 text-green-800',
-  SCHEDULED: 'bg-yellow-100 text-yellow-800',
-  ARCHIVED: 'bg-red-100 text-red-800',
+const POST_TYPE_ACCENT: Record<PostType, string> = {
+  ANNOUNCEMENT: 'bg-blue-500',
+  PRODUCT_UPDATE: 'bg-purple-500',
+  EDUCATIONAL_TIP: 'bg-emerald-500',
+  EVENT: 'bg-orange-500',
+  POLL: 'bg-cyan-500',
+  CASE_STUDY: 'bg-indigo-500',
+  SPONSORED_FEATURE: 'bg-pink-500',
 };
+
+const STATUS_CONFIG: Record<PostStatus, { label: string; color: string; bar: string; icon: React.FC<any> }> = {
+  DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400', bar: 'bg-gray-300 dark:bg-gray-600', icon: Circle },
+  PUBLISHED: { label: 'Published', color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400', bar: 'bg-green-500', icon: CheckCircle2 },
+  SCHEDULED: { label: 'Scheduled', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400', bar: 'bg-yellow-400', icon: Clock },
+  ARCHIVED: { label: 'Archived', color: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400', bar: 'bg-red-400', icon: Archive },
+};
+
+const STAT_CARDS = [
+  {
+    key: 'totalPosts' as const,
+    title: 'Total Posts',
+    icon: FileText,
+    gradient: 'from-blue-500 to-blue-600',
+    glow: 'shadow-blue-500/30',
+  },
+  {
+    key: 'totalViews' as const,
+    title: 'Total Views',
+    icon: Eye,
+    gradient: 'from-purple-500 to-violet-600',
+    glow: 'shadow-purple-500/30',
+  },
+  {
+    key: 'avgEngagementRate' as const,
+    title: 'Engagement Rate',
+    icon: TrendingUp,
+    gradient: 'from-emerald-500 to-teal-600',
+    glow: 'shadow-emerald-500/30',
+    format: (v: number) => `${(v || 0).toFixed(1)}%`,
+  },
+  {
+    key: 'totalReactions' as const,
+    title: 'Reactions',
+    icon: Heart,
+    gradient: 'from-pink-500 to-rose-600',
+    glow: 'shadow-pink-500/30',
+  },
+];
 
 const TAG_OPTIONS = ['CLIENT', 'REALTOR', 'STAFF'] as const;
 
@@ -161,7 +211,9 @@ const EMPTY_FORM: PostFormData = {
   commentsDisabled: false,
 };
 
-// --- Component ---
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function EngagementPage() {
   const [activeTab, setActiveTab] = useState<'posts' | 'analytics'>('posts');
@@ -185,7 +237,9 @@ export default function EngagementPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
-  // --- Data fetching ---
+  // ---------------------------------------------------------------------------
+  // Data fetching
+  // ---------------------------------------------------------------------------
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -193,10 +247,7 @@ export default function EngagementPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter !== 'ALL') params.set('status', statusFilter);
       if (typeFilter !== 'ALL') params.set('type', typeFilter);
-
-      const res = await api.get<{ data: Post[]; meta: PostMeta }>(
-        `/engagement/posts?${params}`
-      );
+      const res = await api.get<{ data: Post[]; meta: PostMeta }>(`/engagement/posts?${params}`);
       setPosts(res.data || []);
       setMeta(res.meta || { page: 1, limit: 20, total: 0, totalPages: 1 });
     } catch {
@@ -219,27 +270,22 @@ export default function EngagementPage() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'posts') {
-      fetchPosts();
-    } else {
-      fetchAnalytics();
-    }
+    if (activeTab === 'posts') fetchPosts();
+    else fetchAnalytics();
   }, [activeTab, fetchPosts, fetchAnalytics]);
 
-  // --- Handlers ---
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
 
-  const updateForm = (field: keyof PostFormData, value: any) => {
+  const updateForm = (field: keyof PostFormData, value: any) =>
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
 
-  const toggleTag = (tag: string) => {
+  const toggleTag = (tag: string) =>
     setForm((prev) => ({
       ...prev,
-      tags: prev.tags.includes(tag)
-        ? prev.tags.filter((t) => t !== tag)
-        : [...prev.tags, tag],
+      tags: prev.tags.includes(tag) ? prev.tags.filter((t) => t !== tag) : [...prev.tags, tag],
     }));
-  };
 
   const openCreateDialog = () => {
     setEditingPost(null);
@@ -257,12 +303,8 @@ export default function EngagementPage() {
       mediaUrl: post.mediaUrl || '',
       externalLink: post.externalLink || '',
       tags: post.tags || [],
-      scheduledAt: post.scheduledAt
-        ? new Date(post.scheduledAt).toISOString().slice(0, 16)
-        : '',
-      expiresAt: post.expiresAt
-        ? new Date(post.expiresAt).toISOString().slice(0, 16)
-        : '',
+      scheduledAt: post.scheduledAt ? new Date(post.scheduledAt).toISOString().slice(0, 16) : '',
+      expiresAt: post.expiresAt ? new Date(post.expiresAt).toISOString().slice(0, 16) : '',
       isPinned: post.isPinned,
       commentsDisabled: post.commentsDisabled,
     });
@@ -296,7 +338,7 @@ export default function EngagementPage() {
       const payload = buildPayload();
       if (editingPost) {
         await api.put(`/engagement/posts/${editingPost.id}`, payload);
-        toast.success('Post updated successfully');
+        toast.success('Post updated');
       } else {
         await api.post('/engagement/posts', payload);
         toast.success('Post saved as draft');
@@ -319,7 +361,6 @@ export default function EngagementPage() {
     try {
       const payload = buildPayload();
       let postId: string;
-
       if (editingPost) {
         await api.put(`/engagement/posts/${editingPost.id}`, payload);
         postId = editingPost.id;
@@ -327,7 +368,6 @@ export default function EngagementPage() {
         const created = await api.post<any>('/engagement/posts', payload);
         postId = (created?.data ?? created)?.id;
       }
-
       await api.post(`/engagement/posts/${postId}/publish`);
       toast.success('Post published successfully');
       setDialogOpen(false);
@@ -350,12 +390,12 @@ export default function EngagementPage() {
       }
       fetchPosts();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update post status');
+      toast.error(err.message || 'Failed to update post');
     }
   };
 
   const handleDelete = async (post: Post) => {
-    if (!confirm(`Are you sure you want to archive "${post.title}"?`)) return;
+    if (!confirm(`Archive "${post.title}"?`)) return;
     try {
       await api.delete(`/engagement/posts/${post.id}`);
       toast.success('Post archived');
@@ -388,261 +428,232 @@ export default function EngagementPage() {
     input.click();
   };
 
-  // --- Render ---
+  // ---------------------------------------------------------------------------
+  // Render: Posts tab
+  // ---------------------------------------------------------------------------
 
   const renderPostsTab = () => (
     <>
-      {/* Filters */}
+      {/* Filter bar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-full sm:w-[160px]">
+          <SelectTrigger className="w-full sm:w-[150px] rounded-xl">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Statuses</SelectItem>
-            <SelectItem value="DRAFT">Draft</SelectItem>
-            <SelectItem value="PUBLISHED">Published</SelectItem>
-            <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+            {(Object.keys(STATUS_CONFIG) as PostStatus[]).map((s) => (
+              <SelectItem key={s} value={s}>{STATUS_CONFIG[s].label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
         <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-full sm:w-[180px] rounded-xl">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Types</SelectItem>
             {POST_TYPES.map((type) => (
-              <SelectItem key={type} value={type}>
-                {POST_TYPE_LABELS[type]}
-              </SelectItem>
+              <SelectItem key={type} value={type}>{POST_TYPE_LABELS[type]}</SelectItem>
             ))}
           </SelectContent>
         </Select>
 
         <div className="flex-1" />
 
-        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
+        <Button
+          onClick={openCreateDialog}
+          className="w-full sm:w-auto bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-500/90 shadow-md rounded-xl"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create Post
         </Button>
       </div>
 
-      {/* Posts Table */}
-      <Card>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">Loading posts...</span>
-            </div>
-          ) : posts.length === 0 ? (
-            <div className="text-center py-16">
-              <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-muted-foreground">No posts found</p>
-              <Button variant="outline" className="mt-4" onClick={openCreateDialog}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create your first post
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Title</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground hidden md:table-cell">Type</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                      <th className="text-center py-3 px-4 font-medium text-muted-foreground hidden lg:table-cell">Views</th>
-                      <th className="text-center py-3 px-4 font-medium text-muted-foreground hidden lg:table-cell">Reactions</th>
-                      <th className="text-center py-3 px-4 font-medium text-muted-foreground hidden lg:table-cell">Comments</th>
-                      <th className="text-left py-3 px-4 font-medium text-muted-foreground hidden xl:table-cell">Published</th>
-                      <th className="text-right py-3 px-4 font-medium text-muted-foreground">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {posts.map((post) => (
-                      <tr key={post.id} className="border-b last:border-0 hover:bg-muted/50">
-                        <td className="py-3 px-4">
-                          <div className="font-medium truncate max-w-[200px] lg:max-w-[300px]">
-                            {post.title}
-                          </div>
-                          <div className="md:hidden mt-1">
-                            <Badge className={cn('text-xs', POST_TYPE_COLORS[post.type])} variant="secondary">
-                              {POST_TYPE_LABELS[post.type]}
-                            </Badge>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 hidden md:table-cell">
-                          <Badge className={cn('text-xs', POST_TYPE_COLORS[post.type])} variant="secondary">
-                            {POST_TYPE_LABELS[post.type]}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className={cn('text-xs', STATUS_COLORS[post.status])} variant="secondary">
-                            {post.status}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4 text-center hidden lg:table-cell text-muted-foreground">
-                          {formatNumber(post.viewCount || 0)}
-                        </td>
-                        <td className="py-3 px-4 text-center hidden lg:table-cell text-muted-foreground">
-                          {formatNumber(post.reactionCount || 0)}
-                        </td>
-                        <td className="py-3 px-4 text-center hidden lg:table-cell text-muted-foreground">
-                          {formatNumber(post.commentCount || 0)}
-                        </td>
-                        <td className="py-3 px-4 hidden xl:table-cell text-muted-foreground">
-                          {post.publishedAt ? formatDate(post.publishedAt) : '--'}
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => openEditDialog(post)}
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleTogglePublish(post)}
-                              title={post.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
-                              className={post.status === 'PUBLISHED' ? 'text-yellow-600 hover:text-yellow-700' : 'text-green-600 hover:text-green-700'}
-                            >
-                              <Send className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(post)}
-                              title="Archive"
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+      {/* Posts card list */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading posts…</p>
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-emerald-500/10 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-primary/50" />
+          </div>
+          <div className="text-center">
+            <p className="font-semibold text-gray-700 dark:text-gray-300">No posts yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Create your first engagement post</p>
+          </div>
+          <Button onClick={openCreateDialog} className="rounded-xl bg-gradient-to-r from-primary to-emerald-500">
+            <Plus className="w-4 h-4 mr-2" /> Create Post
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {posts.map((post) => {
+            const statusCfg = STATUS_CONFIG[post.status];
+            const StatusIcon = statusCfg.icon;
+            return (
+              <div
+                key={post.id}
+                className="group flex items-stretch gap-0 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+              >
+                {/* Left status bar */}
+                <div className={cn('w-1.5 shrink-0', statusCfg.bar)} />
 
-              {/* Pagination */}
-              {meta.totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 border-t">
-                  <p className="text-sm text-muted-foreground">
-                    Showing {(meta.page - 1) * meta.limit + 1}--{Math.min(meta.page * meta.limit, meta.total)} of{' '}
-                    {meta.total} posts
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={page <= 1}
-                      onClick={() => setPage(page - 1)}
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-1" />
-                      Previous
-                    </Button>
-                    <span className="text-sm text-muted-foreground">
-                      Page {page} of {meta.totalPages}
+                {/* Content */}
+                <div className="flex-1 min-w-0 p-4">
+                  <div className="flex flex-wrap items-start gap-2 mb-2">
+                    {/* Type accent dot */}
+                    <div className={cn('w-2 h-2 rounded-full mt-1.5 shrink-0', POST_TYPE_ACCENT[post.type])} />
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex-1 min-w-0 leading-snug">
+                      {post.title}
+                    </h3>
+                    <span className={cn('text-[11px] font-medium px-2 py-0.5 rounded-full', POST_TYPE_COLORS[post.type])}>
+                      {POST_TYPE_LABELS[post.type]}
                     </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={page >= meta.totalPages}
-                      onClick={() => setPage(page + 1)}
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
+                    <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full', statusCfg.color)}>
+                      <StatusIcon className="w-3 h-3" />
+                      {statusCfg.label}
+                    </span>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-gray-400 dark:text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3.5 h-3.5" />{formatNumber(post.viewCount)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Heart className="w-3.5 h-3.5" />{formatNumber(post.reactionCount)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <MessageSquare className="w-3.5 h-3.5" />{formatNumber(post.commentCount)}
+                    </span>
+                    {post.publishedAt && (
+                      <span className="text-gray-300 dark:text-gray-600">{formatDate(post.publishedAt)}</span>
+                    )}
                   </div>
                 </div>
-              )}
-            </>
+
+                {/* Actions — always visible on mobile, hover on desktop */}
+                <div className="flex items-center gap-1 px-3 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+                  <button
+                    onClick={() => openEditDialog(post)}
+                    title="Edit"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary hover:bg-primary/10 transition-all duration-200"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleTogglePublish(post)}
+                    title={post.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+                    className={cn(
+                      'w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200',
+                      post.status === 'PUBLISHED'
+                        ? 'text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20'
+                        : 'text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20'
+                    )}
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(post)}
+                    title="Archive"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-200"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Pagination */}
+          {meta.totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2">
+              <p className="text-sm text-muted-foreground">
+                {(meta.page - 1) * meta.limit + 1}–{Math.min(meta.page * meta.limit, meta.total)} of {meta.total}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded-xl">
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground px-1">{page} / {meta.totalPages}</span>
+                <Button variant="outline" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage(page + 1)} className="rounded-xl">
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </>
   );
+
+  // ---------------------------------------------------------------------------
+  // Render: Analytics tab
+  // ---------------------------------------------------------------------------
 
   const renderAnalyticsTab = () => {
     if (analyticsLoading) {
       return (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">Loading analytics...</span>
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Loader2 className="w-7 h-7 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading analytics…</p>
         </div>
       );
     }
-
     if (!analytics) {
       return (
-        <div className="text-center py-20">
-          <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="text-muted-foreground">No analytics data available</p>
+        <div className="flex flex-col items-center justify-center py-20 gap-4">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary/10 to-emerald-500/10 flex items-center justify-center">
+            <BarChart3 className="w-8 h-8 text-primary/50" />
+          </div>
+          <p className="text-muted-foreground">No analytics data yet</p>
         </div>
       );
     }
-
-    const statCards = [
-      {
-        title: 'Total Posts',
-        value: formatNumber(analytics.totalPosts),
-        icon: FileText,
-        color: 'text-blue-600',
-        bg: 'bg-blue-100',
-      },
-      {
-        title: 'Total Views',
-        value: formatNumber(analytics.totalViews),
-        icon: Eye,
-        color: 'text-purple-600',
-        bg: 'bg-purple-100',
-      },
-      {
-        title: 'Engagement Rate',
-        value: `${(analytics.avgEngagementRate || 0).toFixed(1)}%`,
-        icon: TrendingUp,
-        color: 'text-green-600',
-        bg: 'bg-green-100',
-      },
-      {
-        title: 'Total Reactions',
-        value: formatNumber(analytics.totalReactions),
-        icon: Heart,
-        color: 'text-pink-600',
-        bg: 'bg-pink-100',
-      },
-    ];
 
     return (
       <div className="space-y-6">
-        {/* Stat Cards */}
+        {/* Gradient stat cards */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          {statCards.map((stat) => (
-            <Card key={stat.title}>
-              <CardContent className="p-6">
-                <div className={cn('inline-flex p-3 rounded-lg mb-4', stat.bg)}>
-                  <stat.icon className={cn('w-6 h-6', stat.color)} />
+          {STAT_CARDS.map((stat) => {
+            const rawVal = analytics[stat.key as keyof Analytics] as number;
+            const displayVal = stat.format ? stat.format(rawVal) : formatNumber(rawVal);
+            const Icon = stat.icon;
+            return (
+              <div
+                key={stat.title}
+                className={cn(
+                  'relative overflow-hidden rounded-2xl p-5 text-white',
+                  `bg-gradient-to-br ${stat.gradient}`,
+                  `shadow-lg ${stat.glow}`
+                )}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="text-3xl font-bold tracking-tight">{displayVal}</span>
                 </div>
-                <h3 className="text-2xl font-bold">{stat.value}</h3>
-                <p className="text-sm text-muted-foreground">{stat.title}</p>
-              </CardContent>
-            </Card>
-          ))}
+                <p className="text-sm font-medium opacity-90">{stat.title}</p>
+                {/* Decorative circle */}
+                <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full" />
+              </div>
+            );
+          })}
         </div>
 
-        {/* Type Breakdown */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
+        {/* Type breakdown */}
+        <Card className="rounded-2xl border-gray-100 dark:border-gray-800 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center">
+                <BarChart3 className="w-4 h-4 text-white" />
+              </div>
               Posts by Type
             </CardTitle>
           </CardHeader>
@@ -653,34 +664,43 @@ export default function EngagementPage() {
                   const postType = type as PostType;
                   const maxCount = Math.max(...Object.values(analytics.typeBreakdown));
                   const percentage = maxCount > 0 ? (count / maxCount) * 100 : 0;
-
+                  const typeColors: Record<string, string> = {
+                    ANNOUNCEMENT: 'bg-blue-500',
+                    PRODUCT_UPDATE: 'bg-purple-500',
+                    EDUCATIONAL_TIP: 'bg-emerald-500',
+                    EVENT: 'bg-orange-500',
+                    POLL: 'bg-cyan-500',
+                    CASE_STUDY: 'bg-indigo-500',
+                    SPONSORED_FEATURE: 'bg-pink-500',
+                  };
                   return (
                     <div key={type} className="flex items-center gap-3">
-                      <Badge
-                        className={cn('text-xs w-[140px] justify-center shrink-0', POST_TYPE_COLORS[postType])}
-                        variant="secondary"
-                      >
+                      <span className={cn('text-[11px] font-medium px-2.5 py-1 rounded-full w-[140px] text-center shrink-0', POST_TYPE_COLORS[postType])}>
                         {POST_TYPE_LABELS[postType] || type}
-                      </Badge>
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                      </span>
+                      <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-primary rounded-full transition-all"
+                          className={cn('h-full rounded-full transition-all duration-700', typeColors[type] || 'bg-primary')}
                           style={{ width: `${percentage}%` }}
                         />
                       </div>
-                      <span className="text-sm font-medium w-10 text-right">{count}</span>
+                      <span className="text-sm font-semibold w-8 text-right text-gray-700 dark:text-gray-300">{count}</span>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <p className="text-muted-foreground text-sm">No type breakdown data available</p>
+              <p className="text-sm text-muted-foreground">No data yet</p>
             )}
           </CardContent>
         </Card>
       </div>
     );
   };
+
+  // ---------------------------------------------------------------------------
+  // Render: Dialog
+  // ---------------------------------------------------------------------------
 
   const renderDialog = () => (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -690,34 +710,30 @@ export default function EngagementPage() {
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Title */}
           <div>
             <label className="text-sm font-medium mb-1 block">Title *</label>
             <Input
               placeholder="Enter post title"
               value={form.title}
               onChange={(e) => updateForm('title', e.target.value)}
+              className="rounded-xl"
             />
           </div>
 
-          {/* Post Type */}
           <div>
             <label className="text-sm font-medium mb-1 block">Post Type *</label>
             <Select value={form.type} onValueChange={(v) => updateForm('type', v)}>
-              <SelectTrigger>
+              <SelectTrigger className="rounded-xl">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
                 {POST_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {POST_TYPE_LABELS[type]}
-                  </SelectItem>
+                  <SelectItem key={type} value={type}>{POST_TYPE_LABELS[type]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Content */}
           <div>
             <label className="text-sm font-medium mb-1 block">Content *</label>
             <Textarea
@@ -725,10 +741,10 @@ export default function EngagementPage() {
               value={form.content}
               onChange={(e) => updateForm('content', e.target.value)}
               rows={6}
+              className="rounded-xl resize-none"
             />
           </div>
 
-          {/* Excerpt */}
           <div>
             <label className="text-sm font-medium mb-1 block">Excerpt</label>
             <Textarea
@@ -736,10 +752,10 @@ export default function EngagementPage() {
               value={form.excerpt}
               onChange={(e) => updateForm('excerpt', e.target.value)}
               rows={2}
+              className="rounded-xl resize-none"
             />
           </div>
 
-          {/* Media URL + Upload */}
           <div>
             <label className="text-sm font-medium mb-1 block">Media</label>
             <div className="flex items-center gap-2">
@@ -747,19 +763,10 @@ export default function EngagementPage() {
                 placeholder="Media URL"
                 value={form.mediaUrl}
                 onChange={(e) => updateForm('mediaUrl', e.target.value)}
-                className="flex-1"
+                className="flex-1 rounded-xl"
               />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleMediaUpload}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Upload className="w-4 h-4" />
-                )}
+              <Button type="button" variant="outline" onClick={handleMediaUpload} disabled={uploading} className="rounded-xl">
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 <span className="ml-2 hidden sm:inline">Upload</span>
               </Button>
             </div>
@@ -767,35 +774,30 @@ export default function EngagementPage() {
               <img
                 src={form.mediaUrl}
                 alt="Preview"
-                className="mt-2 w-full max-h-40 object-cover rounded-lg border"
+                className="mt-2 w-full max-h-40 object-cover rounded-xl border"
               />
             )}
           </div>
 
-          {/* External Link */}
           <div>
             <label className="text-sm font-medium mb-1 block">External Link URL</label>
             <Input
               placeholder="https://example.com"
               value={form.externalLink}
               onChange={(e) => updateForm('externalLink', e.target.value)}
+              className="rounded-xl"
             />
           </div>
 
-          {/* Tags */}
           <div>
-            <label className="text-sm font-medium mb-1 block">
-              Target Audience
-            </label>
-            <p className="text-xs text-muted-foreground mb-2">
-              Select who should see this post. If none selected, defaults to all users.
-            </p>
-            <div className="flex flex-wrap gap-3">
+            <label className="text-sm font-medium mb-1 block">Target Audience</label>
+            <p className="text-xs text-muted-foreground mb-2">Select who should see this post. If none, all users see it.</p>
+            <div className="flex flex-wrap gap-2">
               {TAG_OPTIONS.map((tag) => (
                 <label
                   key={tag}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 border rounded-lg cursor-pointer transition-colors text-sm',
+                    'flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer transition-colors text-sm',
                     form.tags.includes(tag)
                       ? 'border-primary bg-primary/5 text-primary'
                       : 'border-input hover:bg-muted'
@@ -805,7 +807,7 @@ export default function EngagementPage() {
                     type="checkbox"
                     checked={form.tags.includes(tag)}
                     onChange={() => toggleTag(tag)}
-                    className="rounded border-gray-300"
+                    className="rounded"
                   />
                   {tag.charAt(0) + tag.slice(1).toLowerCase()}
                 </label>
@@ -813,7 +815,6 @@ export default function EngagementPage() {
             </div>
           </div>
 
-          {/* Schedule & Expiry */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium mb-1 block">Schedule Date</label>
@@ -821,6 +822,7 @@ export default function EngagementPage() {
                 type="datetime-local"
                 value={form.scheduledAt}
                 onChange={(e) => updateForm('scheduledAt', e.target.value)}
+                className="rounded-xl"
               />
             </div>
             <div>
@@ -829,39 +831,33 @@ export default function EngagementPage() {
                 type="datetime-local"
                 value={form.expiresAt}
                 onChange={(e) => updateForm('expiresAt', e.target.value)}
+                className="rounded-xl"
               />
             </div>
           </div>
 
-          {/* Toggles */}
           <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
             <div className="flex items-center gap-3">
-              <Switch
-                checked={form.isPinned}
-                onCheckedChange={(checked) => updateForm('isPinned', checked)}
-              />
+              <Switch checked={form.isPinned} onCheckedChange={(v) => updateForm('isPinned', v)} />
               <label className="text-sm font-medium">Pin Post</label>
             </div>
             <div className="flex items-center gap-3">
-              <Switch
-                checked={form.commentsDisabled}
-                onCheckedChange={(checked) => updateForm('commentsDisabled', checked)}
-              />
+              <Switch checked={form.commentsDisabled} onCheckedChange={(v) => updateForm('commentsDisabled', v)} />
               <label className="text-sm font-medium">Disable Comments</label>
             </div>
           </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            variant="outline"
-            onClick={handleSaveDraft}
-            disabled={submitting}
-          >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          <Button variant="outline" onClick={handleSaveDraft} disabled={submitting} className="rounded-xl">
+            {submitting && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             Save as Draft
           </Button>
-          <Button onClick={handlePublish} disabled={submitting}>
+          <Button
+            onClick={handlePublish}
+            disabled={submitting}
+            className="rounded-xl bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-500/90"
+          >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
             Publish
           </Button>
@@ -870,36 +866,57 @@ export default function EngagementPage() {
     </Dialog>
   );
 
+  // ---------------------------------------------------------------------------
+  // Main render
+  // ---------------------------------------------------------------------------
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Engagement Management</h1>
-        <p className="text-muted-foreground">Create and manage engagement posts for your audience</p>
+      {/* Page header */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-emerald-600 to-teal-500 p-5 sm:p-6 text-white shadow-lg">
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="w-4 h-4 opacity-80" />
+            <span className="text-xs font-semibold uppercase tracking-widest opacity-80">Content Hub</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold">Engagement Management</h1>
+          <p className="text-sm opacity-75 mt-0.5">Create and manage posts for your audience</p>
+        </div>
+        <div className="absolute -right-6 -top-6 w-36 h-36 bg-white/10 rounded-full blur-sm" />
+        <div className="absolute right-20 -top-4 w-12 h-12 bg-white/10 rounded-full" />
       </div>
 
       {/* Tabs */}
       <div className="flex gap-2">
-        <Button
-          variant={activeTab === 'posts' ? 'default' : 'outline'}
+        <button
           onClick={() => setActiveTab('posts')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
+            activeTab === 'posts'
+              ? 'bg-gradient-to-r from-primary to-emerald-500 text-white shadow-md'
+              : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/40 hover:text-primary'
+          )}
         >
-          <FileText className="w-4 h-4 mr-2" />
+          <FileText className="w-4 h-4" />
           Posts
-        </Button>
-        <Button
-          variant={activeTab === 'analytics' ? 'default' : 'outline'}
+        </button>
+        <button
           onClick={() => setActiveTab('analytics')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-semibold transition-all duration-200',
+            activeTab === 'analytics'
+              ? 'bg-gradient-to-r from-primary to-emerald-500 text-white shadow-md'
+              : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/40 hover:text-primary'
+          )}
         >
-          <BarChart3 className="w-4 h-4 mr-2" />
+          <BarChart3 className="w-4 h-4" />
           Analytics
-        </Button>
+        </button>
       </div>
 
-      {/* Tab Content */}
+      {/* Tab content */}
       {activeTab === 'posts' ? renderPostsTab() : renderAnalyticsTab()}
 
-      {/* Create/Edit Dialog */}
       {renderDialog()}
     </div>
   );
