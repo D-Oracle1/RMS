@@ -1,32 +1,23 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   FileText,
   Search,
   Download,
   DollarSign,
-  TrendingUp,
   Percent,
-  Settings,
-  Save,
-  Calendar,
   CheckCircle,
   Clock,
+  Calendar,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
 import { ReceiptModal, ReceiptData } from '@/components/receipt';
 import { toast } from 'sonner';
@@ -35,54 +26,73 @@ import { useBranding, getCompanyName } from '@/hooks/use-branding';
 
 type TimePeriod = 'month' | 'quarter' | 'year' | 'all';
 
-interface TaxSettings {
-  standardRate: number;
-  withholdingRate: number;
-  vatRate: number;
-  stampDutyRate: number;
-}
-
-const defaultTaxSettings: TaxSettings = {
-  standardRate: 15,
-  withholdingRate: 10,
-  vatRate: 7.5,
-  stampDutyRate: 0.5,
-};
-
 export default function TaxPage() {
   const branding = useBranding();
   const companyName = getCompanyName(branding);
   const [searchTerm, setSearchTerm] = useState('');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('all');
-  const [showTaxSettings, setShowTaxSettings] = useState(false);
-  const [taxSettings, setTaxSettings] = useState<TaxSettings>(defaultTaxSettings);
-  const [editingSettings, setEditingSettings] = useState<TaxSettings>(defaultTaxSettings);
+  const [vatRate, setVatRate] = useState<number>(7.5);
+  const [isSaving, setIsSaving] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [taxRecords, setTaxRecords] = useState<any[]>([]);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch tax rates from API on mount
+  // Fetch VAT rate from API on mount
   const fetchTaxRates = useCallback(async () => {
     try {
-      const data = await api.get<{ incomeTax: number; withholdingTax: number; vat: number; stampDuty: number }>('/settings/tax-rates');
-      setTaxSettings({
-        standardRate: Math.round(data.incomeTax * 100 * 100) / 100,
-        withholdingRate: Math.round(data.withholdingTax * 100 * 100) / 100,
-        vatRate: Math.round(data.vat * 100 * 100) / 100,
-        stampDutyRate: Math.round(data.stampDuty * 100 * 100) / 100,
-      });
+      const response: any = await api.get('/settings/tax-rates');
+      const data = response?.data ?? response;
+      if (data?.vat != null) {
+        setVatRate(Math.round(data.vat * 100 * 100) / 100);
+      }
     } catch {
-      // Keep existing defaults on failure
+      // Keep default
     }
   }, []);
 
   // Fetch tax records from API on mount
   const fetchTaxRecords = useCallback(async () => {
     try {
-      const data = await api.get<typeof taxRecords>('/taxes?limit=50');
-      if (Array.isArray(data) && data.length > 0) {
-        setTaxRecords(data);
-      }
+      const response: any = await api.get('/taxes?limit=100');
+      // api.get returns TransformInterceptor wrapper { success, data: { data: [...], meta }, timestamp }
+      const outer = response?.data ?? response;
+      const rawRecords: any[] = Array.isArray(outer) ? outer : (Array.isArray(outer?.data) ? outer.data : []);
+
+      // Map raw Tax model records to the shape the page expects.
+      // Tax model fields: id, amount (Decimal), rate (Float), year, quarter
+      // Joined: sale.commissionAmount, sale.salePrice, sale.property.title
+      // Joined: realtor.loyaltyTier, realtor.user.firstName/lastName
+      const mapped = rawRecords.map((item: any) => {
+        const realtorUser = item.realtor?.user;
+        const realtorName = realtorUser
+          ? `${realtorUser.firstName ?? ''} ${realtorUser.lastName ?? ''}`.trim()
+          : 'Unknown';
+        const grossCommission = Number(item.sale?.commissionAmount ?? 0);
+        const taxAmount = Number(item.amount ?? 0);
+        const netEarnings = grossCommission - taxAmount;
+        const taxRate = Number(item.rate ?? 0) * 100; // convert decimal to percentage
+
+        return {
+          id: item.id,
+          realtor: realtorName,
+          tier: item.realtor?.loyaltyTier ?? 'BRONZE',
+          email: realtorUser?.email ?? '',
+          grossCommission,
+          taxAmount,
+          netEarnings,
+          taxRate,
+          year: item.year ?? new Date().getFullYear(),
+          quarter: item.quarter ?? 1,
+          // Derive month as the first month of the quarter (0-indexed) for time filtering
+          month: ((item.quarter ?? 1) - 1) * 3,
+          status: 'FILED',
+          sale: item.sale?.property?.title ?? 'N/A',
+          saleAmount: Number(item.sale?.salePrice ?? 0),
+        };
+      });
+
+      setTaxRecords(mapped);
     } catch {
       // API unavailable, show empty state
     }
@@ -93,22 +103,39 @@ export default function TaxPage() {
     fetchTaxRecords();
   }, [fetchTaxRates, fetchTaxRecords]);
 
-  // Filter by time period
+  // Auto-save VAT rate when it changes (debounced 600ms)
+  const handleVatChange = (value: number) => {
+    setVatRate(value);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      setIsSaving(true);
+      try {
+        await api.put('/settings/tax-rates', { vat: value / 100 });
+        toast.success('VAT rate updated');
+      } catch {
+        toast.error('Failed to update VAT rate');
+      } finally {
+        setIsSaving(false);
+      }
+    }, 600);
+  };
+
+  // Filter by time period — tax records are stored by year + quarter, not by month
   const filteredByTime = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
+    const currentQuarter = Math.floor(currentMonth / 3) + 1; // 1-4
 
     return taxRecords.filter(report => {
       switch (timePeriod) {
         case 'month':
-          return report.month === currentMonth && report.year === currentYear;
+          // Tax is quarterly; "This Month" shows the current quarter's taxes
+          return report.quarter === currentQuarter && report.year === currentYear;
         case 'quarter':
-          const currentQuarter = Math.floor(currentMonth / 3);
-          const reportQuarter = Math.floor(report.month / 3);
-          return reportQuarter === currentQuarter && report.year === currentYear;
+          return report.quarter === currentQuarter && report.year === currentYear;
         case 'year':
-          return report.year === currentYear || report.year === currentYear - 1;
+          return report.year === currentYear;
         case 'all':
         default:
           return true;
@@ -116,45 +143,28 @@ export default function TaxPage() {
     });
   }, [timePeriod, taxRecords]);
 
-  const filteredReports = filteredByTime.filter(report => {
-    return report.realtor.toLowerCase().includes(searchTerm.toLowerCase());
-  });
+  const filteredReports = filteredByTime.filter(report =>
+    report.realtor?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // Calculate stats based on filtered data
   const stats = useMemo(() => {
-    const totalTax = filteredByTime.reduce((acc, r) => acc + r.taxAmount, 0);
+    const totalTax = filteredByTime.reduce((acc, r) => acc + (r.taxAmount || 0), 0);
     const filedCount = filteredByTime.filter(r => r.status === 'FILED').length;
     const pendingCount = filteredByTime.filter(r => r.status === 'PENDING').length;
 
     return [
       { title: 'Total Tax Collected', value: formatCurrency(totalTax), icon: DollarSign, color: 'text-primary', bgColor: 'bg-primary/10' },
-      { title: 'Current Tax Rate', value: `${taxSettings.standardRate}%`, icon: Percent, color: 'text-blue-600', bgColor: 'bg-blue-100' },
+      { title: 'VAT Rate', value: `${vatRate}%`, icon: Percent, color: 'text-blue-600', bgColor: 'bg-blue-100' },
       { title: 'Reports Filed', value: filedCount.toString(), icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100' },
       { title: 'Pending Reports', value: pendingCount.toString(), icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-100' },
     ];
-  }, [filteredByTime, taxSettings.standardRate]);
-
-  const handleSaveSettings = async () => {
-    try {
-      await api.put('/settings/tax-rates', {
-        incomeTax: editingSettings.standardRate / 100,
-        withholdingTax: editingSettings.withholdingRate / 100,
-        vat: editingSettings.vatRate / 100,
-        stampDuty: editingSettings.stampDutyRate / 100,
-      });
-      setTaxSettings(editingSettings);
-      setShowTaxSettings(false);
-      toast.success('Tax rates updated successfully!');
-    } catch {
-      toast.error('Failed to update tax rates. Please try again.');
-    }
-  };
+  }, [filteredByTime, vatRate]);
 
   const generateTaxStatement = (report: typeof taxRecords[0]) => {
     const receipt: ReceiptData = {
       type: 'tax',
-      receiptNumber: `TAX-${report.year}-${report.id.toString().padStart(6, '0')}`,
-      date: `${report.year}-${(report.month + 1).toString().padStart(2, '0')}-01`,
+      receiptNumber: `TAX-${report.year}-${report.id?.toString().padStart(6, '0')}`,
+      date: `${report.year}-${((report.month || 0) + 1).toString().padStart(2, '0')}-01`,
       seller: {
         name: companyName + ' - Tax Division',
         email: branding.supportEmail || '',
@@ -166,38 +176,25 @@ export default function TaxPage() {
         email: report.email,
       },
       items: [
-        {
-          description: 'Gross Commission Earnings',
-          amount: report.grossCommission,
-        },
-        {
-          description: `Income Tax Deduction (${report.taxRate}%)`,
-          amount: -report.taxAmount,
-        },
+        { description: 'Gross Commission Earnings', amount: report.grossCommission },
+        { description: `VAT Deduction (${report.taxRate}%)`, amount: -report.taxAmount },
       ],
       subtotal: report.grossCommission,
-      fees: [
-        {
-          label: `Tax (${report.taxRate}%)`,
-          amount: report.taxAmount,
-        },
-      ],
+      fees: [{ label: `VAT (${report.taxRate}%)`, amount: report.taxAmount }],
       total: report.netEarnings,
       status: report.status === 'FILED' ? 'completed' : 'pending',
-      notes: `Tax Year: ${report.year} | This document serves as an official tax deduction statement for income tax purposes.`,
+      notes: `Tax Year: ${report.year} | Official VAT deduction statement.`,
     };
-
     setReceiptData(receipt);
     setShowReceipt(true);
   };
 
   const handleExportAll = () => {
-    // In a real implementation, this would generate a CSV/Excel file
     const csvContent = [
-      ['Realtor', 'Tier', 'Gross Commission', 'Tax Rate', 'Tax Amount', 'Net Earnings', 'Status'].join(','),
+      ['Realtor', 'Tier', 'Gross Commission', 'VAT Rate', 'Tax Amount', 'Net Earnings', 'Status'].join(','),
       ...filteredReports.map(r =>
         [r.realtor, r.tier, r.grossCommission, `${r.taxRate}%`, r.taxAmount, r.netEarnings, r.status].join(',')
-      )
+      ),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -205,7 +202,6 @@ export default function TaxPage() {
     link.href = URL.createObjectURL(blob);
     link.download = `tax-reports-${timePeriod}.csv`;
     link.click();
-
     toast.success('Tax reports exported successfully!');
   };
 
@@ -224,35 +220,17 @@ export default function TaxPage() {
       <div className="flex flex-wrap gap-4 justify-between items-center">
         <h1 className="text-2xl font-bold">Tax Management</h1>
         <div className="flex gap-2">
-          <Button
-            variant={timePeriod === 'month' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('month')}
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            This Month
-          </Button>
-          <Button
-            variant={timePeriod === 'quarter' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('quarter')}
-          >
-            Quarter
-          </Button>
-          <Button
-            variant={timePeriod === 'year' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('year')}
-          >
-            This Year
-          </Button>
-          <Button
-            variant={timePeriod === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setTimePeriod('all')}
-          >
-            All Time
-          </Button>
+          {(['month', 'quarter', 'year', 'all'] as TimePeriod[]).map(p => (
+            <Button
+              key={p}
+              variant={timePeriod === p ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setTimePeriod(p)}
+            >
+              {p === 'month' && <Calendar className="w-4 h-4 mr-2" />}
+              {p === 'month' ? 'This Month' : p === 'quarter' ? 'Quarter' : p === 'year' ? 'This Year' : 'All Time'}
+            </Button>
+          ))}
         </div>
       </div>
 
@@ -279,54 +257,38 @@ export default function TaxPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Tax Rate Settings */}
+        {/* VAT Rate Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Percent className="w-5 h-5 text-primary" />
-                Tax Rates
+                VAT Rate
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={() => {
-                setEditingSettings(taxSettings);
-                setShowTaxSettings(true);
-              }}>
-                <Settings className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+              <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Standard Income Tax</span>
-                  <span className="text-xl font-bold text-primary">{taxSettings.standardRate}%</span>
+                  <span className="text-sm font-medium">Value Added Tax (VAT)</span>
+                  {isSaving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Applied to all commission earnings</p>
-              </div>
-              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Withholding Tax</span>
-                  <span className="text-xl font-bold text-blue-600">{taxSettings.withholdingRate}%</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    max="100"
+                    value={vatRate}
+                    onChange={(e) => handleVatChange(parseFloat(e.target.value) || 0)}
+                    className="w-28 text-2xl font-bold text-primary h-12"
+                  />
+                  <span className="text-2xl font-bold text-muted-foreground">%</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">For non-resident realtors</p>
-              </div>
-              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">VAT Rate</span>
-                  <span className="text-xl font-bold text-green-600">{taxSettings.vatRate}%</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">Value Added Tax on services</p>
-              </div>
-              <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">Stamp Duty</span>
-                  <span className="text-xl font-bold text-orange-600">{taxSettings.stampDutyRate}%</span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">On property transactions</p>
+                <p className="text-xs text-muted-foreground">Changes are saved automatically</p>
               </div>
             </CardContent>
           </Card>
@@ -363,13 +325,13 @@ export default function TaxPage() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px]">
+                <table className="w-full min-w-[700px]">
                   <thead>
                     <tr className="text-left text-sm text-muted-foreground border-b">
                       <th className="pb-4 font-medium w-[180px]">Realtor</th>
                       <th className="pb-4 font-medium text-right w-[130px]">Gross Commission</th>
-                      <th className="pb-4 font-medium text-center w-[80px]">Tax Rate</th>
-                      <th className="pb-4 font-medium text-right w-[120px]">Tax Amount</th>
+                      <th className="pb-4 font-medium text-center w-[80px]">VAT Rate</th>
+                      <th className="pb-4 font-medium text-right w-[120px]">VAT Amount</th>
                       <th className="pb-4 font-medium text-right w-[130px]">Net Earnings</th>
                       <th className="pb-4 font-medium text-center w-[90px]">Status</th>
                       <th className="pb-4 font-medium text-center w-[100px]">Statement</th>
@@ -382,7 +344,7 @@ export default function TaxPage() {
                           <div className="flex items-center gap-3">
                             <Avatar className="w-8 h-8 shrink-0">
                               <AvatarFallback className="bg-primary text-white text-xs">
-                                {report.realtor.split(' ').map((n: string) => n[0]).join('')}
+                                {report.realtor?.split(' ').map((n: string) => n[0]).join('')}
                               </AvatarFallback>
                             </Avatar>
                             <div className="min-w-0">
@@ -401,11 +363,7 @@ export default function TaxPage() {
                           </Badge>
                         </td>
                         <td className="py-4 text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => generateTaxStatement(report)}
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => generateTaxStatement(report)}>
                             <FileText className="w-4 h-4 mr-1" />
                             View
                           </Button>
@@ -425,78 +383,6 @@ export default function TaxPage() {
         </motion.div>
       </div>
 
-      {/* Tax Settings Dialog */}
-      <Dialog open={showTaxSettings} onOpenChange={setShowTaxSettings}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5" />
-              Edit Tax Rates
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Standard Income Tax Rate (%)</label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                value={editingSettings.standardRate}
-                onChange={(e) => setEditingSettings(prev => ({ ...prev, standardRate: parseFloat(e.target.value) || 0 }))}
-              />
-              <p className="text-xs text-muted-foreground">Applied to all realtor commission earnings</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Withholding Tax Rate (%)</label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                value={editingSettings.withholdingRate}
-                onChange={(e) => setEditingSettings(prev => ({ ...prev, withholdingRate: parseFloat(e.target.value) || 0 }))}
-              />
-              <p className="text-xs text-muted-foreground">For non-resident realtors only</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">VAT Rate (%)</label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                value={editingSettings.vatRate}
-                onChange={(e) => setEditingSettings(prev => ({ ...prev, vatRate: parseFloat(e.target.value) || 0 }))}
-              />
-              <p className="text-xs text-muted-foreground">Value Added Tax on services</p>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Stamp Duty Rate (%)</label>
-              <Input
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                value={editingSettings.stampDutyRate}
-                onChange={(e) => setEditingSettings(prev => ({ ...prev, stampDutyRate: parseFloat(e.target.value) || 0 }))}
-              />
-              <p className="text-xs text-muted-foreground">On property transactions</p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTaxSettings(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveSettings}>
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Receipt Modal */}
       <ReceiptModal
         open={showReceipt}
         onClose={() => setShowReceipt(false)}

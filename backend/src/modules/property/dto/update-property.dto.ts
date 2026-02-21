@@ -46,11 +46,6 @@ export class UpdatePropertyDto {
   @IsString()
   state?: string;
 
-  @ApiPropertyOptional({ example: '90210' })
-  @IsOptional()
-  @IsString()
-  zipCode?: string;
-
   @ApiPropertyOptional({ example: 850000 })
   @IsOptional()
   @IsNumber()

@@ -9,23 +9,33 @@ self.addEventListener('push', (event) => {
     data = { title: 'New Notification', body: event.data?.text() || '' };
   }
 
+  const isCall = data.data?.type === 'call:incoming';
   const title = data.title || 'New Notification';
   const options = {
     body: data.body || '',
     icon: data.icon || '/icons/icon-192x192.png',
     badge: data.badge || '/icons/icon-72x72.png',
-    tag: data.data?.notificationId || 'default',
+    tag: isCall ? 'incoming-call' : (data.data?.notificationId || 'default'),
     data: {
       url: data.data?.link || '/',
       ...data.data,
     },
-    vibrate: [200, 100, 200],
-    requireInteraction: data.data?.priority === 'URGENT',
+    // Calls: long repeating vibration; regular: short
+    vibrate: isCall
+      ? [500, 200, 500, 200, 500, 200, 500, 200, 500]
+      : [200, 100, 200],
+    // Calls and urgent notifications stay on screen until dismissed
+    requireInteraction: isCall || data.data?.priority === 'URGENT',
+    // Show action buttons for calls
+    actions: isCall
+      ? [
+          { action: 'open', title: '📱 Open App' },
+        ]
+      : [],
   };
 
   event.waitUntil(
     self.registration.showNotification(title, options).then(() => {
-      // Update app badge count
       if (navigator.setAppBadge) {
         self.registration.getNotifications().then((notifications) => {
           navigator.setAppBadge(notifications.length);

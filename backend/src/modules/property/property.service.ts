@@ -227,16 +227,30 @@ export class PropertyService {
   }
 
   async delete(id: string) {
-    const property = await this.prisma.property.findUnique({
-      where: { id },
-    });
+    const property = await this.prisma.property.findUnique({ where: { id } });
+    if (!property) throw new NotFoundException('Property not found');
 
-    if (!property) {
-      throw new NotFoundException('Property not found');
-    }
+    await this.prisma.$transaction(async (tx) => {
+      // Get all sale IDs linked to this property
+      const sales = await tx.sale.findMany({ where: { propertyId: id }, select: { id: true } });
+      const saleIds = sales.map((s: any) => s.id);
 
-    await this.prisma.property.delete({
-      where: { id },
+      if (saleIds.length > 0) {
+        // Delete all sale-dependent records first
+        await tx.payment.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.commission.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.tax.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.transaction.deleteMany({ where: { referenceId: { in: saleIds }, referenceType: 'SALE' } });
+        await tx.loyaltyPoints.deleteMany({ where: { saleId: { in: saleIds } } });
+        await tx.sale.deleteMany({ where: { propertyId: id } });
+      }
+
+      // Delete other property-linked records
+      await tx.offer.deleteMany({ where: { propertyId: id } });
+      await tx.document.deleteMany({ where: { propertyId: id } });
+      await tx.priceHistory.deleteMany({ where: { propertyId: id } });
+
+      await tx.property.delete({ where: { id } });
     });
 
     await this.cacheService.invalidate('properties');
@@ -257,6 +271,7 @@ export class PropertyService {
     const skip = (page - 1) * limit;
 
     const where: any = {
+      isListed: true,
       status: { notIn: [PropertyStatus.SOLD, PropertyStatus.OFF_MARKET] },
     };
 

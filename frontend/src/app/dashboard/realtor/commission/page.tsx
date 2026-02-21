@@ -37,30 +37,34 @@ export default function RealtorCommissionPage() {
     GOLD: 4.0,
     PLATINUM: 5.0,
   });
-  const [taxRate, setTaxRate] = useState(15);
+  const [taxRate, setTaxRate] = useState(7.5);
+  const [myTier, setMyTier] = useState('BRONZE');
 
   const fetchCommissions = useCallback(async () => {
     try {
-      const response: any = await api.get('/commissions?limit=50');
-      const payload = response.data || response;
-      const records = Array.isArray(payload) ? payload : payload?.data || [];
-      if (Array.isArray(records) && records.length > 0) {
-        const mapped = records.map((item: any) => ({
-          id: item.id,
-          sale: item.sale?.property?.title || 'Sale',
-          property: item.sale?.property?.type || 'Property',
-          saleAmount: Number(item.sale?.salePrice) || 0,
-          rate: Number(item.rate) * 100 || 0,
-          commission: Number(item.amount) || 0,
-          tax: Number(item.sale?.taxAmount) || 0,
-          net: Number(item.amount) - (Number(item.sale?.taxAmount) || 0),
-          status: item.status || 'PENDING',
-          date: item.createdAt ? new Date(item.createdAt).toISOString().split('T')[0] : '',
-        }));
-        setCommissions(mapped);
-      }
-    } catch {
-      // API unavailable, show empty state
+      const response: any = await api.get('/commissions?limit=100');
+      const inner = response?.data ?? response;
+      const records: any[] = Array.isArray(inner) ? inner : (Array.isArray(inner?.data) ? inner.data : []);
+      const mapped = records.map((item: any) => ({
+        id: item.id,
+        sale: item.sale?.property?.title ?? item.saleTitle ?? 'Sale',
+        property: item.sale?.property?.type ?? 'Property',
+        saleAmount: Number(item.sale?.salePrice ?? item.sale?.totalAmount ?? item.saleAmount ?? 0),
+        rate: item.rate != null ? Number(item.rate) * 100 : (item.commissionRate != null ? Number(item.commissionRate) * 100 : 0),
+        commission: Number(item.amount ?? item.commissionAmount ?? 0),
+        tax: Number(item.sale?.taxAmount ?? item.taxAmount ?? 0),
+        net: Number(item.amount ?? item.commissionAmount ?? 0) - Number(item.sale?.taxAmount ?? item.taxAmount ?? 0),
+        status: item.status || 'PENDING',
+        date: item.paidAt || item.createdAt
+          ? new Date(item.paidAt || item.createdAt).toISOString().split('T')[0]
+          : '',
+        paymentMethod: item.paymentMethod || '',
+        paymentReference: item.paymentReference || '',
+        paymentNotes: item.paymentNotes || '',
+      }));
+      setCommissions(mapped);
+    } catch (err) {
+      console.error('Failed to fetch commissions:', err);
     }
   }, []);
 
@@ -70,23 +74,34 @@ export default function RealtorCommissionPage() {
     const fetchSettings = async () => {
       try {
         const res = await api.get<any>('/settings/commission-rates');
-        const rates = res.data;
-        const converted: Record<string, number> = {};
-        for (const [tier, rate] of Object.entries(rates)) {
-          converted[tier] = Number(rate) * 100;
+        const rates = res?.data ?? res;
+        if (rates && typeof rates === 'object') {
+          const converted: Record<string, number> = {};
+          for (const [tier, rate] of Object.entries(rates)) {
+            converted[tier] = Number(rate) * 100;
+          }
+          setCommissionRates(converted);
         }
-        setCommissionRates(converted);
       } catch {
-        // API unavailable, keep default rates
+        // keep defaults
       }
 
       try {
         const res = await api.get<any>('/settings/tax-rates');
-        if (res.data?.incomeTax != null) {
-          setTaxRate(Number(res.data.incomeTax) * 100);
+        const data = res?.data ?? res;
+        if (data?.vat != null) {
+          setTaxRate(Math.round(Number(data.vat) * 100 * 100) / 100);
         }
       } catch {
-        // API unavailable, keep default rate
+        // keep default
+      }
+
+      try {
+        const res = await api.get<any>('/realtor/profile');
+        const profile = res?.data ?? res;
+        if (profile?.loyaltyTier) setMyTier(profile.loyaltyTier);
+      } catch {
+        // keep default tier
       }
     };
 
@@ -112,7 +127,7 @@ export default function RealtorCommissionPage() {
 
   const filteredCommissions = useMemo(() => {
     return commissions.filter(item => filterByTimePeriod(item.date));
-  }, [timePeriod]);
+  }, [commissions, timePeriod]);
 
   const earningsBreakdown = useMemo(() => {
     const grossCommission = filteredCommissions.reduce((sum, item) => sum + item.commission, 0);
@@ -127,10 +142,10 @@ export default function RealtorCommissionPage() {
       taxDeducted,
       netEarnings,
       pendingPayment,
-      tier: 'GOLD',
-      rate: commissionRates['GOLD'] ?? 4.0,
+      tier: myTier,
+      rate: commissionRates[myTier] ?? 4.0,
     };
-  }, [filteredCommissions, commissionRates]);
+  }, [filteredCommissions, commissionRates, myTier]);
 
   const stats = useMemo(() => {
     const paidAmount = filteredCommissions
@@ -190,7 +205,12 @@ export default function RealtorCommissionPage() {
       ],
       total: item.net,
       status: item.status === 'PAID' ? 'paid' : 'pending',
-      notes: `Commission rate: ${item.rate}%`,
+      notes: [
+        `Commission rate: ${item.rate}%`,
+        item.paymentMethod ? `Payment method: ${item.paymentMethod.replace(/_/g, ' ')}` : '',
+        item.paymentReference ? `Reference: ${item.paymentReference}` : '',
+        item.paymentNotes || '',
+      ].filter(Boolean).join(' | '),
     };
     setSelectedReceipt(receiptData);
     setReceiptModalOpen(true);
@@ -349,7 +369,8 @@ export default function RealtorCommissionPage() {
                       <th className="pb-4 font-medium min-w-[100px]">Tax</th>
                       <th className="pb-4 font-medium min-w-[110px]">Net</th>
                       <th className="pb-4 font-medium min-w-[90px]">Status</th>
-                      <th className="pb-4 font-medium min-w-[80px]">Actions</th>
+                      <th className="pb-4 font-medium min-w-[160px]">Payment Info</th>
+                      <th className="pb-4 font-medium min-w-[60px]">Receipt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -371,6 +392,25 @@ export default function RealtorCommissionPage() {
                         <td className="py-4 text-sm text-red-600">-{formatCurrency(item.tax)}</td>
                         <td className="py-4 font-semibold text-primary">{formatCurrency(item.net)}</td>
                         <td className="py-4">{getStatusBadge(item.status)}</td>
+                        <td className="py-4">
+                          {item.status === 'PAID' ? (
+                            <div className="text-xs">
+                              {item.paymentMethod && (
+                                <p className="font-medium text-green-700 dark:text-green-400">
+                                  {item.paymentMethod.replace(/_/g, ' ')}
+                                </p>
+                              )}
+                              {item.paymentReference && (
+                                <p className="text-muted-foreground">Ref: {item.paymentReference}</p>
+                              )}
+                              {!item.paymentMethod && !item.paymentReference && (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Pending payment</span>
+                          )}
+                        </td>
                         <td className="py-4">
                           <Button
                             variant="ghost"

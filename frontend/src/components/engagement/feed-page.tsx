@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, Newspaper, Sparkles } from 'lucide-react';
 import PostCard, { PostData } from '@/components/engagement/post-card';
 import TrendingSidebar from '@/components/engagement/trending-sidebar';
@@ -37,6 +37,7 @@ interface FeedMeta {
 
 export default function EngagementFeedPage() {
   const [posts, setPosts] = useState<PostData[]>([]);
+  const postsRef = useRef<PostData[]>([]);
   const [meta, setMeta] = useState<FeedMeta>({ page: 1, limit: 10, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -55,7 +56,11 @@ export default function EngagementFeedPage() {
       const res = await api.get<{ data: PostData[]; meta: FeedMeta }>(`/engagement/feed?${params}`);
       const newPosts = res.data || [];
       const newMeta = res.meta || { page: 1, limit: 10, total: 0, totalPages: 1 };
-      setPosts((prev) => (append ? [...prev, ...newPosts] : newPosts));
+      setPosts((prev) => {
+        const updated = append ? [...prev, ...newPosts] : newPosts;
+        postsRef.current = updated;
+        return updated;
+      });
       setMeta(newMeta);
     } catch {
       toast.error('Failed to load feed');
@@ -76,55 +81,66 @@ export default function EngagementFeedPage() {
     fetchPosts(nextPage, typeFilter, true);
   };
 
-  const handleReact = async (postId: string, type: string) => {
-    try {
-      const res = await api.post<any>(`/engagement/feed/${postId}/react`, { type });
-      const data = res?.data ?? res;
-      setPosts((prev) =>
-        prev.map((p) => {
-          if (p.id !== postId) return p;
-          const wasRemove = data.action === 'removed';
-          const newReaction = wasRemove ? null : type;
-          const reactionCount = wasRemove
+  const handleReact = useCallback(async (postId: string, type: string) => {
+    // Optimistic update — apply immediately, rollback on failure
+    let snapshot: PostData | undefined;
+    setPosts((prev) => {
+      snapshot = prev.find((p) => p.id === postId);
+      return prev.map((p) => {
+        if (p.id !== postId) return p;
+        const toggleOff = p.userReaction === type;
+        return {
+          ...p,
+          userReaction: toggleOff ? null : type,
+          reactionCount: toggleOff
             ? Math.max(0, p.reactionCount - 1)
-            : p.userReaction
-            ? p.reactionCount
-            : p.reactionCount + 1;
-          return { ...p, userReaction: newReaction, reactionCount };
-        })
-      );
+            : p.userReaction ? p.reactionCount : p.reactionCount + 1,
+        };
+      });
+    });
+    try {
+      await api.post(`/engagement/feed/${postId}/react`, { type });
     } catch {
+      if (snapshot) {
+        const rollback = snapshot;
+        setPosts((prev) => prev.map((p) => (p.id === postId ? rollback : p)));
+      }
       toast.error('Failed to react');
     }
-  };
+  }, []);
 
-  const handleSave = async (postId: string) => {
+  const handleSave = useCallback(async (postId: string) => {
+    // Optimistic toggle
+    let prevSaved: boolean | undefined;
+    setPosts((prev) => prev.map((p) => {
+      if (p.id !== postId) return p;
+      prevSaved = p.isSaved;
+      return { ...p, isSaved: !p.isSaved };
+    }));
     try {
       const res = await api.post<any>(`/engagement/feed/${postId}/save`);
       const data = res?.data ?? res;
-      setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, isSaved: data.saved } : p))
-      );
       toast.success(data.saved ? 'Post saved' : 'Post unsaved');
     } catch {
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, isSaved: !!prevSaved } : p)));
       toast.error('Failed to save post');
     }
-  };
+  }, []);
 
-  const handleOpenDetail = (postId: string) => {
+  const handleOpenDetail = useCallback((postId: string) => {
     setDetailPostId(postId);
-    setDetailPost(posts.find((p) => p.id === postId) ?? null);
+    setDetailPost(postsRef.current.find((p) => p.id === postId) ?? null);
     setDetailOpen(true);
-  };
+  }, []);
 
-  const handleShare = async (postId: string) => {
+  const handleShare = useCallback(async (postId: string) => {
     try {
       await api.post(`/engagement/feed/${postId}/share`);
       toast.success('Shared internally');
     } catch {
       toast.error('Failed to share');
     }
-  };
+  }, []);
 
   const activeType = POST_TYPES.find((t) => t.value === typeFilter) ?? POST_TYPES[0];
 

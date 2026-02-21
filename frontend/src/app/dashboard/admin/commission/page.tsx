@@ -20,12 +20,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { formatCurrency, formatDate, getTierBgClass } from '@/lib/utils';
@@ -56,6 +59,11 @@ export default function CommissionPage() {
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
 
+  // Payment dialog
+  const [payDialog, setPayDialog] = useState<{ open: boolean; commission: any | null }>({ open: false, commission: null });
+  const [payForm, setPayForm] = useState({ paymentMethod: 'BANK_TRANSFER', paymentReference: '', paymentNotes: '' });
+  const [paying, setPaying] = useState(false);
+
   // Fetch commission rates from API
   const fetchCommissionRates = useCallback(async () => {
     try {
@@ -78,32 +86,34 @@ export default function CommissionPage() {
   // Fetch commission records from API
   const fetchCommissions = useCallback(async () => {
     try {
-      const response: any = await api.get('/commissions?limit=50');
-      const payload = response.data || response;
-      const records = Array.isArray(payload) ? payload : payload?.data || [];
-      if (Array.isArray(records) && records.length > 0) {
-        const mapped = records.map((item: any) => {
-          const realtorUser = item.realtor?.user;
-          const realtorName = realtorUser
-            ? `${realtorUser.firstName} ${realtorUser.lastName}`
-            : 'Unknown';
-          return {
-            id: item.id,
-            realtor: realtorName,
-            email: realtorUser?.email || '',
-            tier: item.realtor?.loyaltyTier || 'BRONZE',
-            sale: item.sale?.property?.title || 'N/A',
-            saleAmount: Number(item.sale?.salePrice || 0),
-            rate: item.rate != null ? Number(item.rate) * 100 : 0,
-            commission: Number(item.amount || 0),
-            status: item.status || 'PENDING',
-            date: item.paidAt || item.createdAt || '',
-          };
-        });
-        setCommissions(mapped);
-      }
-    } catch {
-      // API unavailable, show empty state
+      const response: any = await api.get('/commissions?limit=100');
+      // Handle { success, data: [...] | { data: [...], meta }, timestamp }
+      const inner = response?.data ?? response;
+      const records: any[] = Array.isArray(inner) ? inner : (Array.isArray(inner?.data) ? inner.data : []);
+      const mapped = records.map((item: any) => {
+        const realtorUser = item.realtor?.user ?? item.realtorProfile?.user;
+        const realtorName = realtorUser
+          ? `${realtorUser.firstName} ${realtorUser.lastName}`
+          : (item.realtorName || 'Unknown');
+        return {
+          id: item.id,
+          realtor: realtorName,
+          email: realtorUser?.email || item.realtorEmail || '',
+          tier: item.realtor?.loyaltyTier ?? item.realtorProfile?.loyaltyTier ?? 'BRONZE',
+          sale: item.sale?.property?.title ?? item.saleTitle ?? 'N/A',
+          saleAmount: Number(item.sale?.salePrice ?? item.sale?.totalAmount ?? item.saleAmount ?? 0),
+          rate: item.rate != null ? Number(item.rate) * 100 : (item.commissionRate != null ? Number(item.commissionRate) * 100 : 0),
+          commission: Number(item.amount ?? item.commissionAmount ?? item.commission ?? 0),
+          status: item.status || 'PENDING',
+          date: item.paidAt || item.createdAt || '',
+          paymentMethod: item.paymentMethod || '',
+          paymentReference: item.paymentReference || '',
+          paymentNotes: item.paymentNotes || '',
+        };
+      });
+      setCommissions(mapped);
+    } catch (err) {
+      console.error('Failed to fetch commissions:', err);
     }
   }, []);
 
@@ -189,15 +199,25 @@ export default function CommissionPage() {
     }
   };
 
-  const handleMarkAsPaid = async (commissionId: number) => {
+  const openPayDialog = (commission: any) => {
+    setPayForm({ paymentMethod: 'BANK_TRANSFER', paymentReference: '', paymentNotes: '' });
+    setPayDialog({ open: true, commission });
+  };
+
+  const handleMarkAsPaid = async () => {
+    if (!payDialog.commission) return;
+    setPaying(true);
     try {
-      await api.post(`/commissions/${commissionId}/pay`);
+      await api.post(`/commissions/${payDialog.commission.id}/pay`, payForm);
       setCommissions(prev => prev.map(c =>
-        c.id === commissionId ? { ...c, status: 'PAID' } : c
+        c.id === payDialog.commission.id ? { ...c, status: 'PAID', paymentMethod: payForm.paymentMethod, paymentReference: payForm.paymentReference } : c
       ));
       toast.success('Commission marked as paid.');
+      setPayDialog({ open: false, commission: null });
     } catch {
       toast.error('Failed to mark commission as paid.');
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -445,11 +465,16 @@ export default function CommissionPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleMarkAsPaid(item.id as number)}
-                              title="Mark as Paid"
+                              onClick={() => openPayDialog(item)}
+                              title="Record Payment"
                             >
                               <Send className="w-4 h-4 text-green-600" />
                             </Button>
+                          )}
+                          {item.status === 'PAID' && item.paymentReference && (
+                            <span className="text-xs text-muted-foreground" title={`Ref: ${item.paymentReference}`}>
+                              #{item.paymentReference.substring(0, 8)}
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -519,6 +544,63 @@ export default function CommissionPage() {
         data={receiptData}
         branding={branding}
       />
+
+      {/* Payment Recording Dialog */}
+      <Dialog open={payDialog.open} onOpenChange={(o) => !o && setPayDialog({ open: false, commission: null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Commission Payment</DialogTitle>
+            <DialogDescription>
+              {payDialog.commission && (
+                <span>
+                  Commission for <strong>{payDialog.commission.realtor}</strong> — {formatCurrency(payDialog.commission.commission)}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Payment Method</Label>
+              <select
+                className="w-full px-3 py-2 border rounded-md text-sm bg-background"
+                value={payForm.paymentMethod}
+                onChange={(e) => setPayForm(f => ({ ...f, paymentMethod: e.target.value }))}
+              >
+                <option value="BANK_TRANSFER">Bank Transfer</option>
+                <option value="CASH">Cash</option>
+                <option value="CHEQUE">Cheque</option>
+                <option value="ONLINE_TRANSFER">Online Transfer</option>
+                <option value="MOBILE_MONEY">Mobile Money</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Payment Reference / Transaction ID</Label>
+              <Input
+                placeholder="e.g. TXN-2024-001, Cheque #12345"
+                value={payForm.paymentReference}
+                onChange={(e) => setPayForm(f => ({ ...f, paymentReference: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Notes (optional)</Label>
+              <Textarea
+                placeholder="Any additional notes about this payment..."
+                value={payForm.paymentNotes}
+                onChange={(e) => setPayForm(f => ({ ...f, paymentNotes: e.target.value }))}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPayDialog({ open: false, commission: null })} disabled={paying}>
+              Cancel
+            </Button>
+            <Button onClick={handleMarkAsPaid} disabled={paying}>
+              {paying ? <><span className="animate-spin mr-2">⏳</span>Processing...</> : <><Send className="w-4 h-4 mr-2" />Mark as Paid</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

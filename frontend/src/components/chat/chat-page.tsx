@@ -423,16 +423,33 @@ export default function ChatPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
-                      {activeRoom.type === 'DIRECT' && (
-                        <>
-                          <Button variant="ghost" size="icon" onClick={() => handleCall('audio')} title="Voice call">
-                            <Phone className="w-5 h-5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleCall('video')} title="Video call">
-                            <Video className="w-5 h-5" />
-                          </Button>
-                        </>
-                      )}
+                      {activeRoom.type === 'DIRECT' && (() => {
+                        const isCalling = callCtx?.callStatus !== 'idle';
+                        return (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleCall('audio')}
+                              title={isCalling ? 'Call in progress' : 'Voice call'}
+                              disabled={isCalling}
+                              className={isCalling ? 'text-amber-500 animate-pulse' : ''}
+                            >
+                              <Phone className="w-5 h-5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleCall('video')}
+                              title={isCalling ? 'Call in progress' : 'Video call'}
+                              disabled={isCalling}
+                              className={isCalling ? 'text-amber-500 animate-pulse' : ''}
+                            >
+                              <Video className="w-5 h-5" />
+                            </Button>
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 

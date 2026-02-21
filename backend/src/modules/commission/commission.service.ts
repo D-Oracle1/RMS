@@ -59,16 +59,30 @@ export class CommissionService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
+        // Use select (not include) to avoid querying columns that may not exist
+        // in older tenant DB schemas (e.g. paymentMethod, paymentReference, paymentNotes)
+        select: {
+          id: true,
+          saleId: true,
+          realtorId: true,
+          amount: true,
+          rate: true,
+          status: true,
+          paidAt: true,
+          createdAt: true,
+          updatedAt: true,
           sale: {
-            include: {
+            select: {
+              salePrice: true,
+              commissionAmount: true,
               property: {
-                select: { title: true, address: true },
+                select: { title: true, address: true, type: true },
               },
             },
           },
           realtor: {
-            include: {
+            select: {
+              loyaltyTier: true,
               user: {
                 select: { firstName: true, lastName: true, email: true },
               },
@@ -93,12 +107,26 @@ export class CommissionService {
   async findById(id: string) {
     const commission = await this.prisma.commission.findUnique({
       where: { id },
-      include: {
+      // Use select to avoid querying potentially-missing columns in older tenant DBs
+      select: {
+        id: true,
+        saleId: true,
+        realtorId: true,
+        amount: true,
+        rate: true,
+        status: true,
+        paidAt: true,
+        createdAt: true,
+        updatedAt: true,
         sale: {
-          include: {
-            property: true,
+          select: {
+            salePrice: true,
+            commissionAmount: true,
+            property: {
+              select: { title: true, address: true, type: true, city: true },
+            },
             client: {
-              include: {
+              select: {
                 user: {
                   select: { firstName: true, lastName: true },
                 },
@@ -107,7 +135,8 @@ export class CommissionService {
           },
         },
         realtor: {
-          include: {
+          select: {
+            loyaltyTier: true,
             user: {
               select: { firstName: true, lastName: true, email: true },
             },
@@ -123,22 +152,39 @@ export class CommissionService {
     return commission;
   }
 
-  async markAsPaid(id: string) {
+  async markAsPaid(id: string, data?: {
+    paymentMethod?: string;
+    paymentReference?: string;
+    paymentNotes?: string;
+  }) {
     const commission = await this.prisma.commission.findUnique({
       where: { id },
+      select: { id: true },
     });
+    if (!commission) throw new NotFoundException('Commission not found');
 
-    if (!commission) {
-      throw new NotFoundException('Commission not found');
+    try {
+      // Attempt full update including payment metadata columns
+      return await this.prisma.commission.update({
+        where: { id },
+        data: {
+          status: CommissionStatus.PAID,
+          paidAt: new Date(),
+          paymentMethod: data?.paymentMethod,
+          paymentReference: data?.paymentReference,
+          paymentNotes: data?.paymentNotes,
+        },
+      });
+    } catch {
+      // Fallback: payment columns may not exist in older tenant DBs — update only safe fields
+      return this.prisma.commission.update({
+        where: { id },
+        data: {
+          status: CommissionStatus.PAID,
+          paidAt: new Date(),
+        },
+      });
     }
-
-    return this.prisma.commission.update({
-      where: { id },
-      data: {
-        status: CommissionStatus.PAID,
-        paidAt: new Date(),
-      },
-    });
   }
 
   async getRealtorCommissions(realtorId: string, query: {

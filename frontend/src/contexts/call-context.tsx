@@ -136,18 +136,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     log('Initiating', type, 'call to', userName);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: type === 'video',
-      });
-      localStreamRef.current = stream;
-      setLocalStream(stream);
+      const currentUser = getUser();
+
+      // Signal the callee IMMEDIATELY so their phone starts ringing right away
       setCallType(type);
       setCallStatus('ringing');
       callStatusRef.current = 'ringing';
       setPeerInfo({ id: userId, name: userName, avatar: userAvatar });
-
-      const currentUser = getUser();
 
       await api.post('/call/initiate', {
         targetUserId: userId,
@@ -155,6 +150,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         callerName: currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Unknown',
         callerAvatar: currentUser?.avatar,
       });
+
+      // Get local media AFTER signalling (callee is already ringing while we set up)
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: type === 'video',
+      });
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+
+      // Abort if call was cancelled while waiting for media permission
+      if ((callStatusRef.current as string) === 'idle') {
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
 
       const pc = createPeerConnection(userId);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));

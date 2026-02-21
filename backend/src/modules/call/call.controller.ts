@@ -2,6 +2,8 @@ import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RealtimeService } from '../../common/services/realtime.service';
+import { PushNotificationService } from '../../common/services/push-notification.service';
+import { PrismaService } from '../../database/prisma.service';
 import { Request } from 'express';
 
 @ApiTags('Call')
@@ -9,7 +11,44 @@ import { Request } from 'express';
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class CallController {
-  constructor(private readonly realtimeService: RealtimeService) {}
+  constructor(
+    private readonly realtimeService: RealtimeService,
+    private readonly pushNotificationService: PushNotificationService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /** Send a web push call notification to all registered devices of a user */
+  private async pushCallNotification(
+    targetUserId: string,
+    callerName: string,
+    callType: 'audio' | 'video',
+    callerId: string,
+  ) {
+    try {
+      const devices = await this.prisma.userDevice.findMany({
+        where: { userId: targetUserId },
+        select: { fcmToken: true },
+      });
+      if (devices.length > 0) {
+        await this.pushNotificationService.sendToTokens(
+          devices.map((d: any) => d.fcmToken),
+          {
+            title: `📞 Incoming ${callType === 'video' ? 'Video' : 'Audio'} Call`,
+            body: `${callerName} is calling you`,
+            data: {
+              type: 'call:incoming',
+              callerId,
+              callerName,
+              callType,
+              link: '/dashboard',
+            },
+          },
+        );
+      }
+    } catch {
+      // Push is best-effort, don't block the call
+    }
+  }
 
   @Post('initiate')
   @ApiOperation({ summary: 'Initiate a call' })
@@ -17,12 +56,17 @@ export class CallController {
     @Req() req: Request & { user: { id: string } },
     @Body() data: { targetUserId: string; callType: 'audio' | 'video'; callerName: string; callerAvatar?: string },
   ) {
+    // Send realtime event (for users who are online)
     await this.realtimeService.sendToUser(data.targetUserId, 'call:incoming', {
       callerId: req.user.id,
       callerName: data.callerName,
       callerAvatar: data.callerAvatar,
       callType: data.callType,
     });
+
+    // Send push notification (for users who are offline / background)
+    await this.pushCallNotification(data.targetUserId, data.callerName, data.callType, req.user.id);
+
     return { success: true };
   }
 

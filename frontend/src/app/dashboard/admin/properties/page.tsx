@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   Pencil,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -373,6 +374,17 @@ export default function PropertiesPage() {
       setError(err.message || 'Failed to update property.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteProperty = async (property: any) => {
+    if (!confirm(`Delete "${property.title}"? This cannot be undone.`)) return;
+    try {
+      await api.delete(`/properties/${property.id}`);
+      toast.success('Property deleted');
+      fetchProperties();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete property');
     }
   };
 
@@ -766,14 +778,24 @@ export default function PropertiesPage() {
                         getPropertyIcon(property.type)
                       )}
                       <Badge className="absolute top-2 left-2 bg-black/70">{property.type}</Badge>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="absolute top-2 right-2 h-8 w-8 p-0"
-                        onClick={() => openEditDialog(property)}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-8 w-8 p-0"
+                          onClick={() => openEditDialog(property)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-8 w-8 p-0"
+                          onClick={() => handleDeleteProperty(property)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -807,10 +829,16 @@ export default function PropertiesPage() {
                         <span className="text-sm text-muted-foreground">
                           {property.realtor?.user ? `${property.realtor.user.firstName} ${property.realtor.user.lastName}` : 'Unassigned'}
                         </span>
-                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(property)}>
-                          <Pencil className="w-3 h-3 mr-1" />
-                          Edit
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(property)}>
+                            <Pencil className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600" onClick={() => handleDeleteProperty(property)}>
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

@@ -111,40 +111,51 @@ export default function ClientDashboard() {
     fetchPosts(nextPage, typeFilter, true);
   };
 
-  const handleReact = async (postId: string, type: string) => {
-    try {
-      const res = await api.post<any>(`/engagement/feed/${postId}/react`, { type });
-      const data = res?.data ?? res;
-      setPosts((prev) =>
-        prev.map((p) => {
-          if (p.id !== postId) return p;
-          const wasRemove = data.action === 'removed';
-          const newReaction = wasRemove ? null : type;
-          const reactionCount = wasRemove
+  const handleReact = useCallback(async (postId: string, type: string) => {
+    // Optimistic update — apply immediately, rollback on failure
+    let snapshot: PostData | undefined;
+    setPosts((prev) => {
+      snapshot = prev.find((p) => p.id === postId);
+      return prev.map((p) => {
+        if (p.id !== postId) return p;
+        const toggleOff = p.userReaction === type;
+        return {
+          ...p,
+          userReaction: toggleOff ? null : type,
+          reactionCount: toggleOff
             ? Math.max(0, p.reactionCount - 1)
-            : p.userReaction
-            ? p.reactionCount
-            : p.reactionCount + 1;
-          return { ...p, userReaction: newReaction, reactionCount };
-        })
-      );
+            : p.userReaction ? p.reactionCount : p.reactionCount + 1,
+        };
+      });
+    });
+    try {
+      await api.post(`/engagement/feed/${postId}/react`, { type });
     } catch {
+      if (snapshot) {
+        const rollback = snapshot;
+        setPosts((prev) => prev.map((p) => (p.id === postId ? rollback : p)));
+      }
       toast.error('Failed to react');
     }
-  };
+  }, []);
 
-  const handleSave = async (postId: string) => {
+  const handleSave = useCallback(async (postId: string) => {
+    // Optimistic toggle
+    let prevSaved: boolean | undefined;
+    setPosts((prev) => prev.map((p) => {
+      if (p.id !== postId) return p;
+      prevSaved = p.isSaved;
+      return { ...p, isSaved: !p.isSaved };
+    }));
     try {
       const res = await api.post<any>(`/engagement/feed/${postId}/save`);
       const data = res?.data ?? res;
-      setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, isSaved: data.saved } : p))
-      );
       toast.success(data.saved ? 'Post saved' : 'Post unsaved');
     } catch {
+      setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, isSaved: !!prevSaved } : p)));
       toast.error('Failed to save post');
     }
-  };
+  }, []);
 
   const handleShare = async (postId: string) => {
     try {

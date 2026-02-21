@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Pin,
   ThumbsUp,
@@ -152,7 +152,7 @@ const REACTIONS = [
 // Component
 // ---------------------------------------------------------------------------
 
-export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare }: PostCardProps) {
+function PostCard({ post, onReact, onSave, onOpenDetail, onShare }: PostCardProps) {
   const [ctaLoading, setCtaLoading] = useState(false);
 
   const config = TYPE_CONFIG[post.type] ?? {
@@ -165,18 +165,13 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare 
   const isVideo = post.mediaType?.startsWith('video');
   const excerptText = stripHtml(post.excerpt || post.content);
 
-  const handleCtaClick = async (e: React.MouseEvent) => {
+  const handleCtaClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!post.externalLink) return;
+    // Open immediately for instant feel, track click in background
+    window.open(post.externalLink, '_blank', 'noopener,noreferrer');
     setCtaLoading(true);
-    try {
-      await api.post(`/engagement/feed/${post.id}/cta-click`);
-    } catch {
-      // silent
-    } finally {
-      setCtaLoading(false);
-      window.open(post.externalLink, '_blank', 'noopener,noreferrer');
-    }
+    api.post(`/engagement/feed/${post.id}/cta-click`).catch(() => {}).finally(() => setCtaLoading(false));
   };
 
   const handleCardClick = (e: React.MouseEvent) => {
@@ -190,7 +185,7 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare 
       className="group bg-white dark:bg-gray-900 rounded-2xl overflow-hidden cursor-pointer
         shadow-[0_1px_4px_rgba(0,0,0,0.07)] hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)]
         border border-gray-100 dark:border-gray-800/80
-        transition-all duration-300 hover:-translate-y-0.5"
+        transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5"
       onClick={handleCardClick}
     >
       {/* Gradient accent strip */}
@@ -378,3 +373,12 @@ export default function PostCard({ post, onReact, onSave, onOpenDetail, onShare 
     </div>
   );
 }
+
+export default React.memo(PostCard, (prev, next) =>
+  prev.post.id === next.post.id &&
+  prev.post.userReaction === next.post.userReaction &&
+  prev.post.isSaved === next.post.isSaved &&
+  prev.post.reactionCount === next.post.reactionCount &&
+  prev.post.commentCount === next.post.commentCount &&
+  prev.post.viewCount === next.post.viewCount
+);

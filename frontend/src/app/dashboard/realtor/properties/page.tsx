@@ -503,21 +503,11 @@ export default function RealtorPropertiesPage() {
             {/* Property Summary */}
             <div className="p-4 bg-[#0b5c46]/5 border border-[#0b5c46]/20 rounded-lg">
               <h4 className="font-semibold text-[#0b5c46] mb-2">Property Details</h4>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Type</p>
                   <p className="font-medium">{selectedProperty?.type}</p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Total Size</p>
-                  <p className="font-medium">{formatArea(selectedProperty?.area || 0, saleAreaUnit)}</p>
-                </div>
-                {isLandProperty && Number(selectedProperty?.pricePerSqm) > 0 && (
-                  <div>
-                    <p className="text-muted-foreground">Price/plot</p>
-                    <p className="font-medium">{formatCurrency(Number(selectedProperty?.pricePerSqm))}</p>
-                  </div>
-                )}
                 <div>
                   <p className="text-muted-foreground">Price</p>
                   <p className="font-medium">{formatCurrency(Number(selectedProperty?.price) || 0)}</p>
@@ -644,7 +634,7 @@ export default function RealtorPropertiesPage() {
               {/* Area and pricing */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Size Sold ({AREA_UNITS[saleAreaUnit].shortLabel}) *</Label>
+                  <Label>Size Sold ({AREA_UNITS[saleAreaUnit].shortLabel})</Label>
                   <div className="flex gap-2">
                     <Input
                       type="number"
@@ -662,9 +652,6 @@ export default function RealtorPropertiesPage() {
                       = {toSqm(parseFloat(saleForm.sqmSold), saleAreaUnit).toLocaleString()} sqm
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    Available: {formatArea(selectedProperty?.area || 0, saleAreaUnit)}
-                  </p>
                 </div>
                 {isLandProperty ? (
                   <div className="space-y-2">
@@ -739,19 +726,11 @@ export default function RealtorPropertiesPage() {
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm text-muted-foreground">
-                    {saleForm.sqmSold} {AREA_UNITS[saleAreaUnit].shortLabel} of {selectedProperty?.title}
+                    {selectedProperty?.title}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     Buyer: {saleForm.buyerFirstName} {saleForm.buyerLastName}
                   </p>
-                  {toSqm(parseFloat(saleForm.sqmSold) || 0, saleAreaUnit) < (selectedProperty?.area || 0) && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      Remaining after sale: {formatArea(
-                        (selectedProperty?.area || 0) - toSqm(parseFloat(saleForm.sqmSold) || 0, saleAreaUnit),
-                        saleAreaUnit
-                      )}
-                    </p>
-                  )}
                 </div>
                 <p className="text-2xl font-bold text-[#0b5c46]">
                   {formatCurrency(parseFloat(saleForm.totalAmount) || 0)}
