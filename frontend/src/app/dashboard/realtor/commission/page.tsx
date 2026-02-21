@@ -97,9 +97,10 @@ export default function RealtorCommissionPage() {
       }
 
       try {
-        const res = await api.get<any>('/realtor/profile');
+        const res = await api.get<any>('/auth/profile');
         const profile = res?.data ?? res;
-        if (profile?.loyaltyTier) setMyTier(profile.loyaltyTier);
+        const tier = profile?.realtorProfile?.loyaltyTier ?? profile?.loyaltyTier;
+        if (tier) setMyTier(tier);
       } catch {
         // keep default tier
       }

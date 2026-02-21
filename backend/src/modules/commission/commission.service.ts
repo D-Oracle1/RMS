@@ -77,6 +77,8 @@ export class CommissionService {
             select: {
               salePrice: true,
               commissionAmount: true,
+              taxAmount: true,
+              taxRate: true,
               property: {
                 select: { title: true, address: true, type: true },
               },
