@@ -40,8 +40,10 @@ export class CommissionService {
     startDate?: string;
     endDate?: string;
   }) {
-    const { page = 1, limit = 20, realtorId, status, startDate, endDate } = query;
-    const skip = (Number(page) - 1) * Number(limit);
+    const { realtorId, status, startDate, endDate } = query;
+    const pageNum = Math.max(1, parseInt(String(query.page ?? 1), 10) || 1);
+    const limitNum = Math.max(1, parseInt(String(query.limit ?? 20), 10) || 20);
+    const skip = (pageNum - 1) * limitNum;
 
     const where: any = {};
 
@@ -57,7 +59,7 @@ export class CommissionService {
       this.prisma.commission.findMany({
         where,
         skip,
-        take: Number(limit),
+        take: limitNum,
         orderBy: { createdAt: 'desc' },
         // Use select (not include) to avoid querying columns that may not exist
         // in older tenant DB schemas (e.g. paymentMethod, paymentReference, paymentNotes)
