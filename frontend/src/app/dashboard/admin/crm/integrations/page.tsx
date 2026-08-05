@@ -258,7 +258,7 @@ export default function IntegrationsPage() {
               <p className="font-semibold text-sm">WhatsApp Click-to-Chat Ads</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 When someone clicks your WhatsApp Ad and sends the first message,
-                RMS automatically creates a hot lead. Requires WhatsApp Business API webhook setup.
+                Easyland automatically creates a hot lead. Requires WhatsApp Business API webhook setup.
               </p>
             </div>
             <div className="shrink-0">

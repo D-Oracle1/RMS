@@ -1,5 +1,5 @@
 -- ============================================================
--- Livora OS: Company Hierarchy Migration (MASTER database)
+-- Easyland: Company Hierarchy Migration (MASTER database)
 -- Apply this in the MASTER database via Supabase SQL Editor
 -- (This is the main Supabase project DB — same credentials)
 -- ============================================================

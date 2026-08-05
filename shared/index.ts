@@ -1,5 +1,5 @@
 // ===========================================
-// Livora OS - Shared Module Entry Point
+// Easyland - Shared Module Entry Point
 // ===========================================
 
 export * from './types';

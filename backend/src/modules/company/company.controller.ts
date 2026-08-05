@@ -35,11 +35,11 @@ class AssignRoleDto {
 }
 
 class RegisterExistingDbDto {
-  @ApiProperty({ example: 'Livora OS' })
+  @ApiProperty({ example: 'Easyland' })
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'livora-os' })
+  @ApiProperty({ example: 'easyland' })
   @IsString()
   @Matches(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, { message: 'Slug must be lowercase alphanumeric with hyphens' })
   slug: string;

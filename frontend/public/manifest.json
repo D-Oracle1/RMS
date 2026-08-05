@@ -1,14 +1,14 @@
 {
   "id": "/",
-  "name": "Livora OS",
-  "short_name": "Livora OS",
+  "name": "Easyland",
+  "short_name": "Easyland",
   "description": "Enterprise-grade PropTech platform for managing realtors, properties, and clients",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#2b1464",
+  "theme_color": "#22c55e",
   "icons": [
     {
       "src": "/icons/icon-72x72.png",

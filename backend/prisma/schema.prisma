@@ -1,5 +1,5 @@
 // ===========================================
-// Livora OS - Prisma Database Schema
+// Easyland - Prisma Database Schema
 // ===========================================
 
 generator client {

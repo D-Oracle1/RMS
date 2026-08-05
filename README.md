@@ -1,4 +1,4 @@
-# Livora OS
+# Easyland
 
 <div align="center">
 
@@ -11,7 +11,7 @@
 
 ## Overview
 
-Livora OS is an enterprise-grade, multi-tenant PropTech SaaS platform for Nigerian real estate companies. Each company (tenant) gets a fully isolated instance — users, properties, sales, HR, and financials are all scoped per tenant. A global Super Admin panel manages all tenants from a single interface.
+Easyland is an enterprise-grade, multi-tenant PropTech SaaS platform for Nigerian real estate companies. Each company (tenant) gets a fully isolated instance — users, properties, sales, HR, and financials are all scoped per tenant. A global Super Admin panel manages all tenants from a single interface.
 
 Currency: **Nigerian Naira (₦ / NGN)** throughout all interfaces and reports.
 
@@ -261,5 +261,5 @@ Swagger UI available at `/api/docs` on the running backend.
 ---
 
 <div align="center">
-  <p>© 2025 RMS Platform. All rights reserved.</p>
+  <p>© 2025 Easyland. All rights reserved.</p>
 </div>

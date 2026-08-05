@@ -313,7 +313,7 @@ export class LeadsService {
       if (assignedUser?.phone) {
         this.smsService.sendSms(
           assignedUser.phone,
-          `New lead: ${lead.name} (${lead.source}). Phone: ${lead.phone || 'N/A'}. Check RMS now.`,
+          `New lead: ${lead.name} (${lead.source}). Phone: ${lead.phone || 'N/A'}. Check Easyland now.`,
         ).catch(() => {});
       }
     } catch (err) {

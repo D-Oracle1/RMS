@@ -1,7 +1,7 @@
 {
-  "name": "@livora/backend",
+  "name": "@easyland/backend",
   "version": "1.0.0",
-  "description": "Livora OS - Backend API Server",
+  "description": "Easyland - Backend API Server",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

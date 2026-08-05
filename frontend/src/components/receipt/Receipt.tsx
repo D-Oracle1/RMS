@@ -73,7 +73,7 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
   ({ data, className = '', branding }, ref) => {
     // ── Architectural separation: receipt branding vs platform branding ────────
     // receiptCompanyName overrides companyName; each falls back to the other.
-    const brandName = branding?.receiptCompanyName || branding?.companyName || 'Livora OS';
+    const brandName = branding?.receiptCompanyName || branding?.companyName || 'Easyland';
     // receiptHeaderLogo is the dedicated top-left receipt logo.
     // Falls back to general logo only if no receipt-specific logo is configured.
     const headerLogoSrc = branding?.receiptHeaderLogo || branding?.logo || null;

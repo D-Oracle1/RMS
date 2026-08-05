@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Livora OS',
+    title: 'Easyland',
   },
   formatDetection: {
     telephone: false,
@@ -55,8 +55,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#2b1464' },
-    { media: '(prefers-color-scheme: dark)', color: '#080314' },
+    { media: '(prefers-color-scheme: light)', color: '#22c55e' },
+    { media: '(prefers-color-scheme: dark)', color: '#052e16' },
   ],
   width: 'device-width',
   initialScale: 1,

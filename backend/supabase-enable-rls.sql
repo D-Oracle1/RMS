@@ -1,5 +1,5 @@
 -- ===========================================
--- RMS Platform - Supabase Row Level Security
+-- Easyland - Supabase Row Level Security
 -- ===========================================
 -- Enable Row Level Security on all public tables
 -- This blocks access via Supabase REST API (anon key) while Prisma (postgres superuser) bypasses RLS

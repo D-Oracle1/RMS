@@ -138,7 +138,7 @@ async function main() {
       realtorProfile: {
         create: {
           licenseNumber: 'LVR-LIC-001',
-          agency: 'Livora Properties',
+          agency: 'Easyland Properties',
           bio: 'Experienced real estate professional',
           specializations: ['Residential', 'Land'],
         },
@@ -187,7 +187,7 @@ async function main() {
       latitude:    6.4541,
       longitude:   3.3947,
       phone:       '+2341234567801',
-      email:       'lagos-island@livora.com',
+      email:       'lagos-island@easyland.com',
       isActive:    true,
     },
   });
@@ -209,7 +209,7 @@ async function main() {
       latitude:    9.0579,
       longitude:   7.4951,
       phone:       '+2341234567802',
-      email:       'abuja@livora.com',
+      email:       'abuja@easyland.com',
       isActive:    true,
     },
   });
@@ -231,7 +231,7 @@ async function main() {
       latitude:    4.8156,
       longitude:   7.0498,
       phone:       '+2341234567803',
-      email:       'ph@livora.com',
+      email:       'ph@easyland.com',
       isActive:    true,
     },
   });
@@ -240,10 +240,10 @@ async function main() {
   // ── Branch Managers ────────────────────────────────────────────────────
 
   const bmLagos = await prisma.user.upsert({
-    where: { email: 'bm.lagos@livora.com' },
+    where: { email: 'bm.lagos@easyland.com' },
     update: { password: hashedPassword, status: UserStatus.ACTIVE },
     create: {
-      email:         'bm.lagos@livora.com',
+      email:         'bm.lagos@easyland.com',
       password:      hashedPassword,
       firstName:     'Chidi',
       lastName:      'Okonkwo',
@@ -257,10 +257,10 @@ async function main() {
   });
 
   const bmAbuja = await prisma.user.upsert({
-    where: { email: 'bm.abuja@livora.com' },
+    where: { email: 'bm.abuja@easyland.com' },
     update: { password: hashedPassword, status: UserStatus.ACTIVE },
     create: {
-      email:         'bm.abuja@livora.com',
+      email:         'bm.abuja@easyland.com',
       password:      hashedPassword,
       firstName:     'Ngozi',
       lastName:      'Adeyemi',
@@ -274,10 +274,10 @@ async function main() {
   });
 
   const bmPH = await prisma.user.upsert({
-    where: { email: 'bm.ph@livora.com' },
+    where: { email: 'bm.ph@easyland.com' },
     update: { password: hashedPassword, status: UserStatus.ACTIVE },
     create: {
-      email:         'bm.ph@livora.com',
+      email:         'bm.ph@easyland.com',
       password:      hashedPassword,
       firstName:     'Emeka',
       lastName:      'Eze',
@@ -299,10 +299,10 @@ async function main() {
   // ── Branch Realtors ────────────────────────────────────────────────────
 
   const realtorLagos = await prisma.user.upsert({
-    where: { email: 'realtor.lagos@livora.com' },
+    where: { email: 'realtor.lagos@easyland.com' },
     update: { password: hashedPassword, status: UserStatus.ACTIVE },
     create: {
-      email:         'realtor.lagos@livora.com',
+      email:         'realtor.lagos@easyland.com',
       password:      hashedPassword,
       firstName:     'Amaka',
       lastName:      'Nwosu',
@@ -315,7 +315,7 @@ async function main() {
       realtorProfile: {
         create: {
           licenseNumber: 'LVR-LIC-LGS-001',
-          agency:        'Livora Properties Lagos',
+          agency:        'Easyland Properties Lagos',
           bio:           'Lagos Island specialist with 5 years experience',
           specializations: ['Residential', 'Commercial'],
         },
@@ -324,10 +324,10 @@ async function main() {
   });
 
   const realtorAbuja = await prisma.user.upsert({
-    where: { email: 'realtor.abuja@livora.com' },
+    where: { email: 'realtor.abuja@easyland.com' },
     update: { password: hashedPassword, status: UserStatus.ACTIVE },
     create: {
-      email:         'realtor.abuja@livora.com',
+      email:         'realtor.abuja@easyland.com',
       password:      hashedPassword,
       firstName:     'Tunde',
       lastName:      'Balogun',
@@ -340,7 +340,7 @@ async function main() {
       realtorProfile: {
         create: {
           licenseNumber: 'LVR-LIC-ABJ-001',
-          agency:        'Livora Properties Abuja',
+          agency:        'Easyland Properties Abuja',
           bio:           'FCT specialist focused on luxury properties',
           specializations: ['Luxury', 'Land'],
         },
@@ -545,13 +545,13 @@ async function main() {
   console.log('  Staff:                staff@rms.com            / Admin123!');
   console.log('');
   console.log('Branch Managers:');
-  console.log('  Lagos Branch Manager: bm.lagos@livora.com      / Admin123!');
-  console.log('  Abuja Branch Manager: bm.abuja@livora.com      / Admin123!');
-  console.log('  PH Branch Manager:    bm.ph@livora.com         / Admin123!');
+  console.log('  Lagos Branch Manager: bm.lagos@easyland.com      / Admin123!');
+  console.log('  Abuja Branch Manager: bm.abuja@easyland.com      / Admin123!');
+  console.log('  PH Branch Manager:    bm.ph@easyland.com         / Admin123!');
   console.log('');
   console.log('Branch Realtors:');
-  console.log('  Lagos Realtor:        realtor.lagos@livora.com / Admin123!');
-  console.log('  Abuja Realtor:        realtor.abuja@livora.com / Admin123!');
+  console.log('  Lagos Realtor:        realtor.lagos@easyland.com / Admin123!');
+  console.log('  Abuja Realtor:        realtor.abuja@easyland.com / Admin123!');
   console.log('');
   console.log('Branches: Lagos Island (LGS-01) | Abuja Central (ABJ-01) | Port Harcourt (PHC-01)');
 }

@@ -1,5 +1,5 @@
 -- ============================================================
--- Livora OS: Branch System Migration
+-- Easyland: Branch System Migration
 -- Apply this in Supabase Dashboard → SQL Editor
 -- ============================================================
 

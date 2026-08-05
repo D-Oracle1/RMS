@@ -8,7 +8,7 @@ import type { NextRequest } from 'next/server';
  *   • / → /platform
  *   • only /dashboard/*, /auth/*, /platform/* allowed
  *
- * PLATFORM mode (default — livoraos.vercel.app, localhost, *.vercel.app)
+ * PLATFORM mode (default — easyland.vercel.app, localhost, *.vercel.app)
  *   • no route restrictions — all dashboards accessible
  *
  * TENANT mode (custom domain, e.g. tenant.com)

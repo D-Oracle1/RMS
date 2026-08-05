@@ -17,10 +17,10 @@ export function BrandingTitle() {
 
     const applyTitle = () => {
       const current = document.title;
-      // Replace any "Livora OS", or "Loading..." with the CMS name
-      if (current === 'Loading...' || current.includes('Livora OS')) {
+      // Replace any "Easyland", or "Loading..." with the CMS name
+      if (current === 'Loading...' || current.includes('Easyland')) {
         document.title = current
-          .replace(/Livora OS/g, name)
+          .replace(/Easyland/g, name)
           .replace('Loading...', name);
       }
       // If the title is just a page name without branding, append it

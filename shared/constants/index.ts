@@ -1,5 +1,5 @@
 // ===========================================
-// Livora OS - Shared Constants
+// Easyland - Shared Constants
 // ===========================================
 
 // API Versions

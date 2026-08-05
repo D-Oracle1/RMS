@@ -1,5 +1,5 @@
 -- =============================================
--- RMS Platform - Complete PostgreSQL Migration
+-- Easyland - Complete PostgreSQL Migration
 -- Generated from Prisma schema (full rebuild)
 -- =============================================
 -- This migration creates ALL enums, tables,

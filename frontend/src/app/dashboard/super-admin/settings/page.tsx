@@ -32,7 +32,7 @@ export default function SuperAdminSettings() {
 
   // Platform Branding
   const [branding, setBranding] = useState({
-    platformName: 'Livora OS',
+    platformName: 'Easyland',
     tagline: '',
     logo: '',
     favicon: '',
@@ -395,7 +395,7 @@ export default function SuperAdminSettings() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
               <label className={labelCls}>Platform Name</label>
-              <input value={branding.platformName} onChange={e => setBranding(b => ({ ...b, platformName: e.target.value }))} className={inputCls} placeholder="Livora OS" />
+              <input value={branding.platformName} onChange={e => setBranding(b => ({ ...b, platformName: e.target.value }))} className={inputCls} placeholder="Easyland" />
               <p className="text-xs text-gray-400 mt-1">Shown in the sidebar, platform page, and browser tabs.</p>
             </div>
             <div className="sm:col-span-2">
@@ -479,7 +479,7 @@ export default function SuperAdminSettings() {
           {/* About */}
           <div>
             <p className={sectionTitle}>About / Description</p>
-            <Textarea rows={4} value={cms.aboutText} onChange={e => setCms(c => ({ ...c, aboutText: e.target.value }))} className="neuo-inset rounded-xl text-sm text-gray-800 placeholder:text-gray-400 resize-none border-0 outline-none px-3 py-2.5 w-full" placeholder="Brief description of the Livora OS platform..." />
+            <Textarea rows={4} value={cms.aboutText} onChange={e => setCms(c => ({ ...c, aboutText: e.target.value }))} className="neuo-inset rounded-xl text-sm text-gray-800 placeholder:text-gray-400 resize-none border-0 outline-none px-3 py-2.5 w-full" placeholder="Brief description of the Easyland platform..." />
           </div>
 
           {/* Contact */}

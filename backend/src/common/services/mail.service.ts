@@ -29,12 +29,12 @@ export class MailService {
   }
 
   private get appName(): string {
-    return this.configService.get<string>('appName', 'Livora OS');
+    return this.configService.get<string>('appName', 'Easyland');
   }
 
   private getFromAddress(companyName?: string): string {
     const displayName = companyName || this.appName;
-    const from = this.configService.get<string>('email.from', 'noreply@livora-os.com');
+    const from = this.configService.get<string>('email.from', 'noreply@easyland.com');
     return `"${displayName}" <${from}>`;
   }
 
@@ -632,7 +632,7 @@ export class MailService {
     campaign?: string;
     leadId: string;
   }): Promise<void> {
-    const appUrl = this.configService.get<string>('appUrl', 'https://app.livora-os.com');
+    const appUrl = this.configService.get<string>('appUrl', 'https://app.easyland.com');
     const html = this.baseTemplate(`
       <h2 style="color:#1e293b;">New Lead Assigned to You 🎯</h2>
       <p>Hi ${escapeHtml(data.recipientName)},</p>
@@ -650,6 +650,6 @@ export class MailService {
       </a>
       <p style="margin-top:16px;color:#64748b;font-size:13px;">Respond within 5 minutes for best conversion rates.</p>
     `);
-    await this.send(to, `New Lead: ${data.leadName} (via ${data.source || 'RMS'})`, html);
+    await this.send(to, `New Lead: ${data.leadName} (via ${data.source || 'Easyland'})`, html);
   }
 }

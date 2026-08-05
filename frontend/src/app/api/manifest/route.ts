@@ -14,10 +14,10 @@ const DEFAULT_ICONS = [
 ];
 
 export async function GET(req: NextRequest) {
-  let companyName = 'Livora OS';
-  let shortName = 'Livora OS';
+  let companyName = 'Easyland';
+  let shortName = 'Easyland';
   let description = 'Enterprise-grade PropTech platform for managing realtors, properties, and clients';
-  let themeColor = '#2b1464';
+  let themeColor = '#22c55e';
   let bgColor = '#ffffff';
   let icons = DEFAULT_ICONS;
   let splashAnimation = 'none';

@@ -1,6 +1,6 @@
 ================================================================================
- RMS PLATFORM - COMPREHENSIVE SOFTWARE DOCUMENTATION
- Realtors Management System - Enterprise PropTech Platform
+ EASYLAND - COMPREHENSIVE SOFTWARE DOCUMENTATION
+ Easyland - Enterprise PropTech Platform
  Generated: March 23, 2026
 ================================================================================
 
@@ -23,7 +23,7 @@ TABLE OF CONTENTS
 1. EXECUTIVE SUMMARY
 ================================================================================
 
-RMS (Realtors Management System) is an enterprise-grade, multi-tenant PropTech
+Easyland is an enterprise-grade, multi-tenant PropTech
 platform designed for real estate companies in Nigeria. It provides end-to-end
 management for realtors, clients, properties, sales, commissions, HR, and more.
 

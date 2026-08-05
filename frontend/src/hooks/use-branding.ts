@@ -144,11 +144,11 @@ export function useBranding(): BrandingData {
 
 /** Helper — company name with fallback */
 export function getCompanyName(branding: BrandingData): string {
-  return branding.companyName || 'Livora OS';
+  return branding.companyName || 'Easyland';
 }
 
 /** Helper — short name with fallback.
- *  Priority: explicit shortName → first-word of companyName → 'Livora OS'
+ *  Priority: explicit shortName → first-word of companyName → 'Easyland'
  */
 export function getShortName(branding: BrandingData): string {
   if (branding.shortName) return branding.shortName;
@@ -159,5 +159,5 @@ export function getShortName(branding: BrandingData): string {
       ? words.map((w) => w[0]).join('').toUpperCase().slice(0, 4)
       : branding.companyName.slice(0, 6);
   }
-  return 'Livora OS';
+  return 'Easyland';
 }

@@ -283,8 +283,8 @@ export default function ClientDashboard() {
             <Card className="shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-7 h-7 rounded-md bg-[#2b1464]/10 flex items-center justify-center">
-                    <Link className="w-3.5 h-3.5 text-[#2b1464]" />
+                  <div className="w-7 h-7 rounded-md bg-[#22c55e]/10 flex items-center justify-center">
+                    <Link className="w-3.5 h-3.5 text-[#22c55e]" />
                   </div>
                   <p className="text-sm font-semibold">Your Referral</p>
                 </div>
@@ -298,7 +298,7 @@ export default function ClientDashboard() {
                     {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
                     {copied ? 'Copied' : 'Copy Link'}
                   </Button>
-                  <Button size="sm" className="flex-1 bg-[#2b1464] hover:bg-[#1e0e47] text-white text-xs gap-1.5" asChild>
+                  <Button size="sm" className="flex-1 bg-[#16a34a] hover:bg-[#15803d] text-white text-xs gap-1.5" asChild>
                     <a href="/dashboard/client/referrals">
                       <Users2 className="w-3.5 h-3.5" />
                       Leads

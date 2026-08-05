@@ -207,11 +207,11 @@ export default function GeneralOverseerDashboard() {
   }
 
   const statCards = [
-    { title: 'Total Users', value: stats?.totalUsers ?? 0, icon: Users, gradient: 'from-[#2b1464] to-[#3b2190]' },
+    { title: 'Total Users', value: stats?.totalUsers ?? 0, icon: Users, gradient: 'from-[#16a34a] to-[#22c55e]' },
     { title: 'Active Users', value: stats?.activeUsers ?? 0, icon: Shield, gradient: 'from-[#fca639] to-[#fdb95c]' },
-    { title: 'Realtors', value: stats?.realtors ?? 0, icon: Home, gradient: 'from-[#2b1464] to-[#14956e]' },
+    { title: 'Realtors', value: stats?.realtors ?? 0, icon: Home, gradient: 'from-[#22c55e] to-[#14956e]' },
     { title: 'Clients', value: stats?.clients ?? 0, icon: Users, gradient: 'from-[#fca639] to-[#e8953a]' },
-    { title: 'Admins', value: stats?.admins ?? 0, icon: UserCog, gradient: 'from-[#2b1464] to-[#3b2190]' },
+    { title: 'Admins', value: stats?.admins ?? 0, icon: UserCog, gradient: 'from-[#16a34a] to-[#22c55e]' },
   ];
 
   return (

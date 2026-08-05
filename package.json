@@ -1,7 +1,7 @@
 {
-  "name": "livora-os",
+  "name": "easyland",
   "version": "1.0.0",
-  "description": "Enterprise-grade Livora OS - A full PropTech platform",
+  "description": "Enterprise-grade Easyland - A full PropTech platform",
   "private": true,
   "workspaces": [
     "backend",

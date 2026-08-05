@@ -30,20 +30,20 @@ async function main() {
   console.log(`  ID:       ${admin.id}`);
   console.log('');
 
-  // ── Livora OS company (points to the main tenant DATABASE_URL) ────────
-  // This registers the primary Livora OS installation as the first tenant so it
+  // ── Easyland company (points to the main tenant DATABASE_URL) ────────
+  // This registers the primary Easyland installation as the first tenant so it
   // appears in the super-admin companies list.
   const tenantDbUrl = process.env.DATABASE_URL;
   if (tenantDbUrl) {
     const existing = await prisma.company.findFirst({
-      where: { slug: 'livora-os' },
+      where: { slug: 'easyland' },
     });
 
     if (!existing) {
       const company = await prisma.company.create({
         data: {
-          name: 'Livora OS',
-          slug: 'livora-os',
+          name: 'Easyland',
+          slug: 'easyland',
           domain: process.env.NEXT_PUBLIC_APP_URL?.replace(/^https?:\/\//, '') || 'rms.vercel.app',
           databaseUrl: tenantDbUrl,
           primaryColor: '#3b82f6',
@@ -53,29 +53,29 @@ async function main() {
           maxUsers: 500,
         },
       });
-      console.log(`Livora OS company created: ${company.id}`);
+      console.log(`Easyland company created: ${company.id}`);
     } else {
       // Keep databaseUrl in sync if it changed
       await prisma.company.update({
         where: { id: existing.id },
         data: { databaseUrl: tenantDbUrl },
       });
-      console.log(`Livora OS company already exists, URL refreshed.`);
+      console.log(`Easyland company already exists, URL refreshed.`);
     }
   } else {
-    console.log('DATABASE_URL not set — skipping Livora OS company seed.');
+    console.log('DATABASE_URL not set — skipping Easyland company seed.');
   }
 
   // ── Demo Parent + Subsidiary Companies ──────────────────────────────────
   // Only seed demo hierarchy if DATABASE_URL is set and not in production
   if (tenantDbUrl && process.env.SEED_DEMO_HIERARCHY === 'true') {
-    const parentExists = await prisma.company.findFirst({ where: { slug: 'livora-group' } });
+    const parentExists = await prisma.company.findFirst({ where: { slug: 'easyland-group' } });
     if (!parentExists) {
       const parent = await prisma.company.create({
         data: {
-          name:          'Livora Group Holdings',
-          slug:          'livora-group',
-          domain:        'group.livora.com',
+          name:          'Easyland Group Holdings',
+          slug:          'easyland-group',
+          domain:        'group.easyland.com',
           databaseUrl:   tenantDbUrl,
           type:          'PARENT',
           primaryColor:  '#2b1464',
@@ -83,10 +83,10 @@ async function main() {
           isActive:      true,
           plan:          'enterprise',
           maxUsers:      1000,
-          description:   'Parent holding company for all Livora subsidiaries',
+          description:   'Parent holding company for all Easyland subsidiaries',
           city:          'Lagos',
           country:       'Nigeria',
-          email:         'group@livora.com',
+          email:         'group@easyland.com',
           phone:         '+2341234500000',
         },
       });
@@ -94,9 +94,9 @@ async function main() {
       // Subsidiary 1: Lagos
       await prisma.company.create({
         data: {
-          name:          'Livora Properties Lagos',
-          slug:          'livora-lagos',
-          domain:        'lagos.livora.com',
+          name:          'Easyland Properties Lagos',
+          slug:          'easyland-lagos',
+          domain:        'lagos.easyland.com',
           databaseUrl:   tenantDbUrl,
           type:          'SUBSIDIARY',
           parentId:      parent.id,
@@ -114,9 +114,9 @@ async function main() {
       // Subsidiary 2: Abuja
       await prisma.company.create({
         data: {
-          name:          'Livora Properties Abuja',
-          slug:          'livora-abuja',
-          domain:        'abuja.livora.com',
+          name:          'Easyland Properties Abuja',
+          slug:          'easyland-abuja',
+          domain:        'abuja.easyland.com',
           databaseUrl:   tenantDbUrl,
           type:          'SUBSIDIARY',
           parentId:      parent.id,

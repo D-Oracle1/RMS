@@ -1,7 +1,7 @@
 {
-  "name": "@livora/shared",
+  "name": "@easyland/shared",
   "version": "1.0.0",
-  "description": "Shared types, constants and utilities for Livora OS",
+  "description": "Shared types, constants and utilities for Easyland",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {

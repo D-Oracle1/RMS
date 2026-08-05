@@ -114,8 +114,8 @@ async function bootstrap() {
   if (nodeEnv !== 'production') {
     const { DocumentBuilder, SwaggerModule } = await import('@nestjs/swagger');
     const config = new DocumentBuilder()
-      .setTitle('Livora OS API')
-      .setDescription('Livora OS - Enterprise PropTech Platform API')
+      .setTitle('Easyland API')
+      .setDescription('Easyland - Enterprise PropTech Platform API')
       .setVersion('1.0')
       .addBearerAuth(
         {
@@ -152,7 +152,7 @@ async function bootstrap() {
   await app.listen(port);
 
   console.log(`
-  Livora OS
+  Easyland
   Environment: ${nodeEnv}
   Server running on: http://localhost:${port}
   API Documentation: http://localhost:${port}/api/docs
