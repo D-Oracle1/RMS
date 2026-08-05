@@ -441,9 +441,13 @@ export default function SalesPage() {
     setReportSelectedRealtorId('');
     setReportForm({
       buyerFirstName: '', buyerLastName: '', buyerEmail: '', buyerPhone: '',
-      sqmSold: String(property.area || 0),
+      // Start the sale-specific figures EMPTY — never prefill the whole property.
+      // pricePerSqm is kept only as an editable suggestion; the actual plots and
+      // total are entered explicitly so a partial/negotiated sale can't be
+      // silently recorded at the full-estate value.
+      sqmSold: isLand ? '' : String(property.area || 0),
       pricePerSqm: String(ppsqm),
-      totalAmount: isLand && ppsqm > 0 ? String(ppsqm * (property.area || 0)) : String(Number(property.price) || 0),
+      totalAmount: '',
       notes: '', paymentMethod: 'BANK_TRANSFER', paymentPlan: 'FULL',
       numberOfPlots: '1',
       numberOfInstallments: '2', firstPaymentAmount: '',
@@ -455,10 +459,17 @@ export default function SalesPage() {
   const updateReportForm = (field: string, value: string) => {
     setReportForm(prev => {
       const updated = { ...prev, [field]: value };
-      if (reportSelectedProperty?.type === 'LAND' && (field === 'sqmSold' || field === 'pricePerSqm')) {
-        const sqm = parseFloat(field === 'sqmSold' ? value : updated.sqmSold) || 0;
-        const price = parseFloat(field === 'pricePerSqm' ? value : updated.pricePerSqm) || 0;
-        updated.totalAmount = (sqm * price).toString();
+      // For LAND, the number of plots is the primary driver: it sets the size
+      // (1 plot = 1 unit in the "plot" area unit) and, together with the
+      // price-per-plot, the total. Editing size or price recomputes the total.
+      // Editing the total directly leaves it as a negotiated override.
+      if (reportSelectedProperty?.type === 'LAND' && (field === 'numberOfPlots' || field === 'sqmSold' || field === 'pricePerSqm')) {
+        if (field === 'numberOfPlots' && reportAreaUnit === 'plot') {
+          updated.sqmSold = value;
+        }
+        const sqm = parseFloat(updated.sqmSold) || 0;
+        const price = parseFloat(updated.pricePerSqm) || 0;
+        updated.totalAmount = sqm > 0 && price > 0 ? (sqm * price).toString() : updated.totalAmount;
       }
       return updated;
     });
@@ -662,7 +673,7 @@ export default function SalesPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                      <p className="text-lg font-bold text-[#2b1464]">{formatCurrency(sale.amount)}</p>
+                      <p className="text-lg font-bold text-[#22c55e]">{formatCurrency(sale.amount)}</p>
                       <div className="flex flex-wrap gap-1">
                         <Button
                           size="sm"
@@ -675,7 +686,7 @@ export default function SalesPage() {
                         </Button>
                         <Button
                           size="sm"
-                          className="h-8 bg-[#2b1464] hover:bg-[#1e0e47]"
+                          className="h-8 bg-[#16a34a] hover:bg-[#15803d]"
                           onClick={() => handleConfirmSale(sale.id)}
                           disabled={processingId === sale.id}
                         >
@@ -992,8 +1003,8 @@ export default function SalesPage() {
                 </div>
 
                 {/* Sale Details */}
-                <div className="p-4 bg-[#2b1464]/5 rounded-lg border border-[#2b1464]/20">
-                  <h4 className="font-semibold mb-3 flex items-center gap-2 text-[#2b1464]">
+                <div className="p-4 bg-[#22c55e]/5 rounded-lg border border-[#22c55e]/20">
+                  <h4 className="font-semibold mb-3 flex items-center gap-2 text-[#22c55e]">
                     <NairaSign className="w-4 h-4" />
                     Sale Breakdown
                   </h4>
@@ -1016,7 +1027,7 @@ export default function SalesPage() {
                     )}
                     <div>
                       <p className="text-xs text-muted-foreground">Total Amount</p>
-                      <p className="text-xl font-bold text-[#2b1464]">{formatCurrency(selectedSale.amount)}</p>
+                      <p className="text-xl font-bold text-[#22c55e]">{formatCurrency(selectedSale.amount)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Commission</p>
@@ -1128,7 +1139,7 @@ export default function SalesPage() {
                       Reject
                     </Button>
                     <Button
-                      className="flex-1 bg-[#2b1464] hover:bg-[#1e0e47]"
+                      className="flex-1 bg-[#16a34a] hover:bg-[#15803d]"
                       onClick={() => handleConfirmSale(selectedSale.id)}
                       disabled={processingId === selectedSale.id}
                     >
@@ -1487,12 +1498,9 @@ export default function SalesPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label>Total Sale Amount (₦) *</Label>
-                    {reportSelectedProperty?.type === 'LAND' ? (
-                      <div className="px-3 py-2 bg-primary/10 border border-primary/20 rounded-md text-lg font-bold text-primary">
-                        {formatCurrency(parseFloat(reportForm.totalAmount) || 0)}
-                      </div>
-                    ) : (
-                      <Input type="number" value={reportForm.totalAmount} onChange={(e) => updateReportForm('totalAmount', e.target.value)} />
+                    <Input type="number" value={reportForm.totalAmount} onChange={(e) => updateReportForm('totalAmount', e.target.value)} placeholder="Auto-fills from plots × price — edit for a negotiated total" />
+                    {reportSelectedProperty?.type === 'LAND' && parseFloat(reportForm.totalAmount) > 0 && (
+                      <p className="text-xs text-muted-foreground">{formatCurrency(parseFloat(reportForm.totalAmount) || 0)}</p>
                     )}
                   </div>
                   {reportSelectedProperty?.type === 'LAND' && (

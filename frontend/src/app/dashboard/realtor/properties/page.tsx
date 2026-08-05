@@ -184,11 +184,11 @@ export default function RealtorPropertiesPage() {
       buyerPhone: '',
       buyerAddress: '',
       plotsSold: '1',
-      sqmSold: String(property.area || 0),
+      // Never prefill the whole property. Size and total start empty and must be
+      // entered for the actual plots sold; price-per-plot is only a suggestion.
+      sqmSold: isLand ? '' : String(property.area || 0),
       pricePerSqm: String(storedPricePerSqm),
-      totalAmount: isLand && storedPricePerSqm > 0
-        ? String(storedPricePerSqm * (property.area || 0))
-        : String(Number(property.price) || 0),
+      totalAmount: '',
       paymentMethod: 'BANK_TRANSFER',
       notes: '',
       paymentPlan: 'FULL',
@@ -354,7 +354,7 @@ export default function RealtorPropertiesPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
-                      <p className="text-lg font-bold text-[#2b1464]">{formatCurrency(Number(sale.salePrice))}</p>
+                      <p className="text-lg font-bold text-[#22c55e]">{formatCurrency(Number(sale.salePrice))}</p>
                       <Badge className={
                         sale.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
                         sale.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
@@ -472,7 +472,7 @@ export default function RealtorPropertiesPage() {
                         <div className="flex gap-2">
                           {isAvailable && (
                             <Button
-                              className="bg-[#2b1464] hover:bg-[#1e0e47]"
+                              className="bg-[#16a34a] hover:bg-[#15803d]"
                               onClick={() => openReportSale(property)}
                             >
                               <CheckCircle className="w-4 h-4 mr-2" />
@@ -500,7 +500,7 @@ export default function RealtorPropertiesPage() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-[#2b1464]" />
+              <CheckCircle className="w-5 h-5 text-[#22c55e]" />
               Report Sale
             </DialogTitle>
             <DialogDescription>
@@ -510,8 +510,8 @@ export default function RealtorPropertiesPage() {
 
           <div className="grid gap-6 py-4">
             {/* Property Summary */}
-            <div className="p-4 bg-[#2b1464]/5 border border-[#2b1464]/20 rounded-lg">
-              <h4 className="font-semibold text-[#2b1464] mb-2">Property Details</h4>
+            <div className="p-4 bg-[#22c55e]/5 border border-[#22c55e]/20 rounded-lg">
+              <h4 className="font-semibold text-[#22c55e] mb-2">Property Details</h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-muted-foreground">Type</p>
@@ -606,7 +606,7 @@ export default function RealtorPropertiesPage() {
                     onClick={() => updateSaleForm('paymentPlan', 'FULL')}
                     className={`flex-1 py-2 px-4 rounded-lg border-2 text-sm font-medium transition-all ${
                       saleForm.paymentPlan === 'FULL'
-                        ? 'border-[#2b1464] bg-[#2b1464]/10 text-[#2b1464]'
+                        ? 'border-[#22c55e] bg-[#22c55e]/10 text-[#22c55e]'
                         : 'border-gray-200 text-gray-500 hover:border-gray-300'
                     }`}
                   >
@@ -703,16 +703,14 @@ export default function RealtorPropertiesPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Total Sale Amount (₦) *</Label>
-                  {isLandProperty ? (
-                    <div className="px-3 py-2 bg-[#2b1464]/10 border border-[#2b1464]/20 rounded-md text-lg font-bold text-[#2b1464]">
-                      {formatCurrency(parseFloat(saleForm.totalAmount) || 0)}
-                    </div>
-                  ) : (
-                    <Input
-                      type="number"
-                      value={saleForm.totalAmount}
-                      onChange={(e) => updateSaleForm('totalAmount', e.target.value)}
-                    />
+                  <Input
+                    type="number"
+                    value={saleForm.totalAmount}
+                    onChange={(e) => updateSaleForm('totalAmount', e.target.value)}
+                    placeholder="Auto-fills from size × price — edit for a negotiated total"
+                  />
+                  {isLandProperty && parseFloat(saleForm.totalAmount) > 0 && (
+                    <p className="text-xs text-muted-foreground">{formatCurrency(parseFloat(saleForm.totalAmount) || 0)}</p>
                   )}
                 </div>
                 {isLandProperty && (
@@ -754,7 +752,7 @@ export default function RealtorPropertiesPage() {
                     Buyer: {saleForm.buyerFirstName} {saleForm.buyerLastName}
                   </p>
                 </div>
-                <p className="text-2xl font-bold text-[#2b1464]">
+                <p className="text-2xl font-bold text-[#22c55e]">
                   {formatCurrency(parseFloat(saleForm.totalAmount) || 0)}
                 </p>
               </div>
@@ -784,7 +782,7 @@ export default function RealtorPropertiesPage() {
               Cancel
             </Button>
             <Button
-              className="bg-[#2b1464] hover:bg-[#1e0e47]"
+              className="bg-[#16a34a] hover:bg-[#15803d]"
               onClick={handleSubmitSale}
               disabled={isSubmitting}
             >
