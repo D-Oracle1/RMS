@@ -45,12 +45,19 @@ export async function GET(req: NextRequest) {
           if (pwa.themeColor) themeColor = pwa.themeColor;
           if (pwa.bgColor) bgColor = pwa.bgColor;
           if (pwa.splashAnimation) splashAnimation = pwa.splashAnimation;
-          if (pwa.splashLogo) {
-            icons = [
-              { src: pwa.splashLogo, sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-              ...DEFAULT_ICONS,
-            ];
-          }
+        }
+
+        // Put the tenant's logo first so the install icon and the launch splash
+        // (Android derives it from name + background_color + the first icon) use
+        // the company branding. Tenant logos are marked `any` — not `maskable` —
+        // because a bare logo has no safe-zone padding and would be cropped by
+        // Android's adaptive-icon mask. The default 512 keeps the maskable slot.
+        const brandLogo = pwa?.splashLogo || company?.logo;
+        if (brandLogo) {
+          icons = [
+            { src: brandLogo, sizes: '512x512', type: 'image/png', purpose: 'any' },
+            ...DEFAULT_ICONS,
+          ];
         }
       }
     } catch {

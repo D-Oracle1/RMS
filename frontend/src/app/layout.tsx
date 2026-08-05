@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { SupportChatWidget } from '@/components/support/support-chat-widget';
 import { BrandingTitle } from '@/components/branding-title';
 import { BrandingGate } from '@/components/branding-gate';
+import { PWASplashScreen } from '@/components/pwa-splash-screen';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -37,15 +38,16 @@ export const metadata: Metadata = {
     description: APP_DESCRIPTION,
   },
   icons: {
+    // Dynamic favicon resolves to the current tenant's company logo (by host),
+    // with the static favicon as a fallback.
     icon: [
+      { url: '/api/favicon', type: 'image/png' },
       { url: '/favicon.ico' },
-      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
-      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
     ],
+    shortcut: [{ url: '/api/favicon' }],
     apple: [
+      { url: '/api/favicon' },
       { url: '/apple-touch-icon.png' },
-      { url: '/icons/icon-152x152.png', sizes: '152x152' },
-      { url: '/icons/icon-192x192.png', sizes: '180x180' },
     ],
   },
   other: {
@@ -76,6 +78,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <Providers>
+          <PWASplashScreen />
           <BrandingGate>
             <BrandingTitle />
             {children}
