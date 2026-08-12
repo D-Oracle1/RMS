@@ -7,6 +7,7 @@ import { SupportChatWidget } from '@/components/support/support-chat-widget';
 import { BrandingTitle } from '@/components/branding-title';
 import { BrandingGate } from '@/components/branding-gate';
 import { PWASplashScreen } from '@/components/pwa-splash-screen';
+import { CacheReset } from '@/components/cache-reset';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -77,6 +78,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <CacheReset />
         <Providers>
           <PWASplashScreen />
           <BrandingGate>

@@ -1,57 +1,93 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useBranding } from '@/hooks/use-branding';
+import { useEffect, useRef, useState } from 'react';
+import { useBranding, ensureBranding } from '@/hooks/use-branding';
 import { getImageUrl } from '@/lib/api';
 
 /**
  * Branded launch splash for the installed PWA.
  *
- * Shows the company logo on the brand background when the app is opened in
- * standalone (installed) mode, then fades out once the page has loaded. On
- * repeat launches the logo is already in the branding cache (localStorage),
- * so it paints instantly with no flash. Plain web visits are left untouched.
+ * Shows the company logo (the dark-green lemon-leaf brand mark) on the brand
+ * background when the app is opened in standalone (installed) mode, then fades
+ * out once the page has loaded AND the logo is available. On the very first
+ * launch the branding cache may be empty, so we explicitly fetch it and hold
+ * the splash (up to a hard cap) until the real logo can paint — that way the
+ * user never sees a blank placeholder instead of the brand. Plain web visits
+ * are left untouched.
  */
 export function PWASplashScreen() {
   const branding = useBranding();
   const [visible, setVisible] = useState(false);
   const [leaving, setLeaving] = useState(false);
-
-  useEffect(() => {
-    const isStandalone =
-      window.matchMedia?.('(display-mode: standalone)').matches ||
-      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
-
-    // Only for the installed PWA, and only once per app session.
-    if (!isStandalone || sessionStorage.getItem('pwa_splash_shown')) return;
-    sessionStorage.setItem('pwa_splash_shown', '1');
-    setVisible(true);
-
-    const MIN_MS = 700; // keep the logo on screen long enough to register
-    const FADE_MS = 400;
-    const start = Date.now();
-
-    const finish = () => {
-      const wait = Math.max(0, MIN_MS - (Date.now() - start));
-      window.setTimeout(() => {
-        setLeaving(true);
-        window.setTimeout(() => setVisible(false), FADE_MS);
-      }, wait);
-    };
-
-    if (document.readyState === 'complete') finish();
-    else window.addEventListener('load', finish, { once: true });
-    return () => window.removeEventListener('load', finish);
-  }, []);
-
-  if (!visible) return null;
+  const startRef = useRef(0);
+  const doneRef = useRef(false);
 
   const logo = branding.logo
     ? branding.logo.startsWith('http')
       ? branding.logo
       : getImageUrl(branding.logo)
     : null;
-  const accent = branding.primaryColor || '#22c55e';
+  const accent = branding.primaryColor || '#0b5c46';
+
+  // Decide whether to show the splash (installed PWA, once per app session).
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia?.('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+
+    if (!isStandalone || sessionStorage.getItem('pwa_splash_shown')) return;
+    sessionStorage.setItem('pwa_splash_shown', '1');
+
+    // Kick off a branding fetch so the real logo is ready as soon as possible.
+    ensureBranding();
+    startRef.current = Date.now();
+    setVisible(true);
+  }, []);
+
+  // Fade the splash out once the page is loaded and the logo is on screen —
+  // but never hold longer than MAX_MS so a failed fetch can't trap the user.
+  useEffect(() => {
+    if (!visible || doneRef.current) return;
+
+    const MIN_MS = 800; // keep the logo up long enough to register
+    const MAX_MS = 3000; // hard ceiling — always release the splash
+    const FADE_MS = 400;
+
+    const beginLeave = () => {
+      if (doneRef.current) return;
+      doneRef.current = true;
+      setLeaving(true);
+      window.setTimeout(() => setVisible(false), FADE_MS);
+    };
+
+    // Absolute safety cap.
+    const cap = window.setTimeout(beginLeave, MAX_MS);
+
+    const pageReady = document.readyState === 'complete';
+    const logoReady = !!logo;
+
+    // Release once the window has loaded and the brand logo can paint.
+    if (pageReady && logoReady) {
+      const wait = Math.max(0, MIN_MS - (Date.now() - startRef.current));
+      const t = window.setTimeout(beginLeave, wait);
+      return () => {
+        window.clearTimeout(cap);
+        window.clearTimeout(t);
+      };
+    }
+
+    // Not ready yet: re-run this effect when the window finishes loading.
+    // (Logo readiness re-runs it via the `logo` dependency.)
+    const onLoad = () => setVisible((v) => v); // nudge a re-render
+    if (!pageReady) window.addEventListener('load', onLoad, { once: true });
+
+    return () => {
+      window.clearTimeout(cap);
+      window.removeEventListener('load', onLoad);
+    };
+  }, [visible, logo]);
+
+  if (!visible) return null;
 
   return (
     <div
